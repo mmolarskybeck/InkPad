@@ -58,7 +58,7 @@ export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditor
         }
       });
 
-      // Create editor
+      // Create editor with explicit dimensions
       monacoEditor.current = monaco.editor.create(editorRef.current, {
         value,
         language: 'ink',
@@ -70,7 +70,19 @@ export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditor
         scrollBeyondLastLine: false,
         automaticLayout: true,
         wordWrap: 'on',
+        renderWhitespace: 'selection',
+        renderControlCharacters: true,
+        folding: true,
+        lineDecorationsWidth: 20,
+        lineNumbersMinChars: 3,
       });
+
+      // Force initial layout
+      setTimeout(() => {
+        if (monacoEditor.current) {
+          monacoEditor.current.layout();
+        }
+      }, 100);
 
       // Handle content changes
       monacoEditor.current.onDidChangeModelContent(() => {
@@ -124,7 +136,7 @@ export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditor
           <span>UTF-8</span>
         </div>
       </div>
-      <div ref={editorRef} className="flex-1" />
+      <div ref={editorRef} className="flex-1 min-h-0" style={{ minHeight: '400px' }} />
     </div>
   );
 }

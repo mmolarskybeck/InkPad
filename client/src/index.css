@@ -146,3 +146,21 @@
     color: var(--syntax-number);
   }
 }
+
+/* Ensure resizable panels take full height */
+.data-\[panel-group-direction\=horizontal\] {
+  height: 100%;
+}
+
+.data-\[panel-group-direction\=vertical\] {
+  width: 100%;
+}
+
+/* Monaco Editor container fixes */
+.monaco-editor {
+  min-height: 400px !important;
+}
+
+.monaco-editor .overflow-guard {
+  position: relative !important;
+}

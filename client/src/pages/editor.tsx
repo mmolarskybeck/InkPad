@@ -74,42 +74,50 @@ export default function Editor() {
         onRestart={handleRestart}
       />
       
-      <div className="flex-1 flex flex-col">
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <MonacoEditor
-              value={code}
-              onChange={handleCodeChange}
-              errors={errors}
-              fileName={currentFile}
-            />
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* Main editor and preview panels */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+          <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
+            <div className="h-full">
+              <MonacoEditor
+                value={code}
+                onChange={handleCodeChange}
+                errors={errors}
+                fileName={currentFile}
+              />
+            </div>
           </ResizablePanel>
           
           <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
           
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <StoryPreview
-              storyState={storyState}
-              isRunning={isRunning}
-              onMakeChoice={makeChoice}
-            />
+          <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
+            <div className="h-full">
+              <StoryPreview
+                storyState={storyState}
+                isRunning={isRunning}
+                onMakeChoice={makeChoice}
+              />
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
         
-        <ResizablePanelGroup direction="horizontal" className="h-64 border-t border-border-color">
-          <ResizablePanel defaultSize={70} minSize={40}>
-            <ErrorPanel errors={errors} onErrorClick={(line) => {
-              // TODO: Jump to error line in editor
-              console.log(`Jump to line ${line}`);
-            }} />
-          </ResizablePanel>
-          
-          <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
-          
-          <ResizablePanel defaultSize={30} minSize={20}>
-            <VariableInspector variables={variables} />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        {/* Bottom panels for errors and variables */}
+        <div className="h-64 border-t border-border-color">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={70} minSize={40}>
+              <ErrorPanel errors={errors} onErrorClick={(line) => {
+                // TODO: Jump to error line in editor
+                console.log(`Jump to line ${line}`);
+              }} />
+            </ResizablePanel>
+            
+            <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
+            
+            <ResizablePanel defaultSize={30} minSize={20}>
+              <VariableInspector variables={variables} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
       </div>
     </div>
   );

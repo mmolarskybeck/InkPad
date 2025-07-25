@@ -34,7 +34,7 @@ export function StoryPreview({ storyState, isRunning, onMakeChoice }: StoryPrevi
         </div>
       </div>
       
-      <div className="flex-1 bg-gray-900 p-6 overflow-auto">
+      <div className="flex-1 bg-editor-bg p-6 overflow-auto min-h-0">
         <div className="max-w-2xl mx-auto space-y-4">
           {storyState ? (
             <>
