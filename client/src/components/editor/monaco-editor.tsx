@@ -7,9 +7,10 @@ interface MonacoEditorProps {
   onChange: (value: string) => void;
   errors: Array<{ line: number; message: string; column?: number }>;
   fileName: string;
+  onNavigateToLine?: (lineNumber: number) => void;
 }
 
-export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditorProps) {
+export function MonacoEditor({ value, onChange, errors, fileName, onNavigateToLine }: MonacoEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -83,6 +84,18 @@ export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditor
           monacoEditor.current.layout();
         }
       }, 100);
+
+      // Set up callback for navigation
+      if (onNavigateToLine) {
+        // This function will be called to jump to a specific line
+        (window as any).jumpToLine = (lineNumber: number) => {
+          if (monacoEditor.current) {
+            monacoEditor.current.revealLineInCenter(lineNumber);
+            monacoEditor.current.setPosition({ lineNumber, column: 1 });
+            monacoEditor.current.focus();
+          }
+        };
+      }
 
       // Handle content changes
       monacoEditor.current.onDidChangeModelContent(() => {

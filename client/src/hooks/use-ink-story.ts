@@ -171,6 +171,24 @@ export function useInkStory() {
     }
   }, [isRunning, updateStoryState]);
 
+  const jumpToKnot = useCallback((knotName: string) => {
+    if (currentStory.current && isRunning) {
+      try {
+        // In inkjs, we can use ChoosePathString to jump to a knot
+        currentStory.current.ChoosePathString(knotName);
+        updateStoryState(currentStory.current);
+        updateVariables(currentStory.current);
+      } catch (error) {
+        console.error('Error jumping to knot:', error);
+        setErrors([{
+          line: 1,
+          message: 'Error jumping to knot "' + knotName + '": ' + (error as Error).message,
+          type: 'error'
+        }]);
+      }
+    }
+  }, [isRunning, updateStoryState, updateVariables]);
+
   return {
     story,
     storyState,
@@ -181,6 +199,7 @@ export function useInkStory() {
     runStory,
     restartStory,
     makeChoice,
-    compileStory
+    compileStory,
+    jumpToKnot
   };
 }

@@ -23,7 +23,8 @@ export default function Editor() {
     runStory,
     restartStory,
     makeChoice,
-    compileStory
+    compileStory,
+    jumpToKnot
   } = useInkStory();
 
   const handleCodeChange = useCallback((newCode: string) => {
@@ -60,6 +61,29 @@ export default function Editor() {
     compileStory(SAMPLE_STORY);
   }, [compileStory]);
 
+  const handleNavigateToKnot = useCallback((knotName: string) => {
+    // Jump to knot in editor - find the line with "=== knotName ==="
+    const lines = code.split('\n');
+    const knotLineIndex = lines.findIndex(line => 
+      line.trim() === `=== ${knotName} ===`
+    );
+    
+    if (knotLineIndex !== -1) {
+      // Jump to line in Monaco Editor (line numbers are 1-based)
+      const lineNumber = knotLineIndex + 1;
+      console.log(`Jump to line ${lineNumber} for knot ${knotName}`);
+      // Use the global jumpToLine function set up by Monaco Editor
+      if ((window as any).jumpToLine) {
+        (window as any).jumpToLine(lineNumber);
+      }
+    }
+    
+    // Also jump to knot in story preview if running
+    if (isRunning) {
+      jumpToKnot(knotName);
+    }
+  }, [code, isRunning, jumpToKnot]);
+
   return (
     <div className="h-screen flex flex-col bg-editor-bg text-text-primary">
       <TopMenu
@@ -72,6 +96,7 @@ export default function Editor() {
         onLoad={handleLoad}
         onRun={handleRun}
         onRestart={handleRestart}
+        onNavigateToKnot={handleNavigateToKnot}
       />
       
       <div className="flex-1 flex flex-col min-h-0">
@@ -84,6 +109,7 @@ export default function Editor() {
                 onChange={handleCodeChange}
                 errors={errors}
                 fileName={currentFile}
+                onNavigateToLine={() => {}}
               />
             </div>
           </ResizablePanel>

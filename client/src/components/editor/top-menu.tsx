@@ -15,6 +15,7 @@ interface TopMenuProps {
   onLoad: (fileName: string, content: string) => void;
   onRun: () => void;
   onRestart: () => void;
+  onNavigateToKnot?: (knotName: string) => void;
 }
 
 export function TopMenu({
@@ -26,7 +27,8 @@ export function TopMenu({
   onSave,
   onLoad,
   onRun,
-  onRestart
+  onRestart,
+  onNavigateToKnot
 }: TopMenuProps) {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
@@ -65,9 +67,8 @@ export function TopMenu({
   };
 
   const handleKnotNavigation = (knotName: string) => {
-    if (knotName) {
-      // TODO: Jump to knot in editor
-      console.log(`Navigate to knot: ${knotName}`);
+    if (knotName && onNavigateToKnot) {
+      onNavigateToKnot(knotName);
     }
   };
 
@@ -187,12 +188,7 @@ export function TopMenu({
             <RotateCcw className="w-3 h-3" />
           </Button>
           
-          {isRunning && (
-            <div className="flex items-center text-xs text-success">
-              <Circle className="w-2 h-2 mr-1 fill-current" />
-              Running
-            </div>
-          )}
+
         </div>
       </div>
     </div>
