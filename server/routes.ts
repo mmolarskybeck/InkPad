@@ -4,7 +4,59 @@ import { storage } from "./storage";
 import { insertStorySchema } from "@shared/schema";
 import { z } from "zod";
 
+// Import inkjs compiler for server-side compilation
+import * as inkjs from 'inkjs/full';
+
+async function compileInkSource(inkSource: string): Promise<{ compiled?: any; error?: string }> {
+  try {
+    // Use inkjs built-in compiler to compile Ink source directly
+    const compiler = new inkjs.Compiler(inkSource);
+    const story = compiler.Compile();
+    
+    // Convert compiled story to JSON
+    const compiledJson = story.ToJson();
+    if (!compiledJson) {
+      return { error: "Failed to compile story to JSON" };
+    }
+    const compiled = JSON.parse(compiledJson);
+    
+    return { compiled };
+  } catch (error) {
+    // Extract meaningful error message from inkjs compiler
+    let errorMessage = (error as Error).message;
+    
+    // Try to parse line numbers and make error more user-friendly
+    if (errorMessage.includes('ERROR:')) {
+      errorMessage = errorMessage.replace(/^ERROR:\s*/, '');
+    }
+    
+    return { error: errorMessage };
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Ink compilation endpoint
+  app.post("/api/compile", async (req, res) => {
+    try {
+      const { source } = req.body;
+      
+      if (!source || typeof source !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid 'source' parameter" });
+      }
+
+      const result = await compileInkSource(source);
+      
+      if (result.error) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ compiled: result.compiled });
+    } catch (error) {
+      console.error('Compilation error:', error);
+      res.status(500).json({ error: "Internal server error during compilation" });
+    }
+  });
+
   // Story management routes (stubbed for future expansion)
   
   app.get("/api/stories", async (req, res) => {

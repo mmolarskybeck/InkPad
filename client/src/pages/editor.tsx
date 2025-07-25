@@ -32,8 +32,8 @@ export default function Editor() {
     compileStory(newCode);
   }, [compileStory]);
 
-  const handleRun = useCallback(() => {
-    runStory(code);
+  const handleRun = useCallback(async () => {
+    await runStory(code);
   }, [code, runStory]);
 
   const handleRestart = useCallback(() => {

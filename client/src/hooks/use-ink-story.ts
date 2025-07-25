@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Story } from 'inkjs';
-import { compileInkScript, type InkError } from '@/lib/ink-compiler';
+import { compileInkScript, compileInkScriptSync, type InkError } from '@/lib/ink-compiler';
 import { debounce } from 'lodash';
 
 interface StoryState {
@@ -81,8 +81,8 @@ export function useInkStory() {
   }, []);
 
   const debouncedCompile = useCallback(
-    debounce((inkText: string) => {
-      const result = compileInkScript(inkText);
+    debounce(async (inkText: string) => {
+      const result = await compileInkScript(inkText);
       setErrors(result.errors);
       setKnots(result.knots);
       
@@ -98,8 +98,8 @@ export function useInkStory() {
     debouncedCompile(inkText);
   }, [debouncedCompile]);
 
-  const runStory = useCallback((inkText: string) => {
-    const result = compileInkScript(inkText);
+  const runStory = useCallback(async (inkText: string) => {
+    const result = await compileInkScript(inkText);
     
     if (result.errors.length > 0) {
       setErrors(result.errors);

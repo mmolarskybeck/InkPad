@@ -13,7 +13,63 @@ export interface CompiledStory {
   knots: string[];
 }
 
-export function compileInkScript(inkText: string): CompiledStory {
+export async function compileInkScript(inkText: string): Promise<CompiledStory> {
+  try {
+    // First, try to compile on the backend
+    const response = await fetch('/api/compile', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ source: inkText })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      // Parse the error and extract line information
+      const parsedError = parseInkError(new Error(result.error || 'Compilation failed'), inkText);
+      return {
+        story: null,
+        errors: [parsedError],
+        knots: extractKnots(inkText)
+      };
+    }
+
+    // Create story from compiled JSON
+    const story = new Story(result.compiled);
+    const knots = extractKnots(inkText);
+    
+    return {
+      story,
+      errors: [],
+      knots
+    };
+  } catch (error) {
+    // Fallback: try client-side compilation (will likely fail for raw Ink)
+    try {
+      const story = new Story(inkText);
+      const knots = extractKnots(inkText);
+      
+      return {
+        story,
+        errors: [],
+        knots
+      };
+    } catch (clientError) {
+      const parsedError = parseInkError(error as Error, inkText);
+      
+      return {
+        story: null,
+        errors: [parsedError],
+        knots: extractKnots(inkText)
+      };
+    }
+  }
+}
+
+// Keep the synchronous version for backward compatibility
+export function compileInkScriptSync(inkText: string): CompiledStory {
   try {
     const story = new Story(inkText);
     

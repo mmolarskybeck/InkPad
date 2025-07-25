@@ -15,6 +15,14 @@ export function MonacoEditor({ value, onChange, errors, fileName }: MonacoEditor
 
   useEffect(() => {
     if (editorRef.current && !monacoEditor.current) {
+      // Configure Monaco environment to avoid worker issues
+      (self as any).MonacoEnvironment = {
+        getWorker: function (_: any, label: string) {
+          // Return null to disable web workers
+          return null;
+        }
+      };
+
       // Register Ink language
       monaco.languages.register({ id: 'ink' });
       
