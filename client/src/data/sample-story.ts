@@ -1,22 +1,30 @@
-export const SAMPLE_STORY = `VAR player_name = "Alex"
-VAR health = 100
-VAR current_knot = "start"
-VAR turn_count = 0
+export const SAMPLE_STORY = `LONDON, 1872
+Residence of Monsieur Phileas Fogg.
+-> london
 
-=== start ===
-You wake up in a dark forest. The trees tower above you, their branches creaking in the wind.
+=== london ===
+Monsieur Phileas Fogg returned home early from the Reform Club, and in a new-fangled steam-carriage, besides!  
+"Passepartout," said he. "We are going around the world!"
 
-~ turn_count++
++ "Around the world, Monsieur?"
+    I was utterly astonished. 
+    -> astonished
++ [Nod curtly.] -> nod
 
-{ health > 80:
-    Your body feels strong and ready for whatever lies ahead.
-- else:
-    You feel weak and disoriented.
-}
+=== astonished ===
+"You are in jest!" I told him in dignified affront. "You make mock of me, Monsieur."
+"I am quite serious."
 
-* [Look around] -> look_around
-* [Call out] -> call_out  
-* [Stay still] -> stay_still
++ "But of course"
+    -> ending
+
+=== nod ===
+I nodded curtly, not believing a word of it.
+-> ending
+
+=== ending ===
+"We shall circumnavigate the globe within eighty days." He was quite calm as he proposed this wild scheme. "We leave for Paris on the 8:25. In an hour."
+-> END
 
 === look_around ===
 ~ current_knot = "look_around"

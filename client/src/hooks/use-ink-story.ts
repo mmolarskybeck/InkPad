@@ -55,29 +55,59 @@ export function useInkStory() {
   }, []);
 
   const updateVariables = useCallback((inkStory: Story) => {
-    const variableNames = inkStory.variablesState.globalVariableNames;
-    const vars: InkVariable[] = [];
-    
-    for (const varName of variableNames) {
-      const value = inkStory.variablesState.$(varName);
-      let type: InkVariable['type'] = 'string';
+    try {
+      const variableNames = inkStory.variablesState.globalVariableNames;
+      const vars: InkVariable[] = [];
       
-      if (typeof value === 'number') {
-        type = 'number';
-      } else if (typeof value === 'boolean') {
-        type = 'boolean';
-      } else if (Array.isArray(value)) {
-        type = 'list';
+      // Check if variableNames is iterable
+      if (variableNames && typeof variableNames[Symbol.iterator] === 'function') {
+        for (const varName of variableNames) {
+          const value = inkStory.variablesState.$(varName);
+          let type: InkVariable['type'] = 'string';
+          
+          if (typeof value === 'number') {
+            type = 'number';
+          } else if (typeof value === 'boolean') {
+            type = 'boolean';
+          } else if (Array.isArray(value)) {
+            type = 'list';
+          }
+          
+          vars.push({
+            name: varName,
+            value,
+            type
+          });
+        }
+      } else if (variableNames && typeof variableNames === 'object') {
+        // Handle case where variableNames might be an object instead of array
+        for (const varName in variableNames) {
+          if (variableNames.hasOwnProperty(varName)) {
+            const value = inkStory.variablesState.$(varName);
+            let type: InkVariable['type'] = 'string';
+            
+            if (typeof value === 'number') {
+              type = 'number';
+            } else if (typeof value === 'boolean') {
+              type = 'boolean';
+            } else if (Array.isArray(value)) {
+              type = 'list';
+            }
+            
+            vars.push({
+              name: varName,
+              value,
+              type
+            });
+          }
+        }
       }
       
-      vars.push({
-        name: varName,
-        value,
-        type
-      });
+      setVariables(vars);
+    } catch (error) {
+      console.warn('Error updating variables:', error);
+      setVariables([]);
     }
-    
-    setVariables(vars);
   }, []);
 
   const debouncedCompile = useCallback(

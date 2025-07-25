@@ -25,9 +25,18 @@ async function compileInkSource(inkSource: string): Promise<{ compiled?: any; er
     // Extract meaningful error message from inkjs compiler
     let errorMessage = (error as Error).message;
     
+    console.error('Ink compilation error:', error);
+    
     // Try to parse line numbers and make error more user-friendly
     if (errorMessage.includes('ERROR:')) {
       errorMessage = errorMessage.replace(/^ERROR:\s*/, '');
+    }
+    
+    // Handle common inkjs compilation errors
+    if (errorMessage.includes('Unexpected token')) {
+      errorMessage = 'Syntax error: ' + errorMessage;
+    } else if (errorMessage.includes('is not defined')) {
+      errorMessage = 'Reference error: ' + errorMessage;
     }
     
     return { error: errorMessage };
