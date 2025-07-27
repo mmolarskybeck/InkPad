@@ -11,6 +11,7 @@ export interface CompiledStory {
   story: Story | null;
   errors: InkError[];
   knots: string[];
+  rawJSON?: any; // The raw compiled JSON from inklecate
 }
 
 export async function compileInkScript(inkText: string): Promise<CompiledStory> {
@@ -43,7 +44,8 @@ export async function compileInkScript(inkText: string): Promise<CompiledStory> 
     return {
       story,
       errors: [],
-      knots
+      knots,
+      rawJSON: result.compiled
     };
   } catch (error) {
     // Fallback: try client-side compilation (will likely fail for raw Ink)

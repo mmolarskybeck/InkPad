@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{STORY_TITLE}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .story-container {
+            max-width: 700px;
+            width: 100%;
+            background: #252525;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            padding: 40px;
+            border: 1px solid #404040;
+        }
+
+        .story-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #404040;
+        }
+
+        .story-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4a9eff;
+            margin-bottom: 8px;
+        }
+
+        .story-subtitle {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+        }
+
+        .story-content {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            padding: 20px 0;
+        }
+
+        .story-text {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border-left: 4px solid #4a9eff;
+        }
+
+        .choices {
+            margin-top: 25px;
+        }
+
+        .choice {
+            display: block;
+            width: 100%;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            background: #333333;
+            border: 2px solid #555555;
+            border-radius: 8px;
+            color: #e8e8e8;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice:hover {
+            background: #3a3a3a;
+            border-color: #4a9eff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 158, 255, 0.2);
+        }
+
+        .choice:active {
+            transform: translateY(0);
+        }
+
+        .choice::before {
+            content: "→ ";
+            color: #4a9eff;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .restart-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .restart-btn:hover {
+            background: #3d8ae6;
+        }
+
+        .story-end {
+            text-align: center;
+            padding: 30px 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 2px solid #4a9eff;
+            margin-top: 20px;
+        }
+
+        .story-end h3 {
+            color: #4a9eff;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .error-message {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .story-container {
+                padding: 25px;
+                margin: 10px;
+            }
+
+            .story-title {
+                font-size: 1.5rem;
+            }
+
+            .story-content {
+                font-size: 1rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/inkjs@2.2.3/dist/ink.js"></script>
+</head>
+<body>
+    <div class="story-container">
+        <div class="story-header">
+            <h1 class="story-title">{{STORY_TITLE}}</h1>
+            <p class="story-subtitle">An Interactive Story</p>
+        </div>
+
+        <div id="error" class="error-message"></div>
+        
+        <div id="story-content" class="story-content">
+            <div class="story-text">Loading story...</div>
+        </div>
+
+        <div id="choices" class="choices"></div>
+
+        <div id="story-end" class="story-end" style="display: none;">
+            <h3>The End</h3>
+            <p>Thank you for playing!</p>
+            <button class="restart-btn" onclick="restartStory()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // The compiled story data will be injected here
+        const storyData = {{STORY_DATA}};
+        
+        let story;
+        let globalTags = [];
+
+        function initStory() {
+            try {
+                story = new inkjs.Story(storyData);
+                globalTags = story.globalTags;
+                continueStory();
+            } catch (error) {
+                showError('Failed to load story: ' + error.message);
+            }
+        }
+
+        function continueStory() {
+            try {
+                let content = '';
+                
+                // Continue the story until we hit choices or the end
+                while (story.canContinue) {
+                    content += story.Continue();
+                }
+
+                // Display the content
+                if (content.trim()) {
+                    document.getElementById('story-content').innerHTML = 
+                        '<div class="story-text">' + content.trim().replace(/\n/g, '<br>') + '</div>';
+                }
+
+                // Handle choices
+                const choicesDiv = document.getElementById('choices');
+                const storyEndDiv = document.getElementById('story-end');
+                
+                if (story.currentChoices && story.currentChoices.length > 0) {
+                    choicesDiv.innerHTML = '';
+                    storyEndDiv.style.display = 'none';
+                    
+                    story.currentChoices.forEach((choice, index) => {
+                        const button = document.createElement('button');
+                        button.className = 'choice';
+                        button.textContent = choice.text;
+                        button.onclick = () => makeChoice(index);
+                        choicesDiv.appendChild(button);
+                    });
+                } else {
+                    // Story has ended
+                    choicesDiv.innerHTML = '';
+                    storyEndDiv.style.display = 'block';
+                }
+            } catch (error) {
+                showError('Story error: ' + error.message);
+            }
+        }
+
+        function makeChoice(choiceIndex) {
+            try {
+                story.ChooseChoiceIndex(choiceIndex);
+                continueStory();
+            } catch (error) {
+                showError('Choice error: ' + error.message);
+            }
+        }
+
+        function restartStory() {
+            story.ResetState();
+            document.getElementById('story-end').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            continueStory();
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Initialize the story when the page loads
+        window.addEventListener('load', initStory);
+    </script>
+</body>
+</html>

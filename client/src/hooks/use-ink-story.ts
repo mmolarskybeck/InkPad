@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Story } from 'inkjs';
 import { compileInkScript, compileInkScriptSync, type InkError } from '@/lib/ink-compiler';
+import { extractInkVariables, convertToUIVariables } from '@/lib/ink-variable-utils';
 import { debounce } from 'lodash';
 
 interface StoryState {
@@ -28,6 +29,22 @@ export function useInkStory() {
   
   const currentStory = useRef<Story | null>(null);
 
+  const updateVariablesFromJSON = useCallback((compiledJSON: any) => {
+    try {
+      if (!compiledJSON) {
+        setVariables([]);
+        return;
+      }
+      
+      const inkVariables = extractInkVariables(compiledJSON);
+      const uiVariables = convertToUIVariables(inkVariables);
+      setVariables(uiVariables);
+    } catch (error) {
+      console.error('Error extracting variables from JSON:', error);
+      setVariables([]);
+    }
+  }, []);
+
   const updateStoryState = useCallback((inkStory: Story) => {
     if (!inkStory || !inkStory.canContinue && inkStory.currentChoices.length === 0) {
       setStoryState(null);
@@ -50,65 +67,12 @@ export function useInkStory() {
       canContinue: inkStory.canContinue
     });
 
-    // Update variables
-    updateVariables(inkStory);
-  }, []);
-
-  const updateVariables = useCallback((inkStory: Story) => {
-    try {
-      const variableNames = inkStory.variablesState.globalVariableNames;
-      const vars: InkVariable[] = [];
-      
-      // Check if variableNames is iterable
-      if (variableNames && typeof variableNames[Symbol.iterator] === 'function') {
-        for (const varName of variableNames) {
-          const value = inkStory.variablesState.$(varName);
-          let type: InkVariable['type'] = 'string';
-          
-          if (typeof value === 'number') {
-            type = 'number';
-          } else if (typeof value === 'boolean') {
-            type = 'boolean';
-          } else if (Array.isArray(value)) {
-            type = 'list';
-          }
-          
-          vars.push({
-            name: varName,
-            value,
-            type
-          });
-        }
-      } else if (variableNames && typeof variableNames === 'object') {
-        // Handle case where variableNames might be an object instead of array
-        for (const varName in variableNames) {
-          if (variableNames.hasOwnProperty(varName)) {
-            const value = inkStory.variablesState.$(varName);
-            let type: InkVariable['type'] = 'string';
-            
-            if (typeof value === 'number') {
-              type = 'number';
-            } else if (typeof value === 'boolean') {
-              type = 'boolean';
-            } else if (Array.isArray(value)) {
-              type = 'list';
-            }
-            
-            vars.push({
-              name: varName,
-              value,
-              type
-            });
-          }
-        }
-      }
-      
-      setVariables(vars);
-    } catch (error) {
-      console.warn('Error updating variables:', error);
-      setVariables([]);
+    // Update variables from the raw JSON if available
+    const storyData = (inkStory as any)._inkJSONData || (inkStory as any).inkJSONData || (inkStory as any)._data;
+    if (storyData) {
+      updateVariablesFromJSON(storyData);
     }
-  }, []);
+  }, [updateVariablesFromJSON]);
 
   const debouncedCompile = useCallback(
     debounce(async (inkText: string) => {
@@ -119,9 +83,15 @@ export function useInkStory() {
       if (result.story) {
         setStory(result.story);
         currentStory.current = result.story;
+        // Update variables when story is compiled (even if not running)
+        // Pass the raw JSON to make variable extraction easier
+        updateVariablesFromJSON(result.rawJSON);
+      } else {
+        // Clear variables if compilation failed
+        setVariables([]);
       }
     }, 500),
-    []
+    [updateVariablesFromJSON]
   );
 
   const compileStory = useCallback((inkText: string) => {
@@ -145,7 +115,7 @@ export function useInkStory() {
       setIsRunning(true);
       updateStoryState(result.story);
     }
-  }, [updateStoryState]);
+  }, [updateStoryState, updateVariablesFromJSON]);
 
   const restartStory = useCallback(() => {
     if (currentStory.current) {
@@ -177,7 +147,6 @@ export function useInkStory() {
         // In inkjs, we can use ChoosePathString to jump to a knot
         currentStory.current.ChoosePathString(knotName);
         updateStoryState(currentStory.current);
-        updateVariables(currentStory.current);
       } catch (error) {
         console.error('Error jumping to knot:', error);
         setErrors([{
@@ -187,7 +156,7 @@ export function useInkStory() {
         }]);
       }
     }
-  }, [isRunning, updateStoryState, updateVariables]);
+  }, [isRunning, updateStoryState]);
 
   return {
     story,

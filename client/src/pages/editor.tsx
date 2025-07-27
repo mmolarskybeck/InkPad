@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { TopMenu } from "@/components/editor/top-menu";
 import { MonacoEditor } from "@/components/editor/monaco-editor";
@@ -11,6 +11,7 @@ import { SAMPLE_STORY } from "@/data/sample-story";
 export default function Editor() {
   const [code, setCode] = useState(SAMPLE_STORY);
   const [currentFile, setCurrentFile] = useState("story.ink");
+  const [title, setTitle] = useState("story");
   const [isModified, setIsModified] = useState(false);
   
   const {
@@ -26,6 +27,13 @@ export default function Editor() {
     compileStory,
     jumpToKnot
   } = useInkStory();
+
+  // Compile the story on initial load and when code changes
+  useEffect(() => {
+    if (code) {
+      compileStory(code);
+    }
+  }, [code, compileStory]);
 
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode);
@@ -50,6 +58,9 @@ export default function Editor() {
   const handleLoad = useCallback((fileName: string, content: string) => {
     setCode(content);
     setCurrentFile(fileName);
+    // Extract title from filename
+    const titleFromFile = fileName.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
+    setTitle(titleFromFile);
     setIsModified(false);
     compileStory(content);
   }, [compileStory]);
@@ -57,9 +68,21 @@ export default function Editor() {
   const handleNew = useCallback(() => {
     setCode(SAMPLE_STORY);
     setCurrentFile("story.ink");
+    setTitle("story");
     setIsModified(false);
     compileStory(SAMPLE_STORY);
   }, [compileStory]);
+
+  const handleTitleChange = useCallback((newTitle: string) => {
+    const validTitle = newTitle.trim() || 'story';
+    setTitle(validTitle);
+    
+    // Also update the file name based on the new title
+    const newFileName = `${validTitle.replace(/\s+/g, '-').toLowerCase()}.ink`;
+    setCurrentFile(newFileName);
+    
+    setIsModified(true);
+  }, []);
 
   const handleNavigateToKnot = useCallback((knotName: string) => {
     // Jump to knot in editor - find the line with "=== knotName ==="
@@ -88,12 +111,15 @@ export default function Editor() {
     <div className="h-screen flex flex-col bg-editor-bg text-text-primary">
       <TopMenu
         currentFile={currentFile}
+        currentCode={code}
+        title={title}
         isModified={isModified}
         isRunning={isRunning}
         knots={knots}
         onNew={handleNew}
         onSave={handleSave}
         onLoad={handleLoad}
+        onTitleChange={handleTitleChange}
         onRun={handleRun}
         onRestart={handleRestart}
         onNavigateToKnot={handleNavigateToKnot}

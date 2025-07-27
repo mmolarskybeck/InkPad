@@ -19,67 +19,41 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true as const,
-  };
+export async function setupVite(app: Express) {
+  const isDev = process.env.NODE_ENV === "development";
 
-  const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
+  if (isDev) {
+    // Create Vite server in middleware mode with proper configuration
+    const vite = await createViteServer({
+      root: path.resolve(process.cwd(), "client"),
+      resolve: {
+        alias: {
+          '@': path.resolve(process.cwd(), 'client', 'src'),
+        },
       },
-    },
-    server: serverOptions,
-    appType: "custom",
-  });
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
 
-  app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
+    // Use vite's connect instance as middleware
+    app.use(vite.middlewares);
 
-    try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
-
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
-    }
-  });
+    log("Dev server started", "vite");
+  } else {
+    serveStatic(app);
+  }
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const clientDist = path.join(process.cwd(), "dist", "client");
 
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    log("Serving static files from " + clientDist);
   }
 
-  app.use(express.static(distPath));
-
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Always serve index.html for any unknown paths (SPA support)
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
   });
 }

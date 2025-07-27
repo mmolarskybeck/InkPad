@@ -3,35 +3,37 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-export default defineConfig({
+export default defineConfig(async () => {
+  // Import Monaco plugin dynamically to avoid ESM issues
+  const { default: monacoEditorPlugin } = await import('vite-plugin-monaco-editor');
+  
+  return {
+    root: path.resolve(__dirname, "client"),
+
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'client', 'src'),
+      },
+    },
+
   plugins: [
-    react(),
+    react({
+      jsxRuntime: 'automatic'
+    }),
     runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-        ]
-      : []),
+    monacoEditorPlugin({
+      languageWorkers: ['editorWorkerService', 'typescript', 'json', 'html']
+    }),
   ],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
-    },
-  },
-  root: path.resolve(import.meta.dirname, "client"),
+
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
+    outDir: path.resolve(__dirname, "dist", "client"),
+    emptyOutDir: true
   },
+
   server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
-  },
+    host: true,
+    strictPort: true,
+  }
+  };
 });

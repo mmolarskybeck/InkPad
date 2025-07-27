@@ -1,10 +1,24 @@
 {
-  "name": "rest-express",
+  "name": "inkpad",
   "version": "1.0.0",
+  "description": "A modern, browser-based IDE for writing and testing Ink stories",
   "type": "module",
   "license": "MIT",
+  "author": "Marina Molarsky-Beck",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marinamolarsky-beck/InkPad.git"
+  },
+  "keywords": [
+    "ink",
+    "inkle",
+    "interactive-fiction",
+    "ide",
+    "editor",
+    "storytelling"
+  ],
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "PORT=3000 NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
@@ -13,6 +27,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
+    "@monaco-editor/react": "^4.7.0",
     "@neondatabase/serverless": "^0.10.4",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
@@ -43,6 +58,7 @@
     "@radix-ui/react-tooltip": "^1.2.0",
     "@tanstack/react-query": "^5.60.5",
     "@types/file-saver": "^2.0.7",
+    "@types/jszip": "^3.4.0",
     "@types/lodash": "^4.17.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -57,7 +73,9 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^11.13.1",
     "inkjs": "^2.3.2",
+    "inklecate": "^1.8.1",
     "input-otp": "^1.4.2",
+    "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.453.0",
     "memorystore": "^1.6.7",
@@ -95,15 +113,16 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@types/ws": "^8.5.13",
-    "@vitejs/plugin-react": "^4.3.2",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.19.1",
+    "tsx": "^4.20.3",
     "typescript": "5.6.3",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vite-plugin-monaco-editor": "^1.1.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

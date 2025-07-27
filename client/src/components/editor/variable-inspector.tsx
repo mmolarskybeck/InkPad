@@ -75,7 +75,7 @@ export function VariableInspector({ variables }: VariableInspectorProps) {
             </div>
           ) : (
             variables.map((variable) => (
-              <div key={variable.name} className="flex items-center justify-between p-2 hover:bg-border-color rounded">
+              <div key={variable.name} className="flex items-center justify-between p-2 hover:bg-border-color rounded w-full">
                 <div className="flex items-center space-x-2">
                   {getVariableIcon(variable.type)}
                   <span className="text-xs font-mono text-text-emphasis">
