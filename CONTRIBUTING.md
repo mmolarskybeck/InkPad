@@ -22,7 +22,7 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
 
 1. Clone your fork of the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/InkPad.git
+git clone https://github.com/mmolarskybeck/InkPad.git
 cd InkPad
 ```
 

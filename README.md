@@ -2,8 +2,6 @@
 
 A modern, browser-based IDE for writing and testing Ink stories. InkPad provides a complete development environment for Inkle Studios' Ink scripting language, featuring real-time compilation, interactive story preview, and comprehensive debugging tools.
 
-![InkPad Screenshot](https://via.placeholder.com/800x400?text=InkPad+IDE+Screenshot)
-
 ## Features
 
 - **Real-time Ink Compilation**: Write Ink stories with instant feedback and error checking
@@ -34,7 +32,7 @@ A modern, browser-based IDE for writing and testing Ink stories. InkPad provides
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/marinamolarsky-beck/InkPad.git
+git clone https://github.com/mmolarskybeck/InkPad.git
 cd InkPad
 ```
 
@@ -61,7 +59,7 @@ npm start
 
 ### Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/marinamolarsky-beck/InkPad)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mmolarskybeck/InkPad)
 
 1. Connect your GitHub repository to Vercel
 2. Configure the build settings:
@@ -71,7 +69,7 @@ npm start
 
 ### Netlify
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/marinamolarsky-beck/InkPad)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/mmolarskybeck/InkPad)
 
 1. Connect your GitHub repository to Netlify
 2. Configure the build settings:
@@ -133,4 +131,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/marinamolarsky-beck/InkPad/issues) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/mmolarskybeck/InkPad/issues) on GitHub.
