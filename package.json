@@ -21,10 +21,10 @@
     "dev": "NODE_ENV=development tsx server/index-dev.ts",
     "dev:secure": "PORT=3001 NODE_ENV=development tsx server/index-hardened.ts",
     "build:frontend": "vite build --config vite.config.ts",
-    "build:backend": "esbuild server/index-hardened.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.js",
+    "build:backend": "cd server && tsc",
     "build": "npm run build:frontend && npm run build:backend",
-    "start": "NODE_ENV=production node dist/index.js",
-    "check": "tsc",
+    "start": "NODE_ENV=production node server/dist/index-hardened.js",
+    "check": "tsc --noEmit",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

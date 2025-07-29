@@ -1,46 +1,47 @@
 # server/Dockerfile
 FROM node:20-bookworm-slim
 
-# Install dependencies for downloading and unzipping
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y curl unzip && \
     rm -rf /var/lib/apt/lists/*
 
-# Download latest inklecate binary
+# Download inklecate
 RUN curl -L -o /tmp/inklecate.zip \
     https://github.com/inkle/ink/releases/latest/download/inklecate_linux.zip && \
     unzip /tmp/inklecate.zip -d /usr/local/bin && \
     chmod +x /usr/local/bin/inklecate && \
     rm /tmp/inklecate.zip
 
-# Verify inklecate works
+# Verify inklecate
 RUN inklecate --version
 
-# Set up app directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install production dependencies only
-RUN npm ci --omit=dev
-
-# Copy application code
+# Copy all files
 COPY . .
 
-# Create temp directory for compilation
+# Install dependencies
+RUN npm ci
+
+# Build the backend
+RUN cd server && npx tsc
+
+# Remove dev dependencies
+RUN npm prune --production
+
+# Create temp directory
 RUN mkdir -p /tmp/inkpad
 
-# Set environment (PORT will be overridden by Render)
 ENV NODE_ENV=production
 
-# Health check - use PORT env variable
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
-# Run as non-root user
+# Run as non-root
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Start the hardened server directly (no build needed for JS)
-CMD ["node", "index-hardened.js"]
+# Start with Node ESM flag
+CMD ["node", "--experimental-specifier-resolution=node", "server/dist/index-hardened.js"]
