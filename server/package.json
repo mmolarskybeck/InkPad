@@ -1,0 +1,25 @@
+{
+  "name": "inkpad-server",
+  "version": "1.0.0",
+  "description": "InkPad compilation server",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "npm run build && npm start",
+    "build": "tsc",
+    "test": "node ../test-server.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.4.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.16.11",
+    "typescript": "^5.6.3"
+  }
+}
