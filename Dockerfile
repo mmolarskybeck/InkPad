@@ -1,47 +1,58 @@
-# Dockerfile (in root directory)
-FROM node:20-bookworm-slim
+# 1) Builder stage — install, compile TS & front‑end
+FROM node:20-bookworm-slim AS builder
 
-# Install dependencies
-RUN apt-get update && \
-    apt-get install -y curl unzip && \
-    rm -rf /var/lib/apt/lists/*
+# Install OS deps for inklecate download
+RUN apt-get update \
+ && apt-get install -y curl unzip \
+ && rm -rf /var/lib/apt/lists/*
 
-# Download inklecate
+# Download self‑contained inklecate binary
 RUN curl -L -o /tmp/inklecate.zip \
-    https://github.com/inkle/ink/releases/latest/download/inklecate_linux.zip && \
-    unzip /tmp/inklecate.zip -d /usr/local/bin && \
-    chmod +x /usr/local/bin/inklecate && \
-    rm /tmp/inklecate.zip
-
-# Verify inklecate
-RUN which inklecate && echo "inklecate installed successfully"
+     https://github.com/inkle/ink/releases/latest/download/inklecate_linux.zip \
+ && unzip /tmp/inklecate.zip -d /usr/local/bin \
+ && chmod +x /usr/local/bin/inklecate \
+ && rm /tmp/inklecate.zip
 
 WORKDIR /app
 
-# Copy everything
-COPY . .
-
-# Install ALL dependencies (including tsx)
+# Copy package manifests and install everything (including devDeps)
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Debug: Show what files are in server directory
-RUN echo "=== Files in /app/server ===" && ls -la /app/server/
+# Copy the rest of your code
+COPY . .
 
-# Create temp directory
-RUN mkdir -p /tmp/inkpad
+# Build frontend & backend
+RUN npm run build
 
-ENV NODE_ENV=production
+# 2) Production stage — only runtime deps + compiled artifacts
+FROM node:20-bookworm-slim
 
-# Health check
+# Copy the compiled inklecate binary from builder
+COPY --from=builder /usr/local/bin/inklecate /usr/local/bin/inklecate
+
+WORKDIR /app
+
+# Copy only production deps (prune devDeps)
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Copy built assets
+COPY --from=builder /app/dist/client ./dist/client
+COPY --from=builder /app/server/dist  ./server/dist
+
+# Expose port (Render will override via $PORT)
+ENV PORT=3000
+EXPOSE 3000
+
+# Healthcheck for Render free tier
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
-
-# Install tsx globally to avoid npx issues
-RUN npm install -g tsx
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Run as non-root
-RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 1001 appuser \
+ && chown -R appuser:appuser /app
 USER appuser
 
-# Use globally installed tsx
-CMD ["tsx", "server/index-hardened.ts"]
+# Start your production server
+CMD ["node", "server/dist/index.js"]

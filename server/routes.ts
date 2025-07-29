@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertStorySchema } from "@shared/schema";
+import { insertStorySchema } from "../shared/schema";
 import { z } from "zod";
 import { exec } from "child_process";
 import { promisify } from "util";

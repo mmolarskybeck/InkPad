@@ -1,21 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    /* Emit */
+    "outDir": "./dist",              // compiled JS lives in server/dist
+    "removeComments": true,
+    "declaration": false,
+
+    /* Language / module */
+    "target": "ES2022",              // modern Node features
     "module": "ESNext",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+
+    /* Type‑safety */
     "strict": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./",
-    "declaration": false,
-    "removeComments": true
+    "forceConsistentCasingInFileNames": true
   },
+
   "include": [
-    "*.ts"
+    "**/*.ts",               // everything in server/
+    "../shared/**/*.ts"      // shared schema & types
   ],
+
   "exclude": [
     "node_modules",
     "dist"
