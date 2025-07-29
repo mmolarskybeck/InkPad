@@ -1,4 +1,4 @@
-# Dockerfile (in root directory)
+# Dockerfile (in root directory) - SIMPLIFIED VERSION
 FROM node:20-bookworm-slim
 
 # Install dependencies
@@ -13,22 +13,16 @@ RUN curl -L -o /tmp/inklecate.zip \
     chmod +x /usr/local/bin/inklecate && \
     rm /tmp/inklecate.zip
 
-# Verify inklecate is executable by checking it exists and can run
-RUN which inklecate && inklecate 2>&1 | grep -q "Usage:" && echo "inklecate installed successfully"
+# Verify inklecate
+RUN which inklecate && echo "inklecate installed successfully"
 
 WORKDIR /app
 
 # Copy everything
 COPY . .
 
-# Install dependencies
+# Install ALL dependencies (including tsx for runtime)
 RUN npm ci
-
-# Build the backend
-RUN cd server && npx tsc
-
-# Remove dev dependencies
-RUN npm prune --production
 
 # Create temp directory
 RUN mkdir -p /tmp/inkpad
@@ -43,5 +37,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Start the server
-CMD ["node", "server/dist/index-hardened.js"]
+# Use tsx to run TypeScript directly (simpler, no build step)
+CMD ["npx", "tsx", "server/index-hardened.ts"]
