@@ -22,11 +22,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Install all dependencies (need dev deps for build)
+RUN npm ci
 
 # Copy application code
 COPY . .
+
+# Build the backend
+RUN npm run build:backend
+
+# Install only production dependencies
+RUN npm ci --omit=dev
 
 # Create temp directory for compilation
 RUN mkdir -p /tmp/inkpad
@@ -44,4 +50,4 @@ RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Start server
-CMD ["node", "index.js"]
+CMD ["node", "dist/index.js"]

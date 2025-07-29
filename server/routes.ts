@@ -129,6 +129,25 @@ async function compileInkSource(inkSource: string): Promise<{ compiled?: any; er
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get('/api/health', async (req, res) => {
+    try {
+      // In development, use npx inklecate
+      await execAsync('npx inklecate --version', { timeout: 5000 });
+      res.json({ 
+        status: 'healthy', 
+        timestamp: Date.now(),
+        service: 'inkpad-compiler'
+      });
+    } catch (error) {
+      console.error('Health check failed:', error);
+      res.status(503).json({ 
+        status: 'unhealthy',
+        error: 'inklecate not accessible' 
+      });
+    }
+  });
+
   // Ink compilation endpoint
   app.post("/api/compile", async (req, res) => {
     try {
