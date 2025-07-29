@@ -1,4 +1,4 @@
-# Dockerfile (in root directory) - SIMPLIFIED VERSION
+# Dockerfile (in root directory)
 FROM node:20-bookworm-slim
 
 # Install dependencies
@@ -21,8 +21,11 @@ WORKDIR /app
 # Copy everything
 COPY . .
 
-# Install ALL dependencies (including tsx for runtime)
+# Install ALL dependencies (including tsx)
 RUN npm ci
+
+# Debug: Show what files are in server directory
+RUN echo "=== Files in /app/server ===" && ls -la /app/server/
 
 # Create temp directory
 RUN mkdir -p /tmp/inkpad
@@ -33,9 +36,12 @@ ENV NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
+# Install tsx globally to avoid npx issues
+RUN npm install -g tsx
+
 # Run as non-root
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Use tsx to run TypeScript directly (simpler, no build step)
-CMD ["npx", "tsx", "server/index-hardened.ts"]
+# Use globally installed tsx
+CMD ["tsx", "server/index-hardened.ts"]
