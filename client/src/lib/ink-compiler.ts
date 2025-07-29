@@ -1,5 +1,22 @@
 import { Story } from 'inkjs';
 
+interface CompileResult {
+  success: boolean;
+  story?: any;
+  errors?: Array<{
+    message: string;
+    line?: number;
+    type: string;
+  }>;
+  compileTime?: number;
+}
+
+class CompilationError extends Error {
+  constructor(public errors: any[], public isWakeUp = false) {
+    super(errors[0]?.message || 'Compilation failed');
+  }
+}
+
 export interface InkError {
   line: number;
   column?: number;
@@ -14,40 +31,132 @@ export interface CompiledStory {
   rawJSON?: any; // The raw compiled JSON from inklecate
 }
 
+export async function compileWithRetry(
+  inkSource: string, 
+  options = { maxRetries: 3, onWakeUp: () => {} }
+): Promise<CompileResult> {
+  const { maxRetries, onWakeUp } = options;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Get API URL from environment or default to relative path
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      
+      const response = await fetch(`${apiUrl}/api/compile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ source: inkSource }),
+      });
+
+      // Handle cold start (service waking up)
+      if (response.status === 502 || response.status === 503) {
+        if (attempt === 0) {
+          onWakeUp();
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new CompilationError([{ 
+          message: result.error || 'Compilation failed', 
+          type: 'compilation' 
+        }]);
+      }
+
+      return {
+        success: true,
+        story: result.compiled,
+        compileTime: Date.now()
+      };
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on compilation errors (syntax errors, etc)
+      if (error instanceof CompilationError && !error.isWakeUp) {
+        throw error;
+      }
+
+      // On final attempt, throw the error
+      if (attempt === maxRetries - 1) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError || new Error('Compilation failed after retries');
+}
+
+// Health check for warming up the service
+export async function checkCompilerHealth(): Promise<boolean> {
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const response = await fetch(`${apiUrl}/health`);
+    const data = await response.json();
+    return data.status === 'healthy';
+  } catch {
+    return false;
+  }
+}
+
 export async function compileInkScript(inkText: string): Promise<CompiledStory> {
   try {
-    // First, try to compile on the backend
-    const response = await fetch('/api/compile', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ source: inkText })
+    // Use the new retry logic for better reliability
+    const result = await compileWithRetry(inkText, {
+      maxRetries: 3,
+      onWakeUp: () => {} // No UI callback here, handled in components
     });
 
-    const result = await response.json();
-
-    if (!response.ok || result.error) {
-      // Parse the error and extract line information
-      const parsedError = parseInkError(new Error(result.error || 'Compilation failed'), inkText);
+    if (result.success && result.story) {
+      // Create story from compiled JSON
+      const story = new Story(result.story);
+      const knots = extractKnots(inkText);
+      
+      return {
+        story,
+        errors: [],
+        knots,
+        rawJSON: result.story
+      };
+    } else {
       return {
         story: null,
-        errors: [parsedError],
+        errors: result.errors?.map((err: any) => ({
+          line: err.line || 1,
+          column: err.column,
+          message: err.message,
+          type: 'error' as const
+        })) || [{
+          line: 1,
+          column: undefined,
+          message: 'Compilation failed',
+          type: 'error' as const
+        }],
         knots: extractKnots(inkText)
       };
     }
-
-    // Create story from compiled JSON
-    const story = new Story(result.compiled);
-    const knots = extractKnots(inkText);
-    
-    return {
-      story,
-      errors: [],
-      knots,
-      rawJSON: result.compiled
-    };
   } catch (error) {
+    if (error instanceof CompilationError) {
+      return {
+        story: null,
+        errors: error.errors.map((err: any) => ({
+          line: err.line || 1,
+          column: err.column,
+          message: err.message,
+          type: 'error' as const
+        })),
+        knots: extractKnots(inkText)
+      };
+    }
     // Fallback: try client-side compilation (will likely fail for raw Ink)
     try {
       const story = new Story(inkText);

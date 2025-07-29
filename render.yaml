@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: inkpad-compiler
+    runtime: docker
+    dockerfilePath: server/Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://inkpad.netlify.app,https://deploy-preview-*.netlify.app
+      - key: MAX_COMPILE_TIME
+        value: 30000
+      - key: RATE_LIMIT_WINDOW
+        value: 900000
+      - key: RATE_LIMIT_MAX
+        value: 100
