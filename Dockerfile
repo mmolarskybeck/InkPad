@@ -1,4 +1,4 @@
-# Dockerfile (in root directory)
+# server/Dockerfile
 FROM node:20-bookworm-slim
 
 # Install dependencies
@@ -18,7 +18,7 @@ RUN inklecate --version
 
 WORKDIR /app
 
-# Copy everything
+# Copy all files
 COPY . .
 
 # Install dependencies
@@ -43,5 +43,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Start the server
-CMD ["node", "server/dist/index-hardened.js"]
+# Start with Node ESM flag
+CMD ["node", "--experimental-specifier-resolution=node", "server/dist/index-hardened.js"]
