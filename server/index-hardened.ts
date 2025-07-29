@@ -49,10 +49,13 @@ app.use('/api/compile', compileLimiter);
 // Health check with inklecate verification
 app.get('/health', async (req, res) => {
   try {
+    // Just check if inklecate is available, don't use --version
     if (process.env.NODE_ENV === 'production') {
-      await execFileAsync('inklecate', ['--version']);
-    } else {
-      await execFileAsync('npx', ['inklecate', '--version']);
+      // Try to run inklecate with no args, it should show usage
+      const { stderr } = await execFileAsync('inklecate', [], { timeout: 5000 });
+      if (!stderr.includes('Usage:')) {
+        throw new Error('inklecate not working properly');
+      }
     }
     res.json({ 
       status: 'healthy', 

@@ -1,4 +1,4 @@
-# server/Dockerfile
+# Dockerfile (in root directory)
 FROM node:20-bookworm-slim
 
 # Install dependencies
@@ -13,12 +13,12 @@ RUN curl -L -o /tmp/inklecate.zip \
     chmod +x /usr/local/bin/inklecate && \
     rm /tmp/inklecate.zip
 
-# Verify inklecate
-RUN inklecate --version
+# Verify inklecate is executable by checking it exists and can run
+RUN which inklecate && inklecate 2>&1 | grep -q "Usage:" && echo "inklecate installed successfully"
 
 WORKDIR /app
 
-# Copy all files
+# Copy everything
 COPY . .
 
 # Install dependencies
@@ -43,5 +43,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Start with Node ESM flag
-CMD ["node", "--experimental-specifier-resolution=node", "server/dist/index-hardened.js"]
+# Start the server
+CMD ["node", "server/dist/index-hardened.js"]
