@@ -1,30 +1,40 @@
 // src/monaco-setup.ts
-import { loader, setWorkersPath } from "@monaco-editor/react";
-import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import JsonWorker   from "monaco-editor/esm/vs/language/json/json.worker?worker";
-import TsWorker     from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import HtmlWorker   from "monaco-editor/esm/vs/language/html/html.worker?worker";
-import CssWorker    from "monaco-editor/esm/vs/language/css/css.worker?worker";
-import { inkLanguageId, languageDefinition } from "@/ink-monarch";
+import { loader } from "@monaco-editor/react";
 
-// 1️⃣  Workers
-setWorkersPath({
-  editor:      () => new EditorWorker(),
-  json:        () => new JsonWorker(),
-  typescript:  () => new TsWorker(),
-  javascript:  () => new TsWorker(),
-  html:        () => new HtmlWorker(),
-  css:         () => new CssWorker(),
-});
+/* ---------- 1️⃣  Wire workers ---------- */
+import EditorWorker  from "monaco-editor/esm/vs/editor/editor.worker?worker";
+import JsonWorker    from "monaco-editor/esm/vs/language/json/json.worker?worker";
+import TsWorker      from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
+import HtmlWorker    from "monaco-editor/esm/vs/language/html/html.worker?worker";
+import CssWorker     from "monaco-editor/esm/vs/language/css/css.worker?worker";
 
-// 2️⃣  Ink language (register once)
-const initPromise = loader.init().then(m => {
+/* Tell Monaco where to get a worker for each language */
+(self as any).MonacoEnvironment = {
+  getWorker(_: any, label: string) {
+    switch (label) {
+      case "json":        return new JsonWorker();
+      case "css":
+      case "scss":
+      case "less":        return new CssWorker();
+      case "html":
+      case "handlebars":
+      case "razor":       return new HtmlWorker();
+      case "typescript":
+      case "javascript":  return new TsWorker();
+      default:            return new EditorWorker();
+    }
+  },
+};
+
+/* ---------- 2️⃣  Register Ink once ---------- */
+import { inkLanguageId, languageDefinition } from "@/utils/ink-monarch";
+
+const initPromise = loader.init().then((m) => {
   m.languages.register({ id: inkLanguageId });
   m.languages.setMonarchTokensProvider(inkLanguageId, languageDefinition);
   return m;
 });
 
 export function getMonaco() {
-  // consumers await this to get the monaco instance
-  return initPromise;
+  return initPromise;          // component awaits this
 }
