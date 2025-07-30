@@ -1,15 +1,13 @@
-import { useState } from 'react';
+// src/components/editor/StoryPreview.tsx
+import { useState } from "react";
 import { Eye, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { compileWithRetry } from '@/lib/ink-compiler';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { compileInkScript, InkError } from "@/lib/ink-compiler";
 
 interface StoryState {
   text: string;
-  choices: Array<{
-    text: string;
-    index: number;
-  }>;
+  choices: Array<{ text: string; index: number }>;
   canContinue: boolean;
 }
 
@@ -21,60 +19,69 @@ interface StoryPreviewProps {
   onCompiled?: (story: any) => void;
 }
 
-export function StoryPreview({ storyState, isRunning, onMakeChoice, inkSource, onCompiled }: StoryPreviewProps) {
+export function StoryPreview({
+  storyState,
+  isRunning,
+  onMakeChoice,
+  inkSource,
+  onCompiled,
+}: StoryPreviewProps) {
   const [compileStatus, setCompileStatus] = useState<
-    'idle' | 'compiling' | 'waking' | 'error' | 'success'
-  >('idle');
-  const [errors, setErrors] = useState<any[]>([]);
+    "idle" | "compiling" | "error" | "success"
+  >("idle");
+  const [errors, setErrors] = useState<InkError[]>([]);
 
   const handleCompile = async () => {
     if (!inkSource) return;
-    
-    setCompileStatus('compiling');
+
+    setCompileStatus("compiling");
     setErrors([]);
 
     try {
-      const result = await compileWithRetry(inkSource, {
-        maxRetries: 3,
-        onWakeUp: () => setCompileStatus('waking')
-      });
+      const result = await compileInkScript(inkSource);
 
-      if (result.success) {
-        setCompileStatus('success');
+      if (result.errors.length === 0 && result.story) {
+        setCompileStatus("success");
         onCompiled?.(result.story);
       } else {
-        setCompileStatus('error');
-        setErrors(result.errors || []);
+        setCompileStatus("error");
+        setErrors(result.errors);
       }
-    } catch (error: any) {
-      setCompileStatus('error');
-      setErrors([{ 
-        message: error.message || 'Failed to compile story',
-        type: 'error' 
-      }]);
+    } catch (err: any) {
+      setCompileStatus("error");
+      setErrors([
+        {
+          line: 1,
+          message: err.message || "Failed to compile story",
+          type: "error",
+        },
+      ]);
     }
   };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Header with Run button */}
       <div className="bg-panel-bg px-4 py-2 border-b border-border-color flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Eye className="text-accent-blue text-sm" />
-          <span className="text-xs font-medium text-text-emphasis">Story Preview</span>
+          <span className="text-xs font-medium text-text-emphasis">
+            Story Preview
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           {inkSource && (
             <Button
               onClick={handleCompile}
-              disabled={compileStatus === 'compiling' || compileStatus === 'waking'}
+              disabled={compileStatus === "compiling"}
               size="sm"
               variant="outline"
               className="text-xs"
             >
-              {compileStatus === 'compiling' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-              {compileStatus === 'waking' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-              {compileStatus === 'compiling' && 'Compiling...'}
-              {compileStatus === 'waking' && 'Waking...'}
-              {(compileStatus === 'idle' || compileStatus === 'error' || compileStatus === 'success') && 'Run Story'}
+              {compileStatus === "compiling" && (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              )}
+              {compileStatus === "compiling" ? "Compiling..." : "Run Story"}
             </Button>
           )}
           {isRunning && (
@@ -85,34 +92,26 @@ export function StoryPreview({ storyState, isRunning, onMakeChoice, inkSource, o
           )}
         </div>
       </div>
-      
+
+      {/* Body: errors or story output */}
       <div className="flex-1 bg-editor-bg p-6 overflow-auto min-h-0">
         <div className="max-w-2xl mx-auto space-y-4">
-          {/* Cold start notification */}
-          {compileStatus === 'waking' && (
-            <Alert className="mb-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>
-                Waking up the compiler service... This may take up to 30 seconds on the free tier.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Compilation errors */}
-          {compileStatus === 'error' && errors.length > 0 && (
+          {compileStatus === "error" && errors.length > 0 && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {errors.map((error, i) => (
+                {errors.map((err, i) => (
                   <div key={i}>
-                    {error.line && `Line ${error.line}: `}
-                    {error.message}
+                    {err.line && `Line ${err.line}: `}
+                    {err.message}
                   </div>
                 ))}
               </AlertDescription>
             </Alert>
           )}
 
+          {/* Story output */}
           {storyState ? (
             <>
               {storyState.text && (
@@ -120,7 +119,7 @@ export function StoryPreview({ storyState, isRunning, onMakeChoice, inkSource, o
                   {storyState.text}
                 </div>
               )}
-              
+
               {storyState.choices.length > 0 && (
                 <div className="space-y-2">
                   {storyState.choices.map((choice) => (
@@ -135,16 +134,17 @@ export function StoryPreview({ storyState, isRunning, onMakeChoice, inkSource, o
                   ))}
                 </div>
               )}
-              
-              {!storyState.canContinue && storyState.choices.length === 0 && (
-                <div className="text-text-secondary italic">
-                  Story ended. Click "Restart" to play again.
-                </div>
-              )}
+
+              {!storyState.canContinue &&
+                storyState.choices.length === 0 && (
+                  <div className="text-text-secondary italic">
+                    Story ended. Click "Run Story" to play again.
+                  </div>
+                )}
             </>
           ) : (
             <div className="text-text-secondary text-center py-12">
-              Click "Run" to start the story preview
+              Click "Run Story" to start the preview
             </div>
           )}
         </div>
