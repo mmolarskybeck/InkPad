@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { TopMenu } from "@/components/editor/top-menu";
-import { MonacoEditor } from "@/components/editor/monaco-editor";
+import { MonacoEditor, MonacoEditorHandle } from "@/components/editor/monaco-editor";
 import { StoryPreview } from "@/components/editor/story-preview";
 import { ErrorPanel } from "@/components/editor/error-panel";
 import { VariableInspector } from "@/components/editor/variable-inspector";
@@ -14,6 +14,8 @@ export default function Editor() {
   const [title, setTitle] = useState("story");
   const [isModified, setIsModified] = useState(false);
   
+  const editorRef = useRef<MonacoEditorHandle>(null);
+  
   const {
     story,
     storyState,
@@ -25,25 +27,35 @@ export default function Editor() {
     restartStory,
     makeChoice,
     compileStory,
+    compileStoryNow,
     jumpToKnot
   } = useInkStory();
 
-  // Compile the story on initial load and when code changes
+  // Compile the story on initial load
   useEffect(() => {
     if (code) {
       compileStory(code);
     }
-  }, [code, compileStory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on initial load
 
-  const handleCodeChange = useCallback((newCode: string) => {
+  const handleCodeChange = (newCode: string) => {
     setCode(newCode);
     setIsModified(true);
-    compileStory(newCode);
-  }, [compileStory]);
+  };
 
-  const handleRun = useCallback(async () => {
-    await runStory(code);
-  }, [code, runStory]);
+  const handleRun = async () => {
+    // Use Monaco's value as source of truth and do immediate compile
+    const monacoCode = editorRef.current?.getValue() || "";
+    const codeToCompile = monacoCode || code;
+    const result = await compileStoryNow(codeToCompile);
+    
+    if (result.story) {
+      runStory(result.story); // Pass the freshly compiled story directly
+    } else {
+      console.error("Compile failed; not running.", result.errors);
+    }
+  };
 
   const handleRestart = useCallback(() => {
     restartStory();
@@ -66,12 +78,12 @@ export default function Editor() {
   }, [compileStory]);
 
   const handleNew = useCallback(() => {
-    setCode(SAMPLE_STORY);
-    setCurrentFile("story.ink");
-    setTitle("story");
+    setCode(""); // Set to a blank slate
+    setCurrentFile("untitled.ink");
+    setTitle("Untitled");
     setIsModified(false);
-    compileStory(SAMPLE_STORY);
-  }, [compileStory]);
+    // No need to compile an empty story
+  }, []);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     const validTitle = newTitle.trim() || 'story';
@@ -116,6 +128,7 @@ export default function Editor() {
         isModified={isModified}
         isRunning={isRunning}
         knots={knots}
+        editorRef={editorRef}
         onNew={handleNew}
         onSave={handleSave}
         onLoad={handleLoad}
@@ -125,37 +138,97 @@ export default function Editor() {
         onNavigateToKnot={handleNavigateToKnot}
       />
       
-      <div className="flex-1 flex flex-col min-h-0">
-        {/* Main editor and preview panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-          <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
-            <div className="h-full">
-              <MonacoEditor
-                value={code}
-                onChange={handleCodeChange}
-                errors={errors}
-                fileName={currentFile}
-                onNavigateToLine={() => {}}
-              />
-            </div>
-          </ResizablePanel>
-          
-          <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
-          
-          <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
-            <div className="h-full">
+      <ResizablePanelGroup direction="vertical" className="flex-1">
+        {/* Top panel (Editor + Preview) */}
+        <ResizablePanel defaultSize={75}>
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Editor Panel */}
+            <ResizablePanel defaultSize={50} minSize={30}>
+              <div
+                className="h-full"
+                onKeyDownCapture={(e) => {
+                  // Only stop propagation for Monaco-specific events, let others bubble
+                  const target = e.target as HTMLElement;
+                  const isMonacoElement = target.closest('.monaco-editor') ||
+                                         target.classList.contains('monaco-editor') ||
+                                         target.classList.contains('view-line');
+                  
+                  if (isMonacoElement) {
+                    e.stopPropagation();
+                    
+                    // Force proper Ctrl+A select all behavior
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                      const editor = editorRef.current?.getEditor();
+                      if (editor) {
+                        const model = editor.getModel();
+                        if (model) {
+                          const totalLines = model.getLineCount();
+                          const lastLineLength = model.getLineLength(totalLines);
+                          
+                          // Force select all text
+                          setTimeout(() => {
+                            editor.setSelection({
+                              startLineNumber: 1,
+                              startColumn: 1,
+                              endLineNumber: totalLines,
+                              endColumn: lastLineLength + 1
+                            });
+                          }, 0);
+                        }
+                      }
+                    }
+                    
+                    // For Delete/Backspace, also stop immediate propagation
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
+                      (e.nativeEvent as any).stopImmediatePropagation?.();
+                      
+                      // Manual deletion workaround for bulk selection
+                      const editor = editorRef.current?.getEditor();
+                      if (editor) {
+                        const selection = editor.getSelection();
+                        if (selection && !selection.isEmpty()) {
+                          editor.executeEdits('manual-delete', [{
+                            range: selection,
+                            text: '',
+                            forceMoveMarkers: true
+                          }]);
+                          e.preventDefault(); // Prevent double deletion
+                        }
+                      }
+                    }
+                  }
+                }}
+              >
+                <MonacoEditor
+                  ref={editorRef}
+                  value={code}
+                  onChange={handleCodeChange}
+                  errors={errors}
+                  fileName={currentFile}
+                  onNavigateToLine={() => {}}
+                />
+              </div>
+            </ResizablePanel>
+            
+            <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
+            
+            {/* Story Preview Panel */}
+            <ResizablePanel defaultSize={50} minSize={30}>
               <StoryPreview
                 storyState={storyState}
                 isRunning={isRunning}
                 onMakeChoice={makeChoice}
               />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
         
-        {/* Bottom panels for errors and variables */}
-        <div className="h-64 border-t border-border-color">
+        <ResizableHandle className="h-1 bg-border-color hover:bg-accent-blue transition-colors" />
+        
+        {/* Bottom panel (Errors + Variables) */}
+        <ResizablePanel defaultSize={25}>
           <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Error Panel */}
             <ResizablePanel defaultSize={70} minSize={40}>
               <ErrorPanel errors={errors} onErrorClick={(line) => {
                 // TODO: Jump to error line in editor
@@ -165,12 +238,13 @@ export default function Editor() {
             
             <ResizableHandle className="w-1 bg-border-color hover:bg-accent-blue transition-colors" />
             
-            <ResizablePanel defaultSize={30} minSize={20}>
+            {/* Variable Inspector Panel */}
+            <ResizablePanel defaultSize={30} minSize={20} className="h-full flex flex-col">
               <VariableInspector variables={variables} />
             </ResizablePanel>
           </ResizablePanelGroup>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

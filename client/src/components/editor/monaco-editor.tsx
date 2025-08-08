@@ -1,5 +1,5 @@
 // src/components/editor/MonacoEditor.tsx
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { getMonaco } from "@/monaco-setup";
 import { Code } from "lucide-react";
 
@@ -11,20 +11,37 @@ export interface MonacoEditorProps {
   onNavigateToLine?: (lineNumber: number) => void;
 }
 
-export function MonacoEditor({
+export interface MonacoEditorHandle {
+  getEditor: () => import("monaco-editor").editor.IStandaloneCodeEditor | undefined;
+  getValue: () => string;
+}
+
+export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
   value,
   onChange,
   errors,
   fileName,
   onNavigateToLine,
-}: MonacoEditorProps) {
+}, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<import("monaco-editor").editor.IStandaloneCodeEditor>();
+  const syncingRef = useRef(false);
+  const initializingRef = useRef(false); // Prevent double creation
+
+  useImperativeHandle(ref, () => ({
+    getEditor: () => editorRef.current,
+    getValue: () => editorRef.current?.getValue() || "",
+  }));
 
   // 1️⃣  Create / dispose editor
   useEffect(() => {
     (async () => {
-      if (!containerRef.current || editorRef.current) return;
+      // Prevent double creation
+      if (!containerRef.current || editorRef.current || initializingRef.current) {
+        return;
+      }
+      
+      initializingRef.current = true;
 
       const monaco = await getMonaco(); // workers + Ink already set up
       editorRef.current = monaco.editor.create(containerRef.current, {
@@ -47,6 +64,7 @@ export function MonacoEditor({
 
       // propagate changes
       editorRef.current.onDidChangeModelContent(() => {
+        if (syncingRef.current) return;
         onChange(editorRef.current!.getValue());
       });
 
@@ -60,15 +78,36 @@ export function MonacoEditor({
           ed.focus();
         };
       }
+      
+      initializingRef.current = false;
     })();
 
-    return () => editorRef.current?.dispose();
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = undefined;
+      }
+      // StrictMode-safe cleanup
+      if (containerRef.current) {
+        containerRef.current.replaceChildren(); // More reliable than innerHTML = ''
+        containerRef.current.removeAttribute('data-monaco-context');
+      }
+      // Block creation briefly to ensure DOM cleanup completes
+      initializingRef.current = true;
+      setTimeout(() => {
+        initializingRef.current = false;
+      }, 10);
+    };
   }, []);
 
   // 2️⃣  Keep value in sync when parent updates
   useEffect(() => {
     const ed = editorRef.current;
-    if (ed && ed.getValue() !== value) ed.setValue(value);
+    if (ed && ed.getValue() !== value) {
+      syncingRef.current = true;
+      ed.setValue(value);
+      setTimeout(() => (syncingRef.current = false), 0);
+    }
   }, [value]);
 
   // 3️⃣  Show error markers
@@ -117,4 +156,6 @@ export function MonacoEditor({
       />
     </div>
   );
-}
+});
+
+MonacoEditor.displayName = "MonacoEditor";

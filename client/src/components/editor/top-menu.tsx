@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -7,6 +7,8 @@ import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { getFilename, validateTitle } from "@/lib/filename-utils";
+import { MonacoEditorHandle } from "./monaco-editor";
+import { compileInkScriptNow } from "@/lib/ink-compiler";
 
 interface TopMenuProps {
   currentFile: string;
@@ -15,6 +17,7 @@ interface TopMenuProps {
   isModified: boolean;
   isRunning: boolean;
   knots: string[];
+  editorRef: RefObject<MonacoEditorHandle>;
   onNew: () => void;
   onSave: () => void;
   onLoad: (fileName: string, content: string) => void;
@@ -31,6 +34,7 @@ export function TopMenu({
   isModified,
   isRunning,
   knots,
+  editorRef,
   onNew,
   onSave,
   onLoad,
@@ -60,39 +64,34 @@ export function TopMenu({
   };
 
   const handleExportInk = () => {
+    // Use Monaco's value for export to unblock users
+    const monacoCode = editorRef.current?.getValue() || "";
+    const codeToExport = monacoCode || currentCode;
     const filename = getFilename(title, '.ink');
-    const blob = new Blob([currentCode], { type: 'text/plain' });
+    const blob = new Blob([codeToExport], { type: 'text/plain' });
     saveAs(blob, filename);
     setExportDialogOpen(false);
   };
 
   const handleExportJson = async () => {
     try {
-      // Compile the current code to JSON using the server endpoint
-      const response = await fetch('/api/compile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ source: currentCode }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Compilation failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      // Use Monaco's value for compilation
+      const monacoCode = editorRef.current?.getValue() || "";
+      const codeToCompile = monacoCode || currentCode;
       
-      if (result.compiled) {
-        // Export the compiled JSON data
+      // Compile using the local compiler
+      const result = await compileInkScriptNow(codeToCompile);
+      
+      if (result.rawJSON) {
+        // Export the raw compiled JSON data
         const filename = getFilename(title, '.json');
-        const blob = new Blob([JSON.stringify(result.compiled, null, 2)], { type: 'application/json' });
+        const blob = new Blob([result.rawJSON], { type: 'application/json' });
         saveAs(blob, filename);
       } else {
         // If compilation failed, show error
-        console.error('Compilation failed: No compiled result');
-        alert('Failed to compile story for export: No compiled result returned');
+        console.error('Compilation failed:', result.errors);
+        const errorMessages = result.errors.map(e => e.message).join(', ');
+        alert(`Failed to compile story for export: ${errorMessages}`);
       }
     } catch (error) {
       console.error('Export failed:', error);
@@ -103,24 +102,16 @@ export function TopMenu({
 
   const handleExportHtml = async () => {
     try {
-      // First, compile the current code to JSON
-      const response = await fetch('/api/compile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ source: currentCode }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Compilation failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      // Use Monaco's value for compilation
+      const monacoCode = editorRef.current?.getValue() || "";
+      const codeToCompile = monacoCode || currentCode;
       
-      if (!result.compiled) {
-        throw new Error('Failed to compile story for HTML export');
+      // Compile using the local compiler
+      const result = await compileInkScriptNow(codeToCompile);
+      
+      if (!result.rawJSON) {
+        const errorMessages = result.errors.map(e => e.message).join(', ');
+        throw new Error(`Failed to compile story for HTML export: ${errorMessages}`);
       }
 
       // Load the HTML template
@@ -134,10 +125,10 @@ export function TopMenu({
       // Use the validated title for display
       const storyTitle = validateTitle(title);
 
-      // Replace template placeholders
+      // Replace template placeholders with the raw JSON string
       htmlTemplate = htmlTemplate
         .replace(/\{\{STORY_TITLE\}\}/g, storyTitle)
-        .replace('{{STORY_DATA}}', JSON.stringify(result.compiled));
+        .replace('{{STORY_DATA}}', result.rawJSON);
 
       // Create a ZIP file with the HTML and supporting files
       const zip = new JSZip();

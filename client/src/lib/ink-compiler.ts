@@ -24,12 +24,10 @@ export interface CompiledStory {
 //     Wrapper around the Web Worker that actually runs inkjs/full
 ////////////////////////////////////////////////////////////////////////////////
 
+import CompilerWorker from "../workers/ink-compiler.worker?worker";
+
 async function compileInkViaWorker(source: string): Promise<string> {
-  // this path is relative to this file
-  const worker = new Worker(
-    new URL("../workers/ink-compiler.worker.ts", import.meta.url),
-    { type: "module" }
-  );
+  const worker = new CompilerWorker();
 
   return new Promise((resolve, reject) => {
     worker.onmessage = (e: MessageEvent<any>) => {
@@ -55,15 +53,16 @@ export async function compileInkScript(
 ): Promise<CompiledStory> {
   try {
     const json = await compileInkViaWorker(inkText);
-    const story = new Story(json);
+    const data = JSON.parse(json);
+    const story = new Story(data);
     return {
       story,
       errors: [],
       knots: extractKnots(inkText),
-      rawJSON: json,
+      rawJSON: json, // Store the raw JSON string for export
     };
   } catch (err) {
-    // Worker threw – most likely a compilation error.  Try to parse details.
+    // Worker threw – most likely a compilation error.  Try to parse details.
     const parsed = parseInkError(err as Error, inkText);
     return {
       story: null,
@@ -71,6 +70,11 @@ export async function compileInkScript(
       knots: extractKnots(inkText),
     };
   }
+}
+
+// Non-debounced version for immediate compilation (exports)
+export async function compileInkScriptNow(inkText: string): Promise<CompiledStory> {
+  return compileInkScript(inkText);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

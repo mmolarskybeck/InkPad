@@ -1,10 +1,11 @@
 // Web‑Worker context — isolates heavy compile so UI never lags
-import ink from "inkjs/full";  // the `full` build includes the compiler  :contentReference[oaicite:0]{index=0}
+import * as ink from "inkjs/full"; // the `full` build includes the compiler
 
 self.onmessage = ({ data }: MessageEvent<string>) => {
   try {
     const story = new ink.Compiler(data).Compile();
-    postMessage({ ok: true, json: story.ToJson() });
+    const jsonResult = story.ToJson();
+    postMessage({ ok: true, json: jsonResult });
   } catch (e: any) {
     postMessage({ ok: false, error: e.message ?? "Unknown error" });
   }
