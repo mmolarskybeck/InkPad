@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Story } from 'inkjs';
 import { compileInkScript, compileInkScriptSync, type InkError } from '@/lib/ink-compiler';
 import { extractInkVariables, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
+import { normalizeStoryJson } from '@/lib/json-utils';
 import { debounce } from 'lodash';
 
 interface StoryState {
@@ -47,12 +48,6 @@ export function useInkStory() {
   }, []);
 
   const updateStoryState = useCallback((inkStory: Story) => {
-    console.log('updateStoryState called');
-    console.log('inkStory:', inkStory);
-    console.log('inkStory.variablesState:', inkStory.variablesState);
-    console.log('variableNames:', variableNames);
-    console.log('variableNames.length:', variableNames.length);
-    
     if (!inkStory || !inkStory.canContinue && inkStory.currentChoices.length === 0) {
       setStoryState(null);
       return;
@@ -76,30 +71,13 @@ export function useInkStory() {
     });
 
     // Update variables from the live story state
-    console.log('About to check variables condition');
-    console.log('inkStory.variablesState exists?', !!inkStory.variablesState);
-    console.log('variableNames.length > 0?', variableNames.length > 0);
-    
     if (inkStory.variablesState && variableNames.length > 0) {
-      console.log('Calling convertStateToUIVariables');
       const uiVariables = convertStateToUIVariables(inkStory.variablesState, variableNames);
       setVariables(uiVariables);
-    } else {
-      console.log('NOT calling convertStateToUIVariables because condition failed');
-      if (!inkStory.variablesState) {
-        console.log('  - inkStory.variablesState is falsy');
-      }
-      if (variableNames.length === 0) {
-        console.log('  - variableNames is empty');
-      }
     }
   }, [updateVariablesFromJSON, variableNames]);
 
   const applyCompileResult = useCallback((result: any) => {
-    console.log('applyCompileResult called');
-    console.log('result:', result);
-    console.log('result.rawJSON:', result.rawJSON);
-    
     setErrors(result.errors);
     setKnots(result.knots);
     
@@ -107,18 +85,13 @@ export function useInkStory() {
       setStory(result.story);
       currentStory.current = result.story;
       // Update variables when story is compiled (even if not running)
-      // Pass the raw JSON to make variable extraction easier
-      // Parse rawJSON if it's a string
-      const jsonData = typeof result.rawJSON === 'string' ? JSON.parse(result.rawJSON) : result.rawJSON;
-      console.log('jsonData (parsed if needed):', jsonData);
+      // Normalize JSON data regardless of source
+      const jsonData = normalizeStoryJson(result.rawJSON);
       
       updateVariablesFromJSON(jsonData);
       // Also store the names of the variables
       const extractedVars = extractInkVariables(jsonData);
-      console.log('extractedVars:', extractedVars);
-      const varNames = extractedVars.map(v => v.name);
-      console.log('Setting variableNames to:', varNames);
-      setVariableNames(varNames);
+      setVariableNames(extractedVars.map(v => v.name));
     } else {
       // Clear variables if compilation failed
       setVariables([]);

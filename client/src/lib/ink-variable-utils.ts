@@ -120,83 +120,24 @@ function getVariableType(value: unknown): 'string' | 'number' | 'boolean' | 'lis
  * Converts the live variablesState from an inkjs story into the UI format
  */
 export function convertStateToUIVariables(variablesState: any, variableNames: string[]) {
-  if (!variablesState) {
-    console.log('No variablesState provided');
+  if (!variablesState || !variableNames || variableNames.length === 0) {
     return [];
   }
 
-  console.log('variablesState object:', variablesState);
-  console.log('variableNames:', variableNames);
+  const variables = [];
   
-  // Try different ways to access the variables
-  console.log('Trying different access methods:');
-  
-  // Method 1: Direct property access
-  if (variableNames && variableNames.length > 0) {
-    console.log('Method 1 - Direct access:');
-    variableNames.forEach(name => {
-      console.log(`  ${name}: variablesState['${name}'] =`, variablesState[name]);
-    });
-  }
-  
-  // Method 2: Check for $ accessor (common in inkjs)
-  if (variablesState.$) {
-    console.log('Method 2 - $ accessor found');
-    if (variableNames && variableNames.length > 0) {
-      variableNames.forEach(name => {
-        console.log(`  ${name}: variablesState.$('${name}') =`, variablesState.$(name));
+  // Direct property access (standard in inkjs)
+  for (const name of variableNames) {
+    const value = variablesState[name];
+    if (value !== undefined) {
+      variables.push({
+        name,
+        value,
+        type: getVariableType(value)
       });
     }
   }
   
-  // Method 3: Check _globalVariables or _defaultGlobalVariables
-  if (variablesState._globalVariables) {
-    console.log('Method 3 - _globalVariables found:', variablesState._globalVariables);
-  }
-  if (variablesState._defaultGlobalVariables) {
-    console.log('Method 4 - _defaultGlobalVariables found:', variablesState._defaultGlobalVariables);
-  }
-  
-  // Method 5: Iterate over all properties
-  console.log('Method 5 - All properties:');
-  for (const prop in variablesState) {
-    if (prop && !prop.startsWith('_') && prop !== 'variableChangedEventCallbacks') {
-      console.log(`  Property ${prop}:`, variablesState[prop]);
-    }
-  }
-
-  // Try the most likely access method based on inkjs documentation
-  const variables = [];
-  
-  // First, try direct property access (most common in inkjs)
-  if (variableNames && variableNames.length > 0) {
-    for (const name of variableNames) {
-      const value = variablesState[name];
-      if (value !== undefined) {
-        variables.push({
-          name,
-          value,
-          type: getVariableType(value)
-        });
-      }
-    }
-  }
-  
-  // If that didn't work and we have $ accessor, try that
-  if (variables.length === 0 && variablesState.$ && variableNames && variableNames.length > 0) {
-    for (const name of variableNames) {
-      const value = variablesState.$(name);
-      if (value !== undefined) {
-        variables.push({
-          name,
-          value,
-          type: getVariableType(value)
-        });
-      }
-    }
-  }
-  
-  console.log('Final extracted variables:', variables);
   return variables;
 }
 

@@ -1,5 +1,6 @@
 // src/lib/ink-compiler.ts
 import { Story } from "inkjs";
+import { normalizeStoryJson } from "./json-utils";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Types
@@ -25,15 +26,28 @@ export interface CompiledStory {
 ////////////////////////////////////////////////////////////////////////////////
 
 import CompilerWorker from "../workers/ink-compiler.worker?worker";
+import type { CompilerWorkerMessage } from "../types/worker-messages";
 
+/**
+ * IMPORTANT: Worker Communication Contract
+ *
+ * This function expects JSON STRINGS from the worker, not parsed objects.
+ * The worker sends stringified JSON - if this changes, update both sides.
+ *
+ * See types/worker-messages.ts for the complete contract definition.
+ */
 async function compileInkViaWorker(source: string): Promise<string> {
   const worker = new CompilerWorker();
 
   return new Promise((resolve, reject) => {
-    worker.onmessage = (e: MessageEvent<any>) => {
+    worker.onmessage = (e: MessageEvent<CompilerWorkerMessage>) => {
       worker.terminate();
-      if (e.data.ok) resolve(e.data.json);
-      else reject(new Error(e.data.error));
+      if (e.data.ok) {
+        // CRITICAL: Worker sends JSON string, not parsed object
+        resolve(e.data.json);
+      } else {
+        reject(new Error(e.data.error));
+      }
     };
     worker.onerror = (err) => {
       worker.terminate();
@@ -53,7 +67,7 @@ export async function compileInkScript(
 ): Promise<CompiledStory> {
   try {
     const json = await compileInkViaWorker(inkText);
-    const data = JSON.parse(json);
+    const data = normalizeStoryJson(json);
     const story = new Story(data);
     return {
       story,
