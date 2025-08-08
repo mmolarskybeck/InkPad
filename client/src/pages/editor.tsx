@@ -7,6 +7,8 @@ import { ErrorPanel } from "@/components/editor/error-panel";
 import { VariableInspector } from "@/components/editor/variable-inspector";
 import { useInkStory } from "@/hooks/use-ink-story";
 import { SAMPLE_STORY } from "@/data/sample-story";
+import { FileOperations } from "@/lib/file-operations";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Editor() {
   const [code, setCode] = useState(SAMPLE_STORY);
@@ -15,6 +17,7 @@ export default function Editor() {
   const [isModified, setIsModified] = useState(false);
   
   const editorRef = useRef<MonacoEditorHandle>(null);
+  const { toast } = useToast();
   
   const {
     story,
@@ -39,6 +42,27 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on initial load
 
+  // Optional: Autosave (debounced)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (isModified) {
+        const src = editorRef.current?.getValue() ?? code;
+        try {
+          FileOperations.saveFile(currentFile, src);
+          setIsModified(false);
+          toast({ 
+            title: "Autosaved", 
+            description: currentFile,
+          });
+        } catch (e: any) {
+          console.error("Autosave failed:", e);
+          // Don't show error toast for autosave failures to avoid spam
+        }
+      }
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [code, currentFile, isModified, toast]);
+
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
     setIsModified(true);
@@ -62,19 +86,39 @@ export default function Editor() {
   }, [restartStory]);
 
   const handleSave = useCallback(() => {
-    // Save to localStorage
-    localStorage.setItem(`inkpad_${currentFile}`, code);
-    setIsModified(false);
-  }, [code, currentFile]);
+    try {
+      // Use Monaco's value as source of truth
+      const src = editorRef.current?.getValue() ?? code;
+      FileOperations.saveFile(currentFile, src);
+      setIsModified(false);
+      
+      // Show success toast
+      toast({
+        title: "Saved",
+        description: `${currentFile} updated.`,
+      });
+    } catch (e: any) {
+      console.error("Save failed:", e);
+      toast({
+        title: "Save failed",
+        description: e?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }, [code, currentFile, toast]);
 
   const handleLoad = useCallback((fileName: string, content: string) => {
-    setCode(content);
+    // Try to load from FileOperations first, fallback to provided content
+    const file = FileOperations.loadFile(fileName);
+    const loadedContent = file?.content ?? content;
+    
+    setCode(loadedContent);
     setCurrentFile(fileName);
     // Extract title from filename
     const titleFromFile = fileName.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
     setTitle(titleFromFile);
     setIsModified(false);
-    compileStory(content);
+    compileStory(loadedContent);
   }, [compileStory]);
 
   const handleNew = useCallback(() => {
