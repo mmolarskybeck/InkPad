@@ -18,29 +18,32 @@ export default defineConfig({
   },
 
   plugins: [
-    runtimeErrorOverlay(),
     react({ jsxRuntime: "automatic" }),
+    runtimeErrorOverlay(),
+    // TODO: Re-add Monaco plugin once import issues are resolved
+    // monacoEditorPlugin({
+    //   languageWorkers: ["editorWorkerService", "typescript", "json", "html"],
+    // }),
   ],
 
-  // Web‑worker compiler needs ESM output
-  worker: { format: "es" },
+    // Web‑worker compiler needs ESM output
+    worker: { format: "es" },
 
-  build: {
-    outDir: path.resolve(__dirname, "dist"),
-    emptyOutDir: true,
-  },
-
-  server: {
-    host: true,
-    port: 5173,
-    strictPort: false,
-    hmr: {
-      overlay: false, // hide Replit overlay
-      ...(isStackblitz && {
-        protocol: "wss",
-        host: process.env.HOSTNAME,
-        clientPort: 443,
-      }),
+    build: {
+      outDir: path.resolve(__dirname, "dist"),
+      emptyOutDir: true,
     },
+
+    server: {
+      host: true,
+      port: 5173,
+      strictPort: false,
+      hmr: {
+        overlay: false, // hide Replit overlay
+        ...(isStackblitz && {
+          protocol: "wss",
+          host: process.env.HOSTNAME,
+          clientPort: 443,
+        }),    },
   },
 });
