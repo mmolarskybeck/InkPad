@@ -5,7 +5,10 @@ import { MonacoEditor, MonacoEditorHandle } from "@/components/editor/monaco-edi
 import { StoryPreview } from "@/components/editor/story-preview";
 import { ErrorPanel } from "@/components/editor/error-panel";
 import { VariableInspector } from "@/components/editor/variable-inspector";
+import { SaveStatus } from "@/components/ui/save-status";
 import { useInkStory } from "@/hooks/use-ink-story";
+import { useAutosave } from "@/hooks/use-autosave";
+import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +17,6 @@ export default function Editor() {
   const [code, setCode] = useState(SAMPLE_STORY);
   const [currentFile, setCurrentFile] = useState("story.ink");
   const [title, setTitle] = useState("story");
-  const [isModified, setIsModified] = useState(false);
   
   const editorRef = useRef<MonacoEditorHandle>(null);
   const { toast } = useToast();
@@ -34,6 +36,21 @@ export default function Editor() {
     jumpToKnot
   } = useInkStory();
 
+  // Autosave system
+  const autosave = useAutosave({
+    fileName: currentFile,
+    content: code,
+    onSave: async (fileName, content) => {
+      await FileOperations.saveFile(fileName, content);
+    }
+  });
+
+  // Show error toasts for save failures
+  useSaveErrorToast({
+    saveState: autosave.saveState,
+    fileName: currentFile
+  });
+
   // Compile the story on initial load
   useEffect(() => {
     if (code) {
@@ -42,30 +59,8 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on initial load
 
-  // Optional: Autosave (debounced)
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (isModified) {
-        const src = editorRef.current?.getValue() ?? code;
-        try {
-          FileOperations.saveFile(currentFile, src);
-          setIsModified(false);
-          toast({ 
-            title: "Autosaved", 
-            description: currentFile,
-          });
-        } catch (e: any) {
-          console.error("Autosave failed:", e);
-          // Don't show error toast for autosave failures to avoid spam
-        }
-      }
-    }, 1500);
-    return () => clearTimeout(id);
-  }, [code, currentFile, isModified, toast]);
-
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
-    setIsModified(true);
   };
 
   const handleRun = async () => {
@@ -85,17 +80,15 @@ export default function Editor() {
     restartStory();
   }, [restartStory]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     try {
-      // Use Monaco's value as source of truth
-      const src = editorRef.current?.getValue() ?? code;
-      FileOperations.saveFile(currentFile, src);
-      setIsModified(false);
+      // Manual save using autosave system
+      await autosave.saveNow();
       
-      // Show success toast
+      // Show success toast for manual saves
       toast({
         title: "Saved",
-        description: `${currentFile} updated.`,
+        description: `${currentFile} saved successfully.`,
       });
     } catch (e: any) {
       console.error("Save failed:", e);
@@ -105,7 +98,7 @@ export default function Editor() {
         variant: "destructive",
       });
     }
-  }, [code, currentFile, toast]);
+  }, [currentFile, autosave, toast]);
 
   const handleLoad = useCallback((fileName: string, content: string) => {
     // Try to load from FileOperations first, fallback to provided content
@@ -117,7 +110,6 @@ export default function Editor() {
     // Extract title from filename
     const titleFromFile = fileName.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
     setTitle(titleFromFile);
-    setIsModified(false);
     compileStory(loadedContent);
   }, [compileStory]);
 
@@ -125,7 +117,6 @@ export default function Editor() {
     setCode(""); // Set to a blank slate
     setCurrentFile("untitled.ink");
     setTitle("Untitled");
-    setIsModified(false);
     // No need to compile an empty story
   }, []);
 
@@ -136,8 +127,6 @@ export default function Editor() {
     // Also update the file name based on the new title
     const newFileName = `${validTitle.replace(/\s+/g, '-').toLowerCase()}.ink`;
     setCurrentFile(newFileName);
-    
-    setIsModified(true);
   }, []);
 
   const handleNavigateToKnot = useCallback((knotName: string) => {
@@ -165,22 +154,30 @@ export default function Editor() {
 
   return (
     <div className="h-screen flex flex-col bg-editor-bg text-text-primary">
-      <TopMenu
-        currentFile={currentFile}
-        currentCode={code}
-        title={title}
-        isModified={isModified}
-        isRunning={isRunning}
-        knots={knots}
-        editorRef={editorRef}
-        onNew={handleNew}
-        onSave={handleSave}
-        onLoad={handleLoad}
-        onTitleChange={handleTitleChange}
-        onRun={handleRun}
-        onRestart={handleRestart}
-        onNavigateToKnot={handleNavigateToKnot}
-      />
+      <div className="flex items-center justify-between p-2 border-b border-border-color">
+        <TopMenu
+          currentFile={currentFile}
+          currentCode={code}
+          title={title}
+          isModified={autosave.saveState !== "saved"}
+          isRunning={isRunning}
+          knots={knots}
+          editorRef={editorRef}
+          onNew={handleNew}
+          onSave={handleSave}
+          onLoad={handleLoad}
+          onTitleChange={handleTitleChange}
+          onRun={handleRun}
+          onRestart={handleRestart}
+          onNavigateToKnot={handleNavigateToKnot}
+        />
+        
+        <SaveStatus
+          saveState={autosave.saveState}
+          lastSavedAt={autosave.lastSavedAt}
+          isLeader={autosave.isLeader}
+        />
+      </div>
       
       <ResizablePanelGroup direction="vertical" className="flex-1">
         {/* Top panel (Editor + Preview) */}
