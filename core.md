@@ -65,9 +65,9 @@ InkPad/
     
     Utility-first CSS and accessible UI primitives for styling.
     
-- **Monaco Editor**
+- **Monaco Editor + @monaco-editor/react**
     
-    Embedded code editor with custom Ink language registration for syntax highlighting and code navigation.
+    Modern code editor with custom Ink language support, syntax highlighting, and intelligent error markers. Uses ES module workers for optimal performance.
     
 - **inkjs**
     
@@ -118,7 +118,7 @@ Visit `http://localhost:5173` in your browser.
 npm run build
 ```
 
-Output is located in `client/dist/`.
+Output is located in `dist/`.
 
 ## Project Status
 
@@ -143,3 +143,42 @@ MIT. See the LICENSE file for full terms.
 - [inkjs](https://github.com/y-lohse/inkjs) for client-side compilation
 - [Monaco Editor](https://microsoft.github.io/monaco-editor/) for code editing
 - shadcn/ui for composable, accessible UI components
+
+## Editor Implementation
+
+### Monaco Editor Setup
+
+InkPad uses a modern, optimized Monaco Editor setup that provides excellent performance and flexibility:
+
+**Core Dependencies:**
+
+- `@monaco-editor/react` - Official React wrapper for Monaco Editor
+- `monaco-editor` - Core Monaco Editor with ES module support
+
+**Worker Configuration:**
+
+```typescript
+// Custom worker setup for optimal performance
+import EditorWorker  from "monaco-editor/esm/vs/editor/editor.worker?worker";
+import JsonWorker    from "monaco-editor/esm/vs/language/json/json.worker?worker";
+import TsWorker      from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
+import HtmlWorker    from "monaco-editor/esm/vs/language/html/html.worker?worker";
+import CssWorker     from "monaco-editor/esm/vs/language/css/css.worker?worker";
+```
+
+**Key Features:**
+
+- **ES Module Workers**: Configured via `worker: { format: "es" }` in Vite for modern browser compatibility
+- **Custom Ink Language**: Full syntax highlighting and tokenization for Ink script
+    - Registered with: `monaco.languages.register` + `setMonarchTokensProvider`
+- **Direct Worker Imports**: Tree-shakable worker loading using Vite's `?worker` syntax
+- **No Plugin Dependencies**: Uses direct Monaco APIs instead of third-party Vite plugins
+- **Error Integration**: Live error markers synchronized with inkjs compilation results
+
+**Benefits of This Approach:**
+
+- ✅ **Better Performance**: Only loads workers actually needed
+- ✅ **Modern ES Modules**: Full compatibility with Vite's build system
+- ✅ **Custom Language Support**: Easy to extend Ink highlighting rules
+- ✅ **Future-Proof**: Uses official Monaco APIs and patterns
+- ✅ **Smaller Bundle**: Tree-shakable imports reduce final bundle size

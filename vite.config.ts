@@ -20,10 +20,6 @@ export default defineConfig({
   plugins: [
     react({ jsxRuntime: "automatic" }),
     runtimeErrorOverlay(),
-    // TODO: Re-add Monaco plugin once import issues are resolved
-    // monacoEditorPlugin({
-    //   languageWorkers: ["editorWorkerService", "typescript", "json", "html"],
-    // }),
   ],
 
     // Web‑worker compiler needs ESM output
