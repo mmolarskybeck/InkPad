@@ -188,61 +188,9 @@ export default function Editor() {
           <ResizablePanelGroup direction="horizontal" className="h-full">
             {/* Editor Panel */}
             <ResizablePanel defaultSize={50} minSize={30}>
-              <div
-                className="h-full"
-                onKeyDownCapture={(e) => {
-                  // Only stop propagation for Monaco-specific events, let others bubble
-                  const target = e.target as HTMLElement;
-                  const isMonacoElement = target.closest('.monaco-editor') ||
-                                         target.classList.contains('monaco-editor') ||
-                                         target.classList.contains('view-line');
-                  
-                  if (isMonacoElement) {
-                    e.stopPropagation();
-                    
-                    // Force proper Ctrl+A select all behavior
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-                      const editor = editorRef.current?.getEditor();
-                      if (editor) {
-                        const model = editor.getModel();
-                        if (model) {
-                          const totalLines = model.getLineCount();
-                          const lastLineLength = model.getLineLength(totalLines);
-                          
-                          // Force select all text
-                          setTimeout(() => {
-                            editor.setSelection({
-                              startLineNumber: 1,
-                              startColumn: 1,
-                              endLineNumber: totalLines,
-                              endColumn: lastLineLength + 1
-                            });
-                          }, 0);
-                        }
-                      }
-                    }
-                    
-                    // For Delete/Backspace, also stop immediate propagation
-                    if (e.key === 'Delete' || e.key === 'Backspace') {
-                      (e.nativeEvent as any).stopImmediatePropagation?.();
-                      
-                      // Manual deletion workaround for bulk selection
-                      const editor = editorRef.current?.getEditor();
-                      if (editor) {
-                        const selection = editor.getSelection();
-                        if (selection && !selection.isEmpty()) {
-                          editor.executeEdits('manual-delete', [{
-                            range: selection,
-                            text: '',
-                            forceMoveMarkers: true
-                          }]);
-                          e.preventDefault(); // Prevent double deletion
-                        }
-                      }
-                    }
-                  }
-                }}
-              >
+              {/* REMOVED the problematic onKeyDownCapture handler entirely */}
+              {/* Let Monaco handle ALL keyboard events naturally */}
+              <div className="h-full">
                 <MonacoEditor
                   ref={editorRef}
                   value={code}

@@ -60,7 +60,30 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
         folding: true,
         lineDecorationsWidth: 20,
         lineNumbersMinChars: 3,
+        // Additional settings to ensure proper keyboard handling
+        tabSize: 2,
+        insertSpaces: true,
+        quickSuggestions: false,
+        contextmenu: true,
       });
+
+      // IMPORTANT: Don't override Monaco's built-in keyboard handling!
+      // Monaco already handles Ctrl+A, Delete, Backspace perfectly.
+      // Adding custom commands can break the default behavior.
+      
+      // However, if you need to ensure select-all works, you can ADD (not override) a command:
+      // This uses a different key combination to avoid conflicts
+      editorRef.current.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyA, 
+        () => {
+          // This is a backup select-all command (Ctrl+Shift+A)
+          const model = editorRef.current?.getModel();
+          if (model) {
+            const fullRange = model.getFullModelRange();
+            editorRef.current?.setSelection(fullRange);
+          }
+        }
+      );
 
       // propagate changes
       editorRef.current.onDidChangeModelContent(() => {
@@ -68,7 +91,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
         onChange(editorRef.current!.getValue());
       });
 
-      // optional external “jumpToLine” util
+      // optional external "jumpToLine" util
       if (onNavigateToLine) {
         (window as any).jumpToLine = (line: number) => {
           const ed = editorRef.current;
@@ -78,6 +101,9 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
           ed.focus();
         };
       }
+      
+      // Focus the editor after creation to ensure keyboard events work
+      editorRef.current.focus();
       
       initializingRef.current = false;
     })();
@@ -89,7 +115,9 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
       }
       // StrictMode-safe cleanup
       if (containerRef.current) {
-        containerRef.current.replaceChildren(); // More reliable than innerHTML = ''
+        // Clear all Monaco DOM artifacts
+        containerRef.current.innerHTML = '';
+        // Also remove the context attribute that Monaco adds
         containerRef.current.removeAttribute('data-monaco-context');
       }
       // Block creation briefly to ensure DOM cleanup completes
@@ -105,7 +133,17 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
     const ed = editorRef.current;
     if (ed && ed.getValue() !== value) {
       syncingRef.current = true;
+      
+      // Preserve cursor position when updating value
+      const position = ed.getPosition();
       ed.setValue(value);
+      if (position) {
+        // Restore cursor position after value update
+        setTimeout(() => {
+          ed.setPosition(position);
+        }, 0);
+      }
+      
       setTimeout(() => (syncingRef.current = false), 0);
     }
   }, [value]);
@@ -153,6 +191,9 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(({
         ref={containerRef}
         className="flex-1 min-h-0"
         style={{ minHeight: "400px" }}
+        // IMPORTANT: No keyboard event handlers here!
+        // Let Monaco handle ALL keyboard events internally.
+        // Adding onKeyDown/onKeyDownCapture here will interfere with Monaco.
       />
     </div>
   );

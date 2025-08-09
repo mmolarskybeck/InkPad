@@ -1,6 +1,6 @@
 # InkPad
 
-A modern, browser-based IDE for writing and testing Ink stories. InkPad provides a complete development environment for Inkle Studios' Ink scripting language, featuring real-time compilation, interactive story preview, and comprehensive debugging tools.
+A modern, browser-based IDE for writing and testing Ink stories. InkPad provides a complete development environment for Inkle Studios' Ink scripting language, featuring real-time compilation, interactive story preview, and comprehensive debugging tools. MVP is 100% client-side; no backend required.
 
 ## Features
 
@@ -15,11 +15,11 @@ A modern, browser-based IDE for writing and testing Ink stories. InkPad provides
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite
-- **Editor**: Monaco Editor with custom Ink language support
-- **UI Components**: Radix UI with Tailwind CSS
-- **Backend**: Express.js with TypeScript
-- **Ink Compiler**: Native Inklecate integration
-- **Build Tool**: Vite with ESBuild
+- **Editor**: Monaco Editor via @monaco-editor/react (custom Ink highlighting)
+- **Runtime**: inkjs (compilation and runtime in a Web Worker)
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Build Tool**: Vite (ESM), ES Module workers enabled
+- **Backend**: _None for MVP_ (planned: cloud storage + auth)
 
 ## Getting Started
 
@@ -52,10 +52,12 @@ npm run dev
 
 ```bash
 npm run build
-npm start
+# Deploy the static 'dist/' folder to Vercel/Netlify/GitHub Pages/etc.
 ```
 
 ## Deployment
+
+This is a static SPA; no serverless functions are required for the MVP.
 
 ### Vercel
 
@@ -80,27 +82,18 @@ npm start
 
 ```
 InkPad/
-├── client/                 # Frontend React application
+├── client/                 # React (Vite) app
 │   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── lib/           # Utility libraries
-│   │   ├── pages/         # Page components
-│   │   └── data/          # Sample data and stories
+│   │   ├── components/     # Editor, Preview, Toolbar, panels
+│   │   ├── lib/            # Monaco setup, ink helpers, compiler worker
+│   │   ├── pages/          # App shell / layout
+│   │   ├── data/           # Sample stories
+│   │   └── styles/         # Tailwind/shadcn
 │   └── index.html
-├── server/                # Backend Express server
-│   ├── index.ts          # Server entry point
-│   ├── routes.ts         # API routes
-│   └── storage.ts        # Data storage utilities
-├── shared/               # Shared TypeScript schemas
+├── public/                 # Static assets
+├── vite.config.ts          # ESM workers, aliases
 └── package.json
 ```
-
-## API Endpoints
-
-- `POST /api/compile` - Compile Ink source code to JSON
-- `GET /api/stories` - List saved stories (future feature)
-- `POST /api/stories` - Save story (future feature)
 
 ## Contributing
 
@@ -112,12 +105,28 @@ InkPad/
 
 ## Roadmap
 
-- [ ] Story persistence and user accounts
-- [ ] Collaborative editing
-- [ ] Plugin system for custom Ink extensions
-- [ ] Advanced debugging tools
-- [ ] Export to multiple formats (HTML, PDF, etc.)
-- [ ] Mobile-responsive editor
+### Near-Term (MVP polish)
+
+- Performance pass on worker compile debounce
+- Usability: onboarding tooltips, keyboard shortcuts
+- Accessibility: focus management, ARIA for panes
+- Develop useful live error markers
+- Onboarding flow and usability polish
+
+### Cloud Save & Auth (Planned)
+
+- Choose provider (Supabase / Firebase / GitHub OAuth + storage / Vercel KV + Blob)
+- Add auth (email magic link or OAuth)
+- Save/Load to cloud with offline fallback (LocalStorage)
+- Document privacy considerations (files never leave browser unless user opts in)
+
+### Stretch
+
+- Graph view (React Flow)
+- Dialogic export (Godot 4.x)?
+- Collaborative editing (later)
+
+MVP will remain fully usable offline; cloud features are opt-in.
 
 ## License
 
