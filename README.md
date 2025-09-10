@@ -57,25 +57,25 @@ npm run build
 
 ## Deployment
 
-This is a static SPA; no serverless functions are required for the MVP.
+This is a static SPA; no server-side code is required for the MVP. Recommended hosting: Vercel (static build + bundled web workers).
 
-### Cloudflare Pages
+### Vercel
 
-Cloudflare Pages is ideal for this static Vite + Web Worker app (workers are bundled by Vite; no server runtime needed).
+1. Push your repository to GitHub.
+2. In the Vercel dashboard: New Project -> Import this repo.
+3. Build settings:
+   - Framework Preset: Vite (or Other)
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install` (default)
+4. Environment Variables (Project Settings -> Environment Variables):
+   - `VITE_PUBLIC_URL` = `https://inkpad.vercel.app` (or your custom domain)
+5. Deploy. Subsequent pushes to the selected branch trigger automatic builds.
 
-1. In the Cloudflare dashboard, create a new Pages project and connect this GitHub repository.
-2. Set build configuration:
-   - Framework preset: None (or "Vite")
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Root directory: (leave blank)
-3. (Optional) Environment variables (Pages > Settings > Environment Variables):
-   - `VITE_PUBLIC_URL` = your production URL (e.g. `https://<project>.pages.dev` or custom domain)
-4. Ensure SPA routing works:
-   - The file `public/_redirects` with `/* /index.html 200` is included so client-side routing falls back to `index.html`.
-5. Save and deploy. Subsequent pushes to the selected branch trigger automatic builds.
+SPA routing is handled by `vercel.json` which rewrites all paths to `/index.html` so client-side navigation works.
 
-Local production preview prior to deployment:
+Local production preview:
+
 ```bash
 npm install
 npm run build
@@ -84,11 +84,14 @@ npm run preview
 ```
 
 Custom domain:
-1. Add domain in Pages project settings.
-2. Update DNS to the provided Cloudflare Pages CNAME.
-3. Wait for SSL to provision (usually a few minutes).
 
-If later you add a backend or need serverless logic, you can introduce Cloudflare Workers separately without changing this static Pages setup.
+1. Add domain in Vercel Project -> Settings -> Domains.
+2. Follow DNS instructions (CNAME / A record) provided by Vercel.
+3. Wait for SSL to provision.
+
+Future backend needs:
+
+- You can add API routes later under an `api/` directory (Serverless Functions) or use Edge Functions without changing the static build.
 
 ## Project Structure
 
