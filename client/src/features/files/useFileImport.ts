@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 
 interface UseFileImportOptions {
-  onLoad: (fileName: string, content: string) => void;
+  onLoad: (importedFilename: string, importedSource: string) => void;
   accept?: string;
 }
 
 interface ImportedFile {
-  fileName: string;
-  content: string;
+  importedFilename: string;
+  importedSource: string;
 }
 
 function pickTextFile(accept: string): Promise<ImportedFile | null> {
@@ -26,8 +26,8 @@ function pickTextFile(accept: string): Promise<ImportedFile | null> {
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         resolve({
-          fileName: file.name,
-          content: loadEvent.target?.result as string,
+          importedFilename: file.name,
+          importedSource: loadEvent.target?.result as string,
         });
       };
       reader.onerror = () => resolve(null);
@@ -45,7 +45,7 @@ export function useFileImport({
   return useCallback(async () => {
     const importedFile = await pickTextFile(accept);
     if (importedFile) {
-      onLoad(importedFile.fileName, importedFile.content);
+      onLoad(importedFile.importedFilename, importedFile.importedSource);
     }
   }, [accept, onLoad]);
 }

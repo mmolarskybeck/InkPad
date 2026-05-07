@@ -118,21 +118,16 @@ export default function Editor() {
     }
   }, [currentDocument.filename, autosave, toast]);
 
-  const handleLoad = useCallback((filename: string, importedSource: string) => {
-    // Try to load from storage first, fallback to the imported source.
-    const storedDocument = FileOperations.loadFile(filename);
-    const sourceToLoad = storedDocument?.content ?? importedSource;
-    
+  const handleLoad = useCallback((importedFilename: string, importedSource: string) => {
     setCurrentDocument({
-      filename,
-      source: sourceToLoad,
-      updatedAt: storedDocument?.lastModified,
-      lastSavedAt: storedDocument?.lastSavedAt,
+      filename: importedFilename,
+      source: importedSource,
+      updatedAt: Date.now(),
     });
     // Extract title from filename
-    const titleFromFile = filename.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
+    const titleFromFile = importedFilename.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
     setTitle(titleFromFile);
-    compileLive(sourceToLoad);
+    compileLive(importedSource);
   }, [compileLive]);
 
   const handleNew = useCallback(() => {
