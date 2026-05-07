@@ -1,7 +1,4 @@
-import sampleStoryRaw from './sample-story.ink?raw';
-
-export const SAMPLE_STORY = sampleStoryRaw;
-
+export const SAMPLE_STORY_OLD = `
 === nod ===
 I nodded curtly, not believing a word of it.
 -> ending

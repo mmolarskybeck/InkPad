@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Save State Debug</title>
+</head>
+<body>
+  <h1>Save State Test</h1>
+  <p>Open console and test the save states by typing in the InkPad editor.</p>
+  <script>
+    // Add a console message to help debug
+    console.log('🐛 Debug page loaded. Check InkPad at: http://localhost:5177/');
+    
+    // Listen for save state changes
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'save-state-change') {
+        console.log('📊 Save state changed to:', event.data.state);
+      }
+    });
+  </script>
+</body>
+</html>

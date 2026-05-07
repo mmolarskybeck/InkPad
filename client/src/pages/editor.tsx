@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { TopMenu } from "@/components/editor/top-menu";
 import { MonacoEditor, MonacoEditorHandle } from "@/components/editor/monaco-editor";
 import { StoryPreview } from "@/components/editor/story-preview";
 import { ErrorPanel } from "@/components/editor/error-panel";
 import { VariableInspector } from "@/components/editor/variable-inspector";
-import { SaveStatus } from "@/components/ui/save-status";
 import { useInkStory } from "@/hooks/use-ink-story";
 import { useAutosave } from "@/hooks/use-autosave";
 import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
@@ -152,32 +151,35 @@ export default function Editor() {
     }
   }, [code, isRunning, jumpToKnot]);
 
+  // Stable modified state to prevent flickering  
+  // Keep the previous modified state while saving to prevent flicker
+  const isModified = useMemo(() => {
+    if (autosave.saveState === "saving") {
+      // During save, maintain previous state to prevent flicker
+      return true; // Assume modified during saving to avoid flash
+    }
+    return autosave.saveState === "dirty" || autosave.saveState === "error";
+  }, [autosave.saveState]);
+
   return (
     <div className="h-screen flex flex-col bg-editor-bg text-text-primary">
-      <div className="flex items-center justify-between p-2 border-b border-border-color">
-        <TopMenu
-          currentFile={currentFile}
-          currentCode={code}
-          title={title}
-          isModified={autosave.saveState !== "saved"}
-          isRunning={isRunning}
-          knots={knots}
-          editorRef={editorRef}
-          onNew={handleNew}
-          onSave={handleSave}
-          onLoad={handleLoad}
-          onTitleChange={handleTitleChange}
-          onRun={handleRun}
-          onRestart={handleRestart}
-          onNavigateToKnot={handleNavigateToKnot}
-        />
-        
-        <SaveStatus
-          saveState={autosave.saveState}
-          lastSavedAt={autosave.lastSavedAt}
-          isLeader={autosave.isLeader}
-        />
-      </div>
+      <TopMenu
+        currentFile={currentFile}
+        currentCode={code}
+        title={title}
+        isModified={isModified}
+        isRunning={isRunning}
+        knots={knots}
+        editorRef={editorRef}
+        onNew={handleNew}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        onTitleChange={handleTitleChange}
+        onRun={handleRun}
+        onRestart={handleRestart}
+        onNavigateToKnot={handleNavigateToKnot}
+        saveState={autosave.saveState}
+      />
       
       <ResizablePanelGroup direction="vertical" className="flex-1">
         {/* Top panel (Editor + Preview) */}

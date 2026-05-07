@@ -2,7 +2,7 @@ import { useState, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Feather, File, FolderOpen, Save, Download, Play, RotateCcw, Circle, Globe } from "lucide-react";
+import { Feather, File, FolderOpen, Save, Download, Play, RotateCcw, Globe } from "lucide-react";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { EditableTitle } from "@/components/ui/editable-title";
@@ -25,6 +25,7 @@ interface TopMenuProps {
   onRun: () => void;
   onRestart: () => void;
   onNavigateToKnot?: (knotName: string) => void;
+  saveState?: "dirty" | "saving" | "saved" | "error";
 }
 
 export function TopMenu({
@@ -41,9 +42,28 @@ export function TopMenu({
   onTitleChange,
   onRun,
   onRestart,
-  onNavigateToKnot
+  onNavigateToKnot,
+  saveState = "saved"
 }: TopMenuProps) {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  // Get CSS class for save state dot - always mounted, only styling changes
+  const getSaveStatusDotClass = () => {
+    const baseClass = "w-2 h-2 rounded-full transition-colors duration-200";
+    
+    switch (saveState) {
+      case "dirty":
+        return `${baseClass} bg-amber-500`;
+      case "saving":
+        return `${baseClass} bg-blue-500 animate-pulse`;
+      case "saved":
+        return `${baseClass} bg-green-500`;
+      case "error":
+        return `${baseClass} bg-red-500`;
+      default:
+        return `${baseClass} bg-gray-400 opacity-30`;
+    }
+  };
 
   const handleOpen = () => {
     const input = document.createElement('input');
@@ -193,7 +213,7 @@ Enjoy your story!
             title={title}
             onTitleChange={onTitleChange}
           />
-          {isModified && <Circle className="w-2 h-2 text-accent-blue fill-current" />}
+          <div className={getSaveStatusDotClass()} />
         </div>
         
         <div className="flex items-center space-x-1">

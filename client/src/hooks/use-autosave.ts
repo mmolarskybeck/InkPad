@@ -42,6 +42,11 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [isLeader, setIsLeader] = useState(true);
+  
+  // Add debugging for state changes
+  useEffect(() => {
+    console.log(`🔄 Save state changed to: ${saveState}`);
+  }, [saveState]);
 
   // Refs for tracking state
   const lastSavedHashRef = useRef<string>("");
@@ -51,6 +56,19 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
   const lastThrottledSaveRef = useRef<number>(0);
   const broadcastChannelRef = useRef<BroadcastChannel>();
   const isUnloadingRef = useRef(false);
+  const initializedRef = useRef(false);
+
+  // Initialize the hash on first render  
+  useEffect(() => {
+    if (!initializedRef.current && content !== undefined) {
+      lastSavedHashRef.current = simpleHash(content);
+      initializedRef.current = true;
+      // If we have content that seems to be loaded from storage, mark as saved
+      if (content.length > 0) {
+        setSaveState("saved");
+      }
+    }
+  }, [content]);
 
   // Initialize leadership and broadcast channel
   useEffect(() => {
@@ -95,23 +113,29 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
   const performSave = useCallback(async (forceWrite = false): Promise<boolean> => {
     const currentHash = simpleHash(content);
     
+    console.log(`💾 PerformSave: currentHash=${currentHash}, lastSaved=${lastSavedHashRef.current}, force=${forceWrite}`);
+    
     // Skip if content hasn't changed (unless forced)
     if (!forceWrite && currentHash === lastSavedHashRef.current) {
+      console.log('✅ Content unchanged, setting saved state');
       setSaveState("saved");
       return true;
     }
 
+    console.log('🔵 Setting state to saving');
     setSaveState("saving");
     
     try {
       await onSave(fileName, content);
+      // Important: Update the hash AFTER successful save
       lastSavedHashRef.current = currentHash;
       const now = Date.now();
       setLastSavedAt(now);
+      console.log('🟢 Save successful, setting saved state');
       setSaveState("saved");
       return true;
     } catch (error) {
-      console.error('Autosave failed:', error);
+      console.error('❌ Autosave failed:', error);
       setSaveState("error");
       return false;
     }
@@ -132,6 +156,7 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
     }
 
     // Mark as dirty
+    console.log('🟡 Setting state to dirty');
     setSaveState("dirty");
 
     // Check if we need to throttle (during continuous typing)
@@ -140,12 +165,15 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
     
     if (timeSinceLastThrottledSave >= throttleMs) {
       // Immediate save due to throttle
+      console.log('⚡ Throttled save - immediate');
       debounceTimerRef.current = setTimeout(() => {
-        performSave();
-        lastThrottledSaveRef.current = Date.now();
+        performSave().then(() => {
+          lastThrottledSaveRef.current = Date.now();
+        });
       }, debounceMs);
     } else {
       // Regular debounced save
+      console.log('⏱️ Regular debounced save');
       debounceTimerRef.current = setTimeout(() => {
         performSave();
       }, debounceMs);
@@ -154,9 +182,21 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
 
   // Schedule save when content changes
   useEffect(() => {
-    if (!fileName || !content) return;
-    scheduleSave();
-  }, [content, scheduleSave]);
+    if (!fileName || content === undefined) return;
+    
+    const currentHash = simpleHash(content);
+    console.log(`📝 Content effect: hash=${currentHash}, lastSaved=${lastSavedHashRef.current}, initialized=${initializedRef.current}`);
+    
+    // Only schedule save if content has actually changed AND we're initialized
+    if (initializedRef.current && currentHash !== lastSavedHashRef.current) {
+      console.log('🚀 Scheduling save due to content change');
+      scheduleSave();
+    } else if (!initializedRef.current) {
+      console.log('⏳ Not initialized yet, skipping save');
+    } else {
+      console.log('✅ Content unchanged, no save needed');
+    }
+  }, [content, fileName, scheduleSave]);
 
   // Periodic checkpoint saves
   useEffect(() => {
