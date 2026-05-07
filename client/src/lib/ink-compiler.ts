@@ -1,6 +1,11 @@
 // src/lib/ink-compiler.ts
 import { Story } from "inkjs";
 import { normalizeStoryJson } from "./json-utils";
+import type {
+  CompilerErrorResponse,
+  CompilerResponse,
+  InkCompilerMessage,
+} from "../types/worker-messages";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Types
@@ -14,6 +19,7 @@ export interface InkCompilerError {
 }
 
 export interface InkCompileResult {
+  requestId: string;
   runtimeStory: Story | null;
   errors: InkCompilerError[];
   knots: string[];
@@ -26,7 +32,6 @@ export interface InkCompileResult {
 ////////////////////////////////////////////////////////////////////////////////
 
 import CompilerWorker from "../workers/ink-compiler.worker?worker";
-import type { CompilerWorkerMessage } from "../types/worker-messages";
 
 /**
  * IMPORTANT: Worker Communication Contract
@@ -36,24 +41,43 @@ import type { CompilerWorkerMessage } from "../types/worker-messages";
  *
  * See types/worker-messages.ts for the complete contract definition.
  */
-async function compileInkViaWorker(source: string): Promise<string> {
+export function createCompilerRequestId(): string {
+  return `compile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+class CompilerResponseError extends Error {
+  constructor(readonly response: CompilerErrorResponse) {
+    super(response.errors[0]?.message ?? "Compilation failed");
+  }
+}
+
+async function compileInkViaWorker(source: string, requestId: string): Promise<string> {
   const worker = new CompilerWorker();
 
   return new Promise((resolve, reject) => {
-    worker.onmessage = (e: MessageEvent<CompilerWorkerMessage>) => {
+    worker.onmessage = (e: MessageEvent<CompilerResponse>) => {
       worker.terminate();
-      if (e.data.ok) {
+      if (e.data.requestId !== requestId) {
+        reject(new Error("Compiler response requestId did not match the request."));
+        return;
+      }
+
+      if (e.data.type === "compile-success") {
         // CRITICAL: Worker sends JSON string, not parsed object
-        resolve(e.data.json);
+        resolve(e.data.storyJson);
       } else {
-        reject(new Error(e.data.error));
+        reject(new CompilerResponseError(e.data));
       }
     };
     worker.onerror = (err) => {
       worker.terminate();
       reject(err);
     };
-    worker.postMessage(source);
+    worker.postMessage({
+      type: "compile",
+      requestId,
+      source,
+    });
   });
 }
 
@@ -63,13 +87,15 @@ async function compileInkViaWorker(source: string): Promise<string> {
 ////////////////////////////////////////////////////////////////////////////////
 
 export async function compileInkScript(
-  inkSource: string
+  inkSource: string,
+  requestId = createCompilerRequestId()
 ): Promise<InkCompileResult> {
   try {
-    const compiledJson = await compileInkViaWorker(inkSource);
+    const compiledJson = await compileInkViaWorker(inkSource, requestId);
     const storyData = normalizeStoryJson(compiledJson);
     const runtimeStory = new Story(storyData);
     return {
+      requestId,
       runtimeStory,
       errors: [],
       knots: extractKnots(inkSource),
@@ -77,8 +103,12 @@ export async function compileInkScript(
     };
   } catch (err) {
     // Worker threw – most likely a compilation error.  Try to parse details.
-    const parsed = parseInkError(err as Error, inkSource);
+    const parsed = err instanceof CompilerResponseError
+      ? normalizeCompilerMessage(err.response.errors[0])
+      : parseInkError(err as Error);
+
     return {
+      requestId,
       runtimeStory: null,
       errors: [parsed],
       knots: extractKnots(inkSource),
@@ -93,17 +123,21 @@ export async function compileInkScript(
 ////////////////////////////////////////////////////////////////////////////////
 
 export function compileInkScriptSync(inkSource: string): InkCompileResult {
+  const requestId = createCompilerRequestId();
+
   try {
     const runtimeStory = new Story(inkSource); // runtime compile
     return {
+      requestId,
       runtimeStory,
       errors: [],
       knots: extractKnots(inkSource),
     };
   } catch (err) {
     return {
+      requestId,
       runtimeStory: null,
-      errors: [parseInkError(err as Error, inkSource)],
+      errors: [parseInkError(err as Error)],
       knots: extractKnots(inkSource),
     };
   }
@@ -114,7 +148,7 @@ export function compileInkScriptSync(inkSource: string): InkCompileResult {
 ////////////////////////////////////////////////////////////////////////////////
 
 // crude parser for “line 12: Something went wrong” messages
-function parseInkError(error: Error, inkSource: string): InkCompilerError {
+function parseInkError(error: Error): InkCompilerError {
   const msg = error.message ?? "Compilation failed";
   const lineMatch = msg.match(/line (\d+)/i);
   const colMatch = msg.match(/column (\d+)/i);
@@ -123,6 +157,25 @@ function parseInkError(error: Error, inkSource: string): InkCompilerError {
     column: colMatch ? Number(colMatch[1]) : undefined,
     message: msg.replace(/line \d+:?\s*/i, "").replace(/column \d+:?\s*/i, ""),
     type: "error",
+  };
+}
+
+function normalizeCompilerMessage(message?: InkCompilerMessage): InkCompilerError {
+  if (!message) {
+    return {
+      line: 1,
+      message: "Compilation failed",
+      type: "error",
+    };
+  }
+
+  const parsed = parseInkError(new Error(message.message));
+
+  return {
+    line: message.line ?? parsed.line,
+    column: message.column ?? parsed.column,
+    message: message.line ? message.message : parsed.message,
+    type: message.type,
   };
 }
 

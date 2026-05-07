@@ -1,9 +1,13 @@
 // src/components/editor/StoryPreview.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Eye, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { compileInkScript, type InkCompilerError } from "@/lib/ink-compiler";
+import {
+  compileInkScript,
+  createCompilerRequestId,
+  type InkCompilerError,
+} from "@/lib/ink-compiler";
 import type { StoryRuntimeState } from "@/types/story-runtime";
 
 interface StoryPreviewProps {
@@ -25,15 +29,19 @@ export function StoryPreview({
     "idle" | "compiling" | "error" | "success"
   >("idle");
   const [errors, setErrors] = useState<InkCompilerError[]>([]);
+  const latestCompileRequestId = useRef<string | null>(null);
 
   const handleCompile = async () => {
     if (!inkSource) return;
 
     setCompileStatus("compiling");
     setErrors([]);
+    const requestId = createCompilerRequestId();
+    latestCompileRequestId.current = requestId;
 
     try {
-      const result = await compileInkScript(inkSource);
+      const result = await compileInkScript(inkSource, requestId);
+      if (result.requestId !== latestCompileRequestId.current) return;
 
       if (result.errors.length === 0 && result.runtimeStory) {
         setCompileStatus("success");
@@ -43,6 +51,7 @@ export function StoryPreview({
         setErrors(result.errors);
       }
     } catch (err: any) {
+      if (requestId !== latestCompileRequestId.current) return;
       setCompileStatus("error");
       setErrors([
         {

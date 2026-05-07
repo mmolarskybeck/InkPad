@@ -1,23 +1,27 @@
 // Web‑Worker context — isolates heavy compile so UI never lags
 import * as ink from "inkjs/full"; // the `full` build includes the compiler
-import type { CompilerWorkerMessage, CompilerWorkerInput } from "../types/worker-messages";
+import type { CompilerRequest, CompilerResponse } from "../types/worker-messages";
 
 /**
  * IMPORTANT: Worker Communication Contract
  *
- * This worker sends JSON STRINGS to the main thread, not parsed objects.
- * The main thread's compileInkScript() expects to receive strings for parsing.
+ * This worker sends JSON strings to the main thread, not parsed objects.
+ * The main thread's compileInkScript() expects strings for parsing.
  *
  * DO NOT change this to send parsed objects without updating the receiver
  * in ink-compiler.ts - this will cause "[object Object]" compilation errors.
  *
  * See types/worker-messages.ts for the complete contract definition.
  */
+self.onmessage = ({ data }: MessageEvent<CompilerRequest>) => {
+  if (data.type !== "compile") {
+    return;
+  }
 
-self.onmessage = ({ data }: MessageEvent<CompilerWorkerInput>) => {
+  const { requestId, source } = data;
+
   try {
-    const inkSource = data;
-    const compiledStory = new ink.Compiler(inkSource).Compile();
+    const compiledStory = new ink.Compiler(source).Compile();
     const compiledJson = compiledStory.ToJson();
     
     if (typeof compiledJson !== 'string') {
@@ -25,12 +29,22 @@ self.onmessage = ({ data }: MessageEvent<CompilerWorkerInput>) => {
     }
     
     // CRITICAL: Send JSON string, not parsed object
-    const message: CompilerWorkerMessage = { ok: true, json: compiledJson };
+    const message: CompilerResponse = {
+      type: "compile-success",
+      requestId,
+      storyJson: compiledJson,
+    };
     postMessage(message);
   } catch (e: any) {
-    const message: CompilerWorkerMessage = {
-      ok: false,
-      error: e.message ?? "Unknown error"
+    const message: CompilerResponse = {
+      type: "compile-error",
+      requestId,
+      errors: [
+        {
+          message: e.message ?? "Unknown error",
+          type: "error",
+        },
+      ],
     };
     postMessage(message);
   }

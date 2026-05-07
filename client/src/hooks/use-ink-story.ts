@@ -1,6 +1,11 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Story } from 'inkjs';
-import { compileInkScript, type InkCompileResult, type InkCompilerError } from '@/lib/ink-compiler';
+import {
+  compileInkScript,
+  createCompilerRequestId,
+  type InkCompileResult,
+  type InkCompilerError,
+} from '@/lib/ink-compiler';
 import { extractInkVariables, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
 import { normalizeStoryJson } from '@/lib/json-utils';
 import type { StoryRuntimeState } from '@/types/story-runtime';
@@ -23,7 +28,7 @@ export function useInkStory() {
   const [isCompiling, setIsCompiling] = useState(false);
   
   const activeRuntimeStoryRef = useRef<Story | null>(null);
-  const latestCompileRequestId = useRef(0);
+  const latestCompileRequestId = useRef<string | null>(null);
 
   const updateVariablesFromCompiledJson = useCallback((compiledJsonData: any) => {
     try {
@@ -94,12 +99,17 @@ export function useInkStory() {
   }, [updateVariablesFromCompiledJson]);
 
   const debouncedLiveCompile = useMemo(
-    () => debounce(async (inkSource: string, requestId: number) => {
+    () => debounce(async (inkSource: string, requestId: string) => {
       if (requestId !== latestCompileRequestId.current) return;
 
       setIsCompiling(true);
-      const result = await compileInkScript(inkSource);
-      if (requestId !== latestCompileRequestId.current) return;
+      const result = await compileInkScript(inkSource, requestId);
+      if (
+        requestId !== latestCompileRequestId.current ||
+        result.requestId !== latestCompileRequestId.current
+      ) {
+        return;
+      }
 
       applyCompileResult(result);
       setIsCompiling(false);
@@ -114,17 +124,22 @@ export function useInkStory() {
   }, [debouncedLiveCompile]);
 
   const compileLive = useCallback((inkSource: string) => {
-    const requestId = ++latestCompileRequestId.current;
+    const requestId = createCompilerRequestId();
+    latestCompileRequestId.current = requestId;
     debouncedLiveCompile(inkSource, requestId);
   }, [debouncedLiveCompile]);
 
   const compileNow = useCallback(async (inkSource: string) => {
     debouncedLiveCompile.cancel();
-    const requestId = ++latestCompileRequestId.current;
+    const requestId = createCompilerRequestId();
+    latestCompileRequestId.current = requestId;
     setIsCompiling(true);
 
-    const result = await compileInkScript(inkSource);
-    if (requestId !== latestCompileRequestId.current) {
+    const result = await compileInkScript(inkSource, requestId);
+    if (
+      requestId !== latestCompileRequestId.current ||
+      result.requestId !== latestCompileRequestId.current
+    ) {
       return null;
     }
 

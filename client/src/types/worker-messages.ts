@@ -6,26 +6,37 @@
  * the main thread code that consumes the worker messages.
  */
 
-/**
- * Message sent from the Ink compiler worker to the main thread
- * 
- * CRITICAL: The `json` field contains a JSON STRING, not a parsed object.
- * This is intentional to maintain a clear boundary and avoid issues with
- * the browser's structured cloning algorithm.
- */
-export interface CompilerWorkerSuccessMessage {
-  ok: true;
-  json: string; // JSON string representation of compiled Ink story
+export interface InkCompilerMessage {
+  message: string;
+  line?: number;
+  column?: number;
+  type: "error" | "warning";
 }
 
-export interface CompilerWorkerErrorMessage {
-  ok: false;
-  error: string; // Error message describing what went wrong
+export interface CompilerCompileRequest {
+  type: "compile";
+  requestId: string;
+  source: string;
 }
 
-export type CompilerWorkerMessage = CompilerWorkerSuccessMessage | CompilerWorkerErrorMessage;
+export type CompilerRequest = CompilerCompileRequest;
 
 /**
- * Input message sent to the Ink compiler worker
+ * CRITICAL: `storyJson` contains a JSON string, not a parsed object.
+ * Keeping the worker boundary string-based avoids structured-clone surprises.
  */
-export type CompilerWorkerInput = string; // Raw Ink script text
+export interface CompilerSuccessResponse {
+  type: "compile-success";
+  requestId: string;
+  storyJson: string;
+  warnings?: InkCompilerMessage[];
+}
+
+export interface CompilerErrorResponse {
+  type: "compile-error";
+  requestId: string;
+  errors: InkCompilerMessage[];
+  warnings?: InkCompilerMessage[];
+}
+
+export type CompilerResponse = CompilerSuccessResponse | CompilerErrorResponse;
