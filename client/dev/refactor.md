@@ -11,11 +11,32 @@ The worker contract is unusually well documented: worker-messages.ts (line 1). T
 Monaco setup is centralized in monaco-setup.ts (line 12), which is exactly where that complexity belongs.
 
 
-# Main Architecture Concerns
+# Main Architecture Status
 
 Live compile now has one clear pathway. `handleCodeChange` updates source state and calls `compileLive`, while autosave remains reactive to `code`.
 
-TopMenu has too much domain logic. It handles file open, export, JSON compile, HTML templating, ZIP creation, and UI state in one component: top-menu.tsx (line 86). I’d move export/build operations into a story-export service/hook.
+TopMenu export orchestration has been split out. `TopMenu` now stays close to toolbar composition: new, open, save, run, restart, knot navigation, and export command wiring. Export UI lives in `story-export-dialog.tsx`, file import/download helpers live under `features/files`, and export/build operations live under `features/export`.
+
+Current export structure:
+
+```text
+components/editor/
+  top-menu.tsx
+  story-export-dialog.tsx
+
+features/
+  export/
+    useStoryExport.ts
+    storyExportService.ts
+    htmlTemplate.ts
+    zipExport.ts
+
+  files/
+    useFileImport.ts
+    fileDownload.ts
+```
+
+This keeps JSON compilation, HTML template rendering, ZIP generation, and file download details out of `TopMenu`.
 
 Deployment config has been aligned with the static SPA architecture. Vercel and Netlify now serve the Vite build output directly and fall back to `index.html` for client-side routes.
 
@@ -25,4 +46,11 @@ File loading may surprise users: handleLoad (line 102) prefers localStorage cont
 
 # Suggested Next Refactor
 
-I’d do this in order: keep TypeScript and production build green, then split TopMenu export logic into a dedicated useStoryExport or StoryExportService.
+The next useful slice is file loading. `handleLoad` currently prefers localStorage content with the same filename over the file the user just opened, so same-name imports can silently load stale browser storage. Move local story persistence/import behavior into a `features/files/useLocalStories.ts` boundary and make import semantics explicit.
+
+Keep TypeScript and production build green after each slice:
+
+```bash
+npm run check
+npm run build
+```

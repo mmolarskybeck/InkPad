@@ -3,13 +3,13 @@ import {
   exportCompiledJson,
   exportInkSource,
   exportStoryHtml,
-  type CompileStory,
+  type CompileInkSource,
 } from "./storyExportService";
 
 interface UseStoryExportOptions {
   getSource: () => string;
   title: string;
-  compileStory: CompileStory;
+  compileStory: CompileInkSource;
   onError?: (message: string, error: unknown) => void;
 }
 

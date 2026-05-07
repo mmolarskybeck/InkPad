@@ -1,18 +1,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Story } from 'inkjs';
-import { compileInkScript, type CompiledStory, type InkError } from '@/lib/ink-compiler';
+import { compileInkScript, type InkCompileResult, type InkCompilerError } from '@/lib/ink-compiler';
 import { extractInkVariables, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
 import { normalizeStoryJson } from '@/lib/json-utils';
+import type { StoryRuntimeState } from '@/types/story-runtime';
 import { debounce } from 'lodash';
-
-interface StoryState {
-  text: string;
-  choices: Array<{
-    text: string;
-    index: number;
-  }>;
-  canContinue: boolean;
-}
 
 interface InkVariable {
   name: string;
@@ -21,26 +13,26 @@ interface InkVariable {
 }
 
 export function useInkStory() {
-  const [story, setStory] = useState<Story | null>(null);
-  const [storyState, setStoryState] = useState<StoryState | null>(null);
-  const [errors, setErrors] = useState<InkError[]>([]);
+  const [latestCompiledRuntimeStory, setLatestCompiledRuntimeStory] = useState<Story | null>(null);
+  const [runtimeState, setRuntimeState] = useState<StoryRuntimeState | null>(null);
+  const [errors, setErrors] = useState<InkCompilerError[]>([]);
   const [variables, setVariables] = useState<InkVariable[]>([]);
   const [knots, setKnots] = useState<string[]>([]);
   const [variableNames, setVariableNames] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   
-  const currentStory = useRef<Story | null>(null);
+  const activeRuntimeStoryRef = useRef<Story | null>(null);
   const latestCompileRequestId = useRef(0);
 
-  const updateVariablesFromJSON = useCallback((compiledJSON: any) => {
+  const updateVariablesFromCompiledJson = useCallback((compiledJsonData: any) => {
     try {
-      if (!compiledJSON) {
+      if (!compiledJsonData) {
         setVariables([]);
         return;
       }
       
-      const inkVariables = extractInkVariables(compiledJSON);
+      const inkVariables = extractInkVariables(compiledJsonData);
       const uiVariables = convertToUIVariables(inkVariables);
       setVariables(uiVariables);
     } catch (error) {
@@ -49,64 +41,64 @@ export function useInkStory() {
     }
   }, []);
 
-  const updateStoryState = useCallback((inkStory: Story) => {
-    if (!inkStory || !inkStory.canContinue && inkStory.currentChoices.length === 0) {
-      setStoryState(null);
+  const updateRuntimeState = useCallback((runtimeStory: Story) => {
+    if (!runtimeStory || !runtimeStory.canContinue && runtimeStory.currentChoices.length === 0) {
+      setRuntimeState(null);
       return;
     }
 
     let text = '';
-    while (inkStory.canContinue) {
-      const nextText = inkStory.Continue();
+    while (runtimeStory.canContinue) {
+      const nextText = runtimeStory.Continue();
       text += (nextText || '') + '\n';
     }
 
-    const choices = inkStory.currentChoices.map((choice, index) => ({
+    const choices = runtimeStory.currentChoices.map((choice, index) => ({
       text: choice.text,
       index: index
     }));
 
-    setStoryState({
+    setRuntimeState({
       text: text.trim(),
       choices,
-      canContinue: inkStory.canContinue
+      canContinue: runtimeStory.canContinue
     });
 
     // Update variables from the live story state
-    if (inkStory.variablesState && variableNames.length > 0) {
-      const uiVariables = convertStateToUIVariables(inkStory.variablesState, variableNames);
+    if (runtimeStory.variablesState && variableNames.length > 0) {
+      const uiVariables = convertStateToUIVariables(runtimeStory.variablesState, variableNames);
       setVariables(uiVariables);
     }
   }, [variableNames]);
 
-  const applyCompileResult = useCallback((result: CompiledStory) => {
+  const applyCompileResult = useCallback((result: InkCompileResult) => {
     setErrors(result.errors);
     setKnots(result.knots);
     
-    if (result.story && result.rawJSON) {
-      setStory(result.story);
+    if (result.runtimeStory && result.compiledJson) {
+      setLatestCompiledRuntimeStory(result.runtimeStory);
       // Update variables when story is compiled (even if not running)
       // Normalize JSON data regardless of source
-      const jsonData = normalizeStoryJson(result.rawJSON);
+      const compiledJsonData = normalizeStoryJson(result.compiledJson);
       
-      updateVariablesFromJSON(jsonData);
+      updateVariablesFromCompiledJson(compiledJsonData);
       // Also store the names of the variables
-      const extractedVars = extractInkVariables(jsonData);
+      const extractedVars = extractInkVariables(compiledJsonData);
       setVariableNames(extractedVars.map(v => v.name));
     } else {
       // Clear stale compile-derived state if compilation failed.
-      setStory(null);
+      setLatestCompiledRuntimeStory(null);
       setVariables([]);
       setVariableNames([]);
     }
-  }, [updateVariablesFromJSON]);
+  }, [updateVariablesFromCompiledJson]);
 
   const debouncedLiveCompile = useMemo(
-    () => debounce(async (inkText: string, requestId: number) => {
+    () => debounce(async (inkSource: string, requestId: number) => {
       if (requestId !== latestCompileRequestId.current) return;
 
       setIsCompiling(true);
-      const result = await compileInkScript(inkText);
+      const result = await compileInkScript(inkSource);
       if (requestId !== latestCompileRequestId.current) return;
 
       applyCompileResult(result);
@@ -121,17 +113,17 @@ export function useInkStory() {
     };
   }, [debouncedLiveCompile]);
 
-  const compileLive = useCallback((inkText: string) => {
+  const compileLive = useCallback((inkSource: string) => {
     const requestId = ++latestCompileRequestId.current;
-    debouncedLiveCompile(inkText, requestId);
+    debouncedLiveCompile(inkSource, requestId);
   }, [debouncedLiveCompile]);
 
-  const compileNow = useCallback(async (inkText: string) => {
+  const compileNow = useCallback(async (inkSource: string) => {
     debouncedLiveCompile.cancel();
     const requestId = ++latestCompileRequestId.current;
     setIsCompiling(true);
 
-    const result = await compileInkScript(inkText);
+    const result = await compileInkScript(inkSource);
     if (requestId !== latestCompileRequestId.current) {
       return null;
     }
@@ -141,31 +133,31 @@ export function useInkStory() {
     return result;
   }, [applyCompileResult, debouncedLiveCompile]);
 
-  const runStory = useCallback((storyToRun?: any) => {
-    const activeStory = storyToRun || story;
-    if (activeStory) {
-      currentStory.current = activeStory;
-      activeStory.ResetState(); // IMPORTANT: Reset state before running
+  const runStory = useCallback((runtimeStoryToRun?: Story) => {
+    const activeRuntimeStory = runtimeStoryToRun || latestCompiledRuntimeStory;
+    if (activeRuntimeStory) {
+      activeRuntimeStoryRef.current = activeRuntimeStory;
+      activeRuntimeStory.ResetState(); // IMPORTANT: Reset state before running
       setIsRunning(true);
-      updateStoryState(activeStory);
+      updateRuntimeState(activeRuntimeStory);
     } else {
       setIsRunning(false);
     }
-  }, [story, updateStoryState]);
+  }, [latestCompiledRuntimeStory, updateRuntimeState]);
 
   const restartStory = useCallback(() => {
-    if (currentStory.current) {
-      currentStory.current.ResetState();
+    if (activeRuntimeStoryRef.current) {
+      activeRuntimeStoryRef.current.ResetState();
       setIsRunning(true);
-      updateStoryState(currentStory.current);
+      updateRuntimeState(activeRuntimeStoryRef.current);
     }
-  }, [updateStoryState]);
+  }, [updateRuntimeState]);
 
   const makeChoice = useCallback((choiceIndex: number) => {
-    if (currentStory.current && isRunning) {
+    if (activeRuntimeStoryRef.current && isRunning) {
       try {
-        currentStory.current.ChooseChoiceIndex(choiceIndex);
-        updateStoryState(currentStory.current);
+        activeRuntimeStoryRef.current.ChooseChoiceIndex(choiceIndex);
+        updateRuntimeState(activeRuntimeStoryRef.current);
       } catch (error) {
         console.error('Error making choice:', error);
         setErrors([{
@@ -175,14 +167,14 @@ export function useInkStory() {
         }]);
       }
     }
-  }, [isRunning, updateStoryState]);
+  }, [isRunning, updateRuntimeState]);
 
   const jumpToKnot = useCallback((knotName: string) => {
-    if (currentStory.current && isRunning) {
+    if (activeRuntimeStoryRef.current && isRunning) {
       try {
         // In inkjs, we can use ChoosePathString to jump to a knot
-        currentStory.current.ChoosePathString(knotName);
-        updateStoryState(currentStory.current);
+        activeRuntimeStoryRef.current.ChoosePathString(knotName);
+        updateRuntimeState(activeRuntimeStoryRef.current);
       } catch (error) {
         console.error('Error jumping to knot:', error);
         setErrors([{
@@ -192,11 +184,11 @@ export function useInkStory() {
         }]);
       }
     }
-  }, [isRunning, updateStoryState]);
+  }, [isRunning, updateRuntimeState]);
 
   return {
-    story,
-    storyState,
+    runtimeStory: latestCompiledRuntimeStory,
+    runtimeState,
     errors,
     variables,
     knots,

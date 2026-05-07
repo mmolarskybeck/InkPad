@@ -1,4 +1,4 @@
-export interface FileData {
+export interface StoredInkDocument {
   name: string;
   content: string;
   lastModified: number;
@@ -27,40 +27,40 @@ export class FileOperations {
     return hash.toString(36);
   }
 
-  static async saveFile(fileName: string, content: string): Promise<void> {
-    const key = this.STORAGE_PREFIX + fileName;
+  static async saveFile(filename: string, source: string): Promise<void> {
+    const key = this.STORAGE_PREFIX + filename;
     const now = Date.now();
-    const contentHash = this.simpleHash(content);
+    const sourceHash = this.simpleHash(source);
     
     // Check if content actually changed
-    const existing = this.loadFile(fileName);
-    if (existing && this.simpleHash(existing.content) === contentHash) {
+    const existingDocument = this.loadFile(filename);
+    if (existingDocument && this.simpleHash(existingDocument.content) === sourceHash) {
       return; // No change, skip save
     }
 
-    const fileData: FileData = {
-      name: fileName,
-      content,
+    const storedDocument: StoredInkDocument = {
+      name: filename,
+      content: source,
       lastModified: now,
       lastSavedAt: now
     };
 
     try {
       // Create snapshot of previous version if it exists
-      if (existing) {
-        await this.createSnapshot(fileName, existing.content, existing.lastModified);
+      if (existingDocument) {
+        await this.createSnapshot(filename, existingDocument.content, existingDocument.lastModified);
       }
 
       // Attempt to save
-      localStorage.setItem(key, JSON.stringify(fileData));
+      localStorage.setItem(key, JSON.stringify(storedDocument));
     } catch (error) {
       if (error instanceof Error && error.name === 'QuotaExceededError') {
         // Handle quota exceeded by cleaning up old snapshots
-        const cleaned = await this.cleanupSnapshots(fileName, 3);
+        const cleaned = await this.cleanupSnapshots(filename, 3);
         if (cleaned > 0) {
           try {
             // Retry save after cleanup
-            localStorage.setItem(key, JSON.stringify(fileData));
+            localStorage.setItem(key, JSON.stringify(storedDocument));
           } catch (retryError) {
             throw new Error('Storage quota exceeded even after cleanup. Please export your work and free up space.');
           }
@@ -73,17 +73,17 @@ export class FileOperations {
     }
   }
 
-  static loadFile(fileName: string): FileData | null {
-    const key = this.STORAGE_PREFIX + fileName;
+  static loadFile(filename: string): StoredInkDocument | null {
+    const key = this.STORAGE_PREFIX + filename;
     const data = localStorage.getItem(key);
     if (data) {
       try {
-        const fileData = JSON.parse(data) as FileData;
+        const storedDocument = JSON.parse(data) as StoredInkDocument;
         // Ensure lastSavedAt exists (for backward compatibility)
-        if (!fileData.lastSavedAt) {
-          fileData.lastSavedAt = fileData.lastModified;
+        if (!storedDocument.lastSavedAt) {
+          storedDocument.lastSavedAt = storedDocument.lastModified;
         }
-        return fileData;
+        return storedDocument;
       } catch (error) {
         console.error('Error parsing file data:', error);
         return null;
@@ -92,27 +92,27 @@ export class FileOperations {
     return null;
   }
 
-  static getAllFiles(): FileData[] {
-    const files: FileData[] = [];
+  static getAllFiles(): StoredInkDocument[] {
+    const storedDocuments: StoredInkDocument[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith(this.STORAGE_PREFIX) && !key.includes(this.SNAPSHOT_PREFIX)) {
         const data = localStorage.getItem(key);
         if (data) {
           try {
-            const fileData = JSON.parse(data) as FileData;
+            const storedDocument = JSON.parse(data) as StoredInkDocument;
             // Ensure lastSavedAt exists (for backward compatibility)
-            if (!fileData.lastSavedAt) {
-              fileData.lastSavedAt = fileData.lastModified;
+            if (!storedDocument.lastSavedAt) {
+              storedDocument.lastSavedAt = storedDocument.lastModified;
             }
-            files.push(fileData);
+            storedDocuments.push(storedDocument);
           } catch (error) {
             console.error('Error parsing file data:', error);
           }
         }
       }
     }
-    return files.sort((a, b) => b.lastModified - a.lastModified);
+    return storedDocuments.sort((a, b) => b.lastModified - a.lastModified);
   }
 
   static deleteFile(fileName: string): boolean {

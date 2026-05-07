@@ -6,18 +6,18 @@ import { normalizeStoryJson } from "./json-utils";
 // Types
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface InkError {
+export interface InkCompilerError {
   line: number;
   column?: number;
   message: string;
   type: "error" | "warning";
 }
 
-export interface CompiledStory {
-  story: Story | null;
-  errors: InkError[];
+export interface InkCompileResult {
+  runtimeStory: Story | null;
+  errors: InkCompilerError[];
   knots: string[];
-  rawJSON?: string; // raw compiled JSON
+  compiledJson?: string;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,25 +63,25 @@ async function compileInkViaWorker(source: string): Promise<string> {
 ////////////////////////////////////////////////////////////////////////////////
 
 export async function compileInkScript(
-  inkText: string
-): Promise<CompiledStory> {
+  inkSource: string
+): Promise<InkCompileResult> {
   try {
-    const json = await compileInkViaWorker(inkText);
-    const data = normalizeStoryJson(json);
-    const story = new Story(data);
+    const compiledJson = await compileInkViaWorker(inkSource);
+    const storyData = normalizeStoryJson(compiledJson);
+    const runtimeStory = new Story(storyData);
     return {
-      story,
+      runtimeStory,
       errors: [],
-      knots: extractKnots(inkText),
-      rawJSON: json, // Store the raw JSON string for export
+      knots: extractKnots(inkSource),
+      compiledJson,
     };
   } catch (err) {
     // Worker threw – most likely a compilation error.  Try to parse details.
-    const parsed = parseInkError(err as Error, inkText);
+    const parsed = parseInkError(err as Error, inkSource);
     return {
-      story: null,
+      runtimeStory: null,
       errors: [parsed],
-      knots: extractKnots(inkText),
+      knots: extractKnots(inkSource),
     };
   }
 }
@@ -92,19 +92,19 @@ export async function compileInkScript(
 //     NOTE: this is *not* 100 % spec‑accurate vs. inklecate, but handy offline.
 ////////////////////////////////////////////////////////////////////////////////
 
-export function compileInkScriptSync(inkText: string): CompiledStory {
+export function compileInkScriptSync(inkSource: string): InkCompileResult {
   try {
-    const story = new Story(inkText); // runtime compile
+    const runtimeStory = new Story(inkSource); // runtime compile
     return {
-      story,
+      runtimeStory,
       errors: [],
-      knots: extractKnots(inkText),
+      knots: extractKnots(inkSource),
     };
   } catch (err) {
     return {
-      story: null,
-      errors: [parseInkError(err as Error, inkText)],
-      knots: extractKnots(inkText),
+      runtimeStory: null,
+      errors: [parseInkError(err as Error, inkSource)],
+      knots: extractKnots(inkSource),
     };
   }
 }
@@ -114,7 +114,7 @@ export function compileInkScriptSync(inkText: string): CompiledStory {
 ////////////////////////////////////////////////////////////////////////////////
 
 // crude parser for “line 12: Something went wrong” messages
-function parseInkError(error: Error, inkText: string): InkError {
+function parseInkError(error: Error, inkSource: string): InkCompilerError {
   const msg = error.message ?? "Compilation failed";
   const lineMatch = msg.match(/line (\d+)/i);
   const colMatch = msg.match(/column (\d+)/i);
@@ -138,9 +138,9 @@ function extractKnots(source: string): string[] {
 // 5. — extra lint / syntax checks (optional, left from your old file)
 ////////////////////////////////////////////////////////////////////////////////
 
-export function validateInkSyntax(inkText: string): InkError[] {
-  const errors: InkError[] = [];
-  const lines = inkText.split("\n");
+export function validateInkSyntax(inkSource: string): InkCompilerError[] {
+  const errors: InkCompilerError[] = [];
+  const lines = inkSource.split("\n");
   lines.forEach((l, i) => {
     const n = i + 1;
     const t = l.trim();

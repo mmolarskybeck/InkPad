@@ -3,24 +3,19 @@ import { useState } from "react";
 import { Eye, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { compileInkScript, InkError } from "@/lib/ink-compiler";
-
-interface StoryState {
-  text: string;
-  choices: Array<{ text: string; index: number }>;
-  canContinue: boolean;
-}
+import { compileInkScript, type InkCompilerError } from "@/lib/ink-compiler";
+import type { StoryRuntimeState } from "@/types/story-runtime";
 
 interface StoryPreviewProps {
-  storyState: StoryState | null;
+  runtimeState: StoryRuntimeState | null;
   isRunning: boolean;
   onMakeChoice: (choiceIndex: number) => void;
   inkSource?: string;
-  onCompiled?: (story: any) => void;
+  onCompiled?: (runtimeStory: unknown) => void;
 }
 
 export function StoryPreview({
-  storyState,
+  runtimeState,
   isRunning,
   onMakeChoice,
   inkSource,
@@ -29,7 +24,7 @@ export function StoryPreview({
   const [compileStatus, setCompileStatus] = useState<
     "idle" | "compiling" | "error" | "success"
   >("idle");
-  const [errors, setErrors] = useState<InkError[]>([]);
+  const [errors, setErrors] = useState<InkCompilerError[]>([]);
 
   const handleCompile = async () => {
     if (!inkSource) return;
@@ -40,9 +35,9 @@ export function StoryPreview({
     try {
       const result = await compileInkScript(inkSource);
 
-      if (result.errors.length === 0 && result.story) {
+      if (result.errors.length === 0 && result.runtimeStory) {
         setCompileStatus("success");
-        onCompiled?.(result.story);
+        onCompiled?.(result.runtimeStory);
       } else {
         setCompileStatus("error");
         setErrors(result.errors);
@@ -112,17 +107,17 @@ export function StoryPreview({
           )}
 
           {/* Story output */}
-          {storyState ? (
+          {runtimeState ? (
             <>
-              {storyState.text && (
+              {runtimeState.text && (
                 <div className="text-text-emphasis leading-relaxed whitespace-pre-wrap">
-                  {storyState.text}
+                  {runtimeState.text}
                 </div>
               )}
 
-              {storyState.choices.length > 0 && (
+              {runtimeState.choices.length > 0 && (
                 <div className="space-y-2">
-                  {storyState.choices.map((choice) => (
+                  {runtimeState.choices.map((choice) => (
                     <Button
                       key={choice.index}
                       onClick={() => onMakeChoice(choice.index)}
@@ -135,8 +130,8 @@ export function StoryPreview({
                 </div>
               )}
 
-              {!storyState.canContinue &&
-                storyState.choices.length === 0 && (
+              {!runtimeState.canContinue &&
+                runtimeState.choices.length === 0 && (
                   <div className="text-text-secondary italic">
                     Story ended. Click "Run Story" to play again.
                   </div>

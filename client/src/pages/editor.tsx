@@ -13,18 +13,20 @@ import { FileOperations } from "@/lib/file-operations";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryExport } from "@/features/export/useStoryExport";
 import { useFileImport } from "@/features/files/useFileImport";
+import type { InkDocument } from "@/types/ink-document";
 
 export default function Editor() {
-  const [code, setCode] = useState(SAMPLE_STORY);
-  const [currentFile, setCurrentFile] = useState("story.ink");
+  const [currentDocument, setCurrentDocument] = useState<InkDocument>({
+    filename: "story.ink",
+    source: SAMPLE_STORY,
+  });
   const [title, setTitle] = useState("story");
   
   const editorRef = useRef<MonacoEditorHandle>(null);
   const { toast } = useToast();
   
   const {
-    story,
-    storyState,
+    runtimeState,
     errors,
     variables,
     knots,
@@ -39,36 +41,40 @@ export default function Editor() {
 
   // Autosave system
   const autosave = useAutosave({
-    fileName: currentFile,
-    content: code,
-    onSave: async (fileName, content) => {
-      await FileOperations.saveFile(fileName, content);
+    fileName: currentDocument.filename,
+    content: currentDocument.source,
+    onSave: async (filename, source) => {
+      await FileOperations.saveFile(filename, source);
     }
   });
 
   // Show error toasts for save failures
   useSaveErrorToast({
     saveState: autosave.saveState,
-    fileName: currentFile
+    fileName: currentDocument.filename
   });
 
-  // Compile the story on initial load
+  // Compile the Ink source on initial load
   useEffect(() => {
-    if (code) {
-      compileLive(code);
+    if (currentDocument.source) {
+      compileLive(currentDocument.source);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on initial load
 
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-    compileLive(newCode);
+  const handleSourceChange = (newSource: string) => {
+    setCurrentDocument((document) => ({
+      ...document,
+      source: newSource,
+      updatedAt: Date.now(),
+    }));
+    compileLive(newSource);
   };
 
   const getCurrentSource = useCallback(() => {
-    const monacoCode = editorRef.current?.getValue() || "";
-    return monacoCode || code;
-  }, [code]);
+    const editorSource = editorRef.current?.getValue() || "";
+    return editorSource || currentDocument.source;
+  }, [currentDocument.source]);
 
   const handleExportError = useCallback((message: string, error: unknown) => {
     console.error(message, error);
@@ -77,12 +83,12 @@ export default function Editor() {
 
   const handleRun = async () => {
     // Use Monaco's value as source of truth and do immediate compile
-    const monacoCode = editorRef.current?.getValue() || "";
-    const codeToCompile = monacoCode || code;
-    const result = await compileNow(codeToCompile);
+    const editorSource = editorRef.current?.getValue() || "";
+    const sourceToCompile = editorSource || currentDocument.source;
+    const result = await compileNow(sourceToCompile);
     
-    if (result?.story) {
-      runStory(result.story); // Pass the freshly compiled story directly
+    if (result?.runtimeStory) {
+      runStory(result.runtimeStory); // Pass the freshly compiled runtime story directly
     } else {
       console.error("Compile failed; not running.", result?.errors);
     }
@@ -100,7 +106,7 @@ export default function Editor() {
       // Show success toast for manual saves
       toast({
         title: "Saved",
-        description: `${currentFile} saved successfully.`,
+        description: `${currentDocument.filename} saved successfully.`,
       });
     } catch (e: any) {
       console.error("Save failed:", e);
@@ -110,26 +116,33 @@ export default function Editor() {
         variant: "destructive",
       });
     }
-  }, [currentFile, autosave, toast]);
+  }, [currentDocument.filename, autosave, toast]);
 
-  const handleLoad = useCallback((fileName: string, content: string) => {
-    // Try to load from FileOperations first, fallback to provided content
-    const file = FileOperations.loadFile(fileName);
-    const loadedContent = file?.content ?? content;
+  const handleLoad = useCallback((filename: string, importedSource: string) => {
+    // Try to load from storage first, fallback to the imported source.
+    const storedDocument = FileOperations.loadFile(filename);
+    const sourceToLoad = storedDocument?.content ?? importedSource;
     
-    setCode(loadedContent);
-    setCurrentFile(fileName);
+    setCurrentDocument({
+      filename,
+      source: sourceToLoad,
+      updatedAt: storedDocument?.lastModified,
+      lastSavedAt: storedDocument?.lastSavedAt,
+    });
     // Extract title from filename
-    const titleFromFile = fileName.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
+    const titleFromFile = filename.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
     setTitle(titleFromFile);
-    compileLive(loadedContent);
+    compileLive(sourceToLoad);
   }, [compileLive]);
 
   const handleNew = useCallback(() => {
-    setCode(""); // Set to a blank slate
-    setCurrentFile("untitled.ink");
+    setCurrentDocument({
+      filename: "untitled.ink",
+      source: "",
+      updatedAt: Date.now(),
+    });
     setTitle("Untitled");
-    // No need to compile an empty story
+    // No need to compile an empty source document.
   }, []);
 
   const handleOpen = useFileImport({
@@ -141,13 +154,17 @@ export default function Editor() {
     setTitle(validTitle);
     
     // Also update the file name based on the new title
-    const newFileName = `${validTitle.replace(/\s+/g, '-').toLowerCase()}.ink`;
-    setCurrentFile(newFileName);
+    const nextFilename = `${validTitle.replace(/\s+/g, '-').toLowerCase()}.ink`;
+    setCurrentDocument((document) => ({
+      ...document,
+      filename: nextFilename,
+      updatedAt: Date.now(),
+    }));
   }, []);
 
   const handleNavigateToKnot = useCallback((knotName: string) => {
     // Jump to knot in editor - find the line with "=== knotName ==="
-    const lines = code.split('\n');
+    const lines = currentDocument.source.split('\n');
     const knotLineIndex = lines.findIndex(line => 
       line.trim() === `=== ${knotName} ===`
     );
@@ -166,7 +183,7 @@ export default function Editor() {
     if (isRunning) {
       jumpToKnot(knotName);
     }
-  }, [code, isRunning, jumpToKnot]);
+  }, [currentDocument.source, isRunning, jumpToKnot]);
 
   const { exportInk, exportJson, exportHtml, isExporting } = useStoryExport({
     getSource: getCurrentSource,
@@ -205,10 +222,10 @@ export default function Editor() {
               <div className="h-full">
                 <MonacoEditor
                   ref={editorRef}
-                  value={code}
-                  onChange={handleCodeChange}
+                  value={currentDocument.source}
+                  onChange={handleSourceChange}
                   errors={errors}
-                  fileName={currentFile}
+                  fileName={currentDocument.filename}
                   onNavigateToLine={() => {}}
                 />
               </div>
@@ -219,7 +236,7 @@ export default function Editor() {
             {/* Story Preview Panel */}
             <ResizablePanel defaultSize={50} minSize={30}>
               <StoryPreview
-                storyState={storyState}
+                runtimeState={runtimeState}
                 isRunning={isRunning}
                 onMakeChoice={makeChoice}
               />

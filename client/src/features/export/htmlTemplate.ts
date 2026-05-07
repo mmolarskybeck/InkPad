@@ -15,20 +15,20 @@ export async function loadStoryHtmlTemplate(
 
 export function renderStoryHtmlTemplate(
   htmlTemplate: string,
-  rawStoryJson: string,
+  compiledJson: string,
   title: string
 ): string {
   const storyTitle = validateTitle(title);
 
   return htmlTemplate
     .replace(/\{\{STORY_TITLE\}\}/g, () => storyTitle)
-    .replace(/\{\{STORY_DATA\}\}/g, () => rawStoryJson);
+    .replace(/\{\{STORY_DATA\}\}/g, () => compiledJson);
 }
 
 export async function buildStoryHtml(
-  rawStoryJson: string,
+  compiledJson: string,
   title: string
 ): Promise<string> {
   const htmlTemplate = await loadStoryHtmlTemplate();
-  return renderStoryHtmlTemplate(htmlTemplate, rawStoryJson, title);
+  return renderStoryHtmlTemplate(htmlTemplate, compiledJson, title);
 }

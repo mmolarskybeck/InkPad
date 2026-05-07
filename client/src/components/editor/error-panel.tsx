@@ -2,16 +2,10 @@ import { useState } from "react";
 import { AlertTriangle, ChevronDown, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-interface InkError {
-  line: number;
-  column?: number;
-  message: string;
-  type?: 'error' | 'warning';
-}
+import type { InkCompilerError } from "@/lib/ink-compiler";
 
 interface ErrorPanelProps {
-  errors: InkError[];
+  errors: InkCompilerError[];
   onErrorClick: (line: number) => void;
 }
 

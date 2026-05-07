@@ -16,15 +16,16 @@ import type { CompilerWorkerMessage, CompilerWorkerInput } from "../types/worker
 
 self.onmessage = ({ data }: MessageEvent<CompilerWorkerInput>) => {
   try {
-    const story = new ink.Compiler(data).Compile();
-    const jsonResult = story.ToJson();
+    const inkSource = data;
+    const compiledStory = new ink.Compiler(inkSource).Compile();
+    const compiledJson = compiledStory.ToJson();
     
-    if (typeof jsonResult !== 'string') {
+    if (typeof compiledJson !== 'string') {
       throw new Error("Failed to serialize story to JSON");
     }
     
     // CRITICAL: Send JSON string, not parsed object
-    const message: CompilerWorkerMessage = { ok: true, json: jsonResult };
+    const message: CompilerWorkerMessage = { ok: true, json: compiledJson };
     postMessage(message);
   } catch (e: any) {
     const message: CompilerWorkerMessage = {
