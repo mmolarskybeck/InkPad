@@ -1,54 +1,42 @@
-import { useState, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Feather, File, FolderOpen, Save, Download, Play, RotateCcw, Globe } from "lucide-react";
-import { saveAs } from "file-saver";
-import JSZip from "jszip";
+import { Feather, File, FolderOpen, Save, Play, RotateCcw } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
-import { getFilename, validateTitle } from "@/lib/filename-utils";
-import { MonacoEditorHandle } from "./monaco-editor";
-import type { CompiledStory } from "@/lib/ink-compiler";
+import { StoryExportDialog } from "./story-export-dialog";
 
 interface TopMenuProps {
-  currentFile: string;
-  currentCode: string;
   title: string;
-  isModified: boolean;
-  isRunning: boolean;
   knots: string[];
-  editorRef: RefObject<MonacoEditorHandle>;
   onNew: () => void;
+  onOpen: () => void;
   onSave: () => void;
-  onLoad: (fileName: string, content: string) => void;
   onTitleChange: (newTitle: string) => void;
   onRun: () => void;
   onRestart: () => void;
-  compileNow: (inkText: string) => Promise<CompiledStory | null>;
+  onExportInk: () => void | Promise<void>;
+  onExportJson: () => void | Promise<void>;
+  onExportHtml: () => void | Promise<void>;
+  isExporting?: boolean;
   onNavigateToKnot?: (knotName: string) => void;
   saveState?: "dirty" | "saving" | "saved" | "error";
 }
 
 export function TopMenu({
-  currentFile,
-  currentCode,
   title,
-  isModified,
-  isRunning,
   knots,
-  editorRef,
   onNew,
+  onOpen,
   onSave,
-  onLoad,
   onTitleChange,
   onRun,
   onRestart,
-  compileNow,
+  onExportInk,
+  onExportJson,
+  onExportHtml,
+  isExporting = false,
   onNavigateToKnot,
   saveState = "saved"
 }: TopMenuProps) {
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-
   // Get CSS class for save state dot - always mounted, only styling changes
   const getSaveStatusDotClass = () => {
     const baseClass = "w-2 h-2 rounded-full transition-colors duration-200";
@@ -65,134 +53,6 @@ export function TopMenu({
       default:
         return `${baseClass} bg-gray-400 opacity-30`;
     }
-  };
-
-  const handleOpen = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.ink,.txt';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          onLoad(file.name, content);
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
-
-  const handleExportInk = () => {
-    // Use Monaco's value for export to unblock users
-    const monacoCode = editorRef.current?.getValue() || "";
-    const codeToExport = monacoCode || currentCode;
-    const filename = getFilename(title, '.ink');
-    const blob = new Blob([codeToExport], { type: 'text/plain' });
-    saveAs(blob, filename);
-    setExportDialogOpen(false);
-  };
-
-  const handleExportJson = async () => {
-    try {
-      // Use Monaco's value for compilation
-      const monacoCode = editorRef.current?.getValue() || "";
-      const codeToCompile = monacoCode || currentCode;
-      
-      // Compile using the local compiler
-      const result = await compileNow(codeToCompile);
-      
-      if (result?.rawJSON) {
-        // Export the raw compiled JSON data
-        const filename = getFilename(title, '.json');
-        const blob = new Blob([result.rawJSON], { type: 'application/json' });
-        saveAs(blob, filename);
-      } else {
-        // If compilation failed, show error
-        console.error('Compilation failed:', result?.errors);
-        const errorMessages = result?.errors.map(e => e.message).join(', ') || 'Compilation was superseded by a newer edit.';
-        alert(`Failed to compile story for export: ${errorMessages}`);
-      }
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert(`Failed to export JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-    setExportDialogOpen(false);
-  };
-
-  const handleExportHtml = async () => {
-    try {
-      // Use Monaco's value for compilation
-      const monacoCode = editorRef.current?.getValue() || "";
-      const codeToCompile = monacoCode || currentCode;
-      
-      // Compile using the local compiler
-      const result = await compileNow(codeToCompile);
-      
-      if (!result?.rawJSON) {
-        const errorMessages = result?.errors.map(e => e.message).join(', ') || 'Compilation was superseded by a newer edit.';
-        throw new Error(`Failed to compile story for HTML export: ${errorMessages}`);
-      }
-
-      // Load the HTML template
-      const templateResponse = await fetch('/templates/story-template.html');
-      if (!templateResponse.ok) {
-        throw new Error('Failed to load HTML template');
-      }
-      
-      let htmlTemplate = await templateResponse.text();
-      
-      // Use the validated title for display
-      const storyTitle = validateTitle(title);
-
-      // Replace template placeholders with the raw JSON string
-      htmlTemplate = htmlTemplate
-        .replace(/\{\{STORY_TITLE\}\}/g, storyTitle)
-        .replace('{{STORY_DATA}}', result.rawJSON);
-
-      // Create a ZIP file with the HTML and supporting files
-      const zip = new JSZip();
-      
-      // Add the main HTML file
-      zip.file('play.html', htmlTemplate);
-      
-      // Add a README with instructions
-      const readme = `# ${storyTitle}
-
-This is an interactive story created with InkPad.
-
-## How to Play
-
-1. Double-click on "play.html" to open the story in your web browser
-2. Read the text and click on choices to progress through the story
-3. Use the "Play Again" button to restart the story
-
-## Technical Details
-
-This story was created using:
-- Ink scripting language by Inkle Studios
-- InkPad web-based IDE
-- InkJS runtime for web playback
-
-Enjoy your story!
-`;
-      
-      zip.file('README.md', readme);
-
-      // Generate the ZIP file
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      
-      // Download the ZIP file with proper filename
-      const filename = title === 'story' ? 'inkpad_story.zip' : getFilename(title, '.zip');
-      saveAs(zipBlob, filename);
-      
-    } catch (error) {
-      console.error('HTML export failed:', error);
-      alert(`Failed to export HTML: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-    setExportDialogOpen(false);
   };
 
   const handleKnotNavigation = (knotName: string) => {
@@ -232,7 +92,7 @@ Enjoy your story!
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleOpen}
+            onClick={onOpen}
             className="px-3 py-1.5 text-xs hover:bg-border-color"
           >
             <FolderOpen className="w-3 h-3 mr-1" />
@@ -251,57 +111,12 @@ Enjoy your story!
           
           <div className="w-px h-4 bg-border-color mx-1" />
           
-          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="px-3 py-1.5 text-xs hover:bg-border-color"
-              >
-                <Download className="w-3 h-3 mr-1" />
-                Export
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-panel-bg border-border-color">
-              <DialogHeader>
-                <DialogTitle className="text-text-emphasis">Export Story</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <Button
-                  onClick={handleExportInk}
-                  className="w-full justify-start bg-transparent border border-border-color hover:border-accent-blue text-text-primary"
-                >
-                  <File className="w-4 h-4 mr-3 text-accent-blue" />
-                  <div className="text-left">
-                    <div className="font-medium">Export as .ink</div>
-                    <div className="text-xs text-text-secondary">Raw Ink source file</div>
-                  </div>
-                </Button>
-                
-                <Button
-                  onClick={handleExportJson}
-                  className="w-full justify-start bg-transparent border border-border-color hover:border-accent-blue text-text-primary"
-                >
-                  <Download className="w-4 h-4 mr-3 text-success" />
-                  <div className="text-left">
-                    <div className="font-medium">Export as .json</div>
-                    <div className="text-xs text-text-secondary">Compiled story data</div>
-                  </div>
-                </Button>
-
-                <Button
-                  onClick={handleExportHtml}
-                  className="w-full justify-start bg-transparent border border-border-color hover:border-accent-blue text-text-primary"
-                >
-                  <Globe className="w-4 h-4 mr-3 text-orange-500" />
-                  <div className="text-left">
-                    <div className="font-medium">Export as .html</div>
-                    <div className="text-xs text-text-secondary">Playable web story (ZIP)</div>
-                  </div>
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <StoryExportDialog
+            onExportInk={onExportInk}
+            onExportJson={onExportJson}
+            onExportHtml={onExportHtml}
+            isExporting={isExporting}
+          />
         </div>
       </div>
       

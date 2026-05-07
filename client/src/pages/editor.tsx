@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { TopMenu } from "@/components/editor/top-menu";
 import { MonacoEditor, MonacoEditorHandle } from "@/components/editor/monaco-editor";
@@ -11,6 +11,8 @@ import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { useToast } from "@/hooks/use-toast";
+import { useStoryExport } from "@/features/export/useStoryExport";
+import { useFileImport } from "@/features/files/useFileImport";
 
 export default function Editor() {
   const [code, setCode] = useState(SAMPLE_STORY);
@@ -62,6 +64,16 @@ export default function Editor() {
     setCode(newCode);
     compileLive(newCode);
   };
+
+  const getCurrentSource = useCallback(() => {
+    const monacoCode = editorRef.current?.getValue() || "";
+    return monacoCode || code;
+  }, [code]);
+
+  const handleExportError = useCallback((message: string, error: unknown) => {
+    console.error(message, error);
+    alert(`${message}: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }, []);
 
   const handleRun = async () => {
     // Use Monaco's value as source of truth and do immediate compile
@@ -120,6 +132,10 @@ export default function Editor() {
     // No need to compile an empty story
   }, []);
 
+  const handleOpen = useFileImport({
+    onLoad: handleLoad,
+  });
+
   const handleTitleChange = useCallback((newTitle: string) => {
     const validTitle = newTitle.trim() || 'story';
     setTitle(validTitle);
@@ -152,33 +168,28 @@ export default function Editor() {
     }
   }, [code, isRunning, jumpToKnot]);
 
-  // Stable modified state to prevent flickering  
-  // Keep the previous modified state while saving to prevent flicker
-  const isModified = useMemo(() => {
-    if (autosave.saveState === "saving") {
-      // During save, maintain previous state to prevent flicker
-      return true; // Assume modified during saving to avoid flash
-    }
-    return autosave.saveState === "dirty" || autosave.saveState === "error";
-  }, [autosave.saveState]);
+  const { exportInk, exportJson, exportHtml, isExporting } = useStoryExport({
+    getSource: getCurrentSource,
+    title,
+    compileStory: compileNow,
+    onError: handleExportError,
+  });
 
   return (
     <div className="h-screen flex flex-col bg-editor-bg text-text-primary">
       <TopMenu
-        currentFile={currentFile}
-        currentCode={code}
         title={title}
-        isModified={isModified}
-        isRunning={isRunning}
         knots={knots}
-        editorRef={editorRef}
         onNew={handleNew}
+        onOpen={handleOpen}
         onSave={handleSave}
-        onLoad={handleLoad}
         onTitleChange={handleTitleChange}
         onRun={handleRun}
         onRestart={handleRestart}
-        compileNow={compileNow}
+        onExportInk={exportInk}
+        onExportJson={exportJson}
+        onExportHtml={exportHtml}
+        isExporting={isExporting}
         onNavigateToKnot={handleNavigateToKnot}
         saveState={autosave.saveState}
       />
