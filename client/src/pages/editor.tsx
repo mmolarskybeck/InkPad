@@ -30,8 +30,8 @@ export default function Editor() {
     runStory,
     restartStory,
     makeChoice,
-    compileStory,
-    compileStoryNow,
+    compileLive,
+    compileNow,
     jumpToKnot
   } = useInkStory();
 
@@ -53,25 +53,26 @@ export default function Editor() {
   // Compile the story on initial load
   useEffect(() => {
     if (code) {
-      compileStory(code);
+      compileLive(code);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on initial load
 
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
+    compileLive(newCode);
   };
 
   const handleRun = async () => {
     // Use Monaco's value as source of truth and do immediate compile
     const monacoCode = editorRef.current?.getValue() || "";
     const codeToCompile = monacoCode || code;
-    const result = await compileStoryNow(codeToCompile);
+    const result = await compileNow(codeToCompile);
     
-    if (result.story) {
+    if (result?.story) {
       runStory(result.story); // Pass the freshly compiled story directly
     } else {
-      console.error("Compile failed; not running.", result.errors);
+      console.error("Compile failed; not running.", result?.errors);
     }
   };
 
@@ -109,8 +110,8 @@ export default function Editor() {
     // Extract title from filename
     const titleFromFile = fileName.replace('.ink', '').replace(/[-_]/g, ' ').trim() || 'story';
     setTitle(titleFromFile);
-    compileStory(loadedContent);
-  }, [compileStory]);
+    compileLive(loadedContent);
+  }, [compileLive]);
 
   const handleNew = useCallback(() => {
     setCode(""); // Set to a blank slate
@@ -177,6 +178,7 @@ export default function Editor() {
         onTitleChange={handleTitleChange}
         onRun={handleRun}
         onRestart={handleRestart}
+        compileNow={compileNow}
         onNavigateToKnot={handleNavigateToKnot}
         saveState={autosave.saveState}
       />

@@ -1,7 +1,9 @@
 // client/src/ink-monarch.ts
+import type { languages } from "monaco-editor";
+
 export const inkLanguageId = "ink";
 
-export const languageDefinition = {
+export const languageDefinition: languages.IMonarchLanguage = {
   // Set default token style
   defaultToken: '',
   

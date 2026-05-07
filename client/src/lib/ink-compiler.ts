@@ -86,11 +86,6 @@ export async function compileInkScript(
   }
 }
 
-// Non-debounced version for immediate compilation (exports)
-export async function compileInkScriptNow(inkText: string): Promise<CompiledStory> {
-  return compileInkScript(inkText);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // 3. — compileInkScriptSync  (fallback / tests)
 //     Uses inkjs runtime’s on‑the‑fly compile (for tiny scripts or unit tests)

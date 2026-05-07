@@ -8,7 +8,7 @@ import JSZip from "jszip";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { getFilename, validateTitle } from "@/lib/filename-utils";
 import { MonacoEditorHandle } from "./monaco-editor";
-import { compileInkScriptNow } from "@/lib/ink-compiler";
+import type { CompiledStory } from "@/lib/ink-compiler";
 
 interface TopMenuProps {
   currentFile: string;
@@ -24,6 +24,7 @@ interface TopMenuProps {
   onTitleChange: (newTitle: string) => void;
   onRun: () => void;
   onRestart: () => void;
+  compileNow: (inkText: string) => Promise<CompiledStory | null>;
   onNavigateToKnot?: (knotName: string) => void;
   saveState?: "dirty" | "saving" | "saved" | "error";
 }
@@ -42,6 +43,7 @@ export function TopMenu({
   onTitleChange,
   onRun,
   onRestart,
+  compileNow,
   onNavigateToKnot,
   saveState = "saved"
 }: TopMenuProps) {
@@ -100,17 +102,17 @@ export function TopMenu({
       const codeToCompile = monacoCode || currentCode;
       
       // Compile using the local compiler
-      const result = await compileInkScriptNow(codeToCompile);
+      const result = await compileNow(codeToCompile);
       
-      if (result.rawJSON) {
+      if (result?.rawJSON) {
         // Export the raw compiled JSON data
         const filename = getFilename(title, '.json');
         const blob = new Blob([result.rawJSON], { type: 'application/json' });
         saveAs(blob, filename);
       } else {
         // If compilation failed, show error
-        console.error('Compilation failed:', result.errors);
-        const errorMessages = result.errors.map(e => e.message).join(', ');
+        console.error('Compilation failed:', result?.errors);
+        const errorMessages = result?.errors.map(e => e.message).join(', ') || 'Compilation was superseded by a newer edit.';
         alert(`Failed to compile story for export: ${errorMessages}`);
       }
     } catch (error) {
@@ -127,10 +129,10 @@ export function TopMenu({
       const codeToCompile = monacoCode || currentCode;
       
       // Compile using the local compiler
-      const result = await compileInkScriptNow(codeToCompile);
+      const result = await compileNow(codeToCompile);
       
-      if (!result.rawJSON) {
-        const errorMessages = result.errors.map(e => e.message).join(', ');
+      if (!result?.rawJSON) {
+        const errorMessages = result?.errors.map(e => e.message).join(', ') || 'Compilation was superseded by a newer edit.';
         throw new Error(`Failed to compile story for HTML export: ${errorMessages}`);
       }
 

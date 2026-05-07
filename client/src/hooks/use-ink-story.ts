@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Story } from 'inkjs';
-import { compileInkScript, compileInkScriptSync, type InkError } from '@/lib/ink-compiler';
+import { compileInkScript, type CompiledStory, type InkError } from '@/lib/ink-compiler';
 import { extractInkVariables, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
 import { normalizeStoryJson } from '@/lib/json-utils';
 import { debounce } from 'lodash';
@@ -28,8 +28,10 @@ export function useInkStory() {
   const [knots, setKnots] = useState<string[]>([]);
   const [variableNames, setVariableNames] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
   
   const currentStory = useRef<Story | null>(null);
+  const latestCompileRequestId = useRef(0);
 
   const updateVariablesFromJSON = useCallback((compiledJSON: any) => {
     try {
@@ -75,15 +77,14 @@ export function useInkStory() {
       const uiVariables = convertStateToUIVariables(inkStory.variablesState, variableNames);
       setVariables(uiVariables);
     }
-  }, [updateVariablesFromJSON, variableNames]);
+  }, [variableNames]);
 
-  const applyCompileResult = useCallback((result: any) => {
+  const applyCompileResult = useCallback((result: CompiledStory) => {
     setErrors(result.errors);
     setKnots(result.knots);
     
-    if (result.story) {
+    if (result.story && result.rawJSON) {
       setStory(result.story);
-      currentStory.current = result.story;
       // Update variables when story is compiled (even if not running)
       // Normalize JSON data regardless of source
       const jsonData = normalizeStoryJson(result.rawJSON);
@@ -93,29 +94,52 @@ export function useInkStory() {
       const extractedVars = extractInkVariables(jsonData);
       setVariableNames(extractedVars.map(v => v.name));
     } else {
-      // Clear variables if compilation failed
+      // Clear stale compile-derived state if compilation failed.
+      setStory(null);
       setVariables([]);
       setVariableNames([]);
     }
   }, [updateVariablesFromJSON]);
 
-  const debouncedCompile = useCallback(
-    debounce(async (inkText: string) => {
+  const debouncedLiveCompile = useMemo(
+    () => debounce(async (inkText: string, requestId: number) => {
+      if (requestId !== latestCompileRequestId.current) return;
+
+      setIsCompiling(true);
       const result = await compileInkScript(inkText);
+      if (requestId !== latestCompileRequestId.current) return;
+
       applyCompileResult(result);
+      setIsCompiling(false);
     }, 500),
     [applyCompileResult]
   );
 
-  const compileStory = useCallback((inkText: string) => {
-    debouncedCompile(inkText);
-  }, [debouncedCompile]);
+  useEffect(() => {
+    return () => {
+      debouncedLiveCompile.cancel();
+    };
+  }, [debouncedLiveCompile]);
 
-  const compileStoryNow = useCallback(async (inkText: string) => {
+  const compileLive = useCallback((inkText: string) => {
+    const requestId = ++latestCompileRequestId.current;
+    debouncedLiveCompile(inkText, requestId);
+  }, [debouncedLiveCompile]);
+
+  const compileNow = useCallback(async (inkText: string) => {
+    debouncedLiveCompile.cancel();
+    const requestId = ++latestCompileRequestId.current;
+    setIsCompiling(true);
+
     const result = await compileInkScript(inkText);
+    if (requestId !== latestCompileRequestId.current) {
+      return null;
+    }
+
     applyCompileResult(result);
+    setIsCompiling(false);
     return result;
-  }, [applyCompileResult]);
+  }, [applyCompileResult, debouncedLiveCompile]);
 
   const runStory = useCallback((storyToRun?: any) => {
     const activeStory = storyToRun || story;
@@ -177,11 +201,12 @@ export function useInkStory() {
     variables,
     knots,
     isRunning,
+    isCompiling,
     runStory,
     restartStory,
     makeChoice,
-    compileStory,
-    compileStoryNow,
+    compileLive,
+    compileNow,
     jumpToKnot
   };
 }

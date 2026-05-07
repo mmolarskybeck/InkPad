@@ -13,16 +13,16 @@ Monaco setup is centralized in monaco-setup.ts (line 12), which is exactly where
 
 # Main Architecture Concerns
 
-Live compile is architected but not wired. useInkStory exposes debounced compilation, but handleCodeChange (line 61) only updates code; it does not call compileStory. So the docs promise live errors, but current code only compiles on initial load, file load, Run, or export.
+Live compile now has one clear pathway. `handleCodeChange` updates source state and calls `compileLive`, while autosave remains reactive to `code`.
 
 TopMenu has too much domain logic. It handles file open, export, JSON compile, HTML templating, ZIP creation, and UI state in one component: top-menu.tsx (line 86). I’d move export/build operations into a story-export service/hook.
 
-Deployment config has architectural drift. The docs say static/no backend, but vercel.json (line 12), netlify.toml (line 7), and test-compilation.js (line 17) still reference API compiler routes. The server/ files are present but empty.
+Deployment config has been aligned with the static SPA architecture. Vercel and Netlify now serve the Vite build output directly and fall back to `index.html` for client-side routes.
 
-npm run check currently fails because sample-story-old.ts (line 5) contains raw Ink after TypeScript exports. That file should become .ink, be excluded from TS, or be wrapped as a string.
+`npm run check` and `npm run build` pass. Old sample Ink is wrapped as TypeScript string data rather than raw Ink in a `.ts` file.
 
 File loading may surprise users: handleLoad (line 102) prefers localStorage content with the same filename over the file the user just opened. Same-name imports can silently load stale browser storage.
 
 # Suggested Next Refactor
 
-I’d do this in order: fix sample-story-old.ts so TypeScript passes, remove or align the stale API/server deployment config, wire debounced compile from handleCodeChange, then split TopMenu export logic into a dedicated useStoryExport or StoryExportService.
+I’d do this in order: keep TypeScript and production build green, then split TopMenu export logic into a dedicated useStoryExport or StoryExportService.
