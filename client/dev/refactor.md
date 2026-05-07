@@ -44,13 +44,17 @@ Deployment config has been aligned with the static SPA architecture. Vercel and 
 
 `npm run check` and `npm run build` pass. Old sample Ink is wrapped as TypeScript string data rather than raw Ink in a `.ts` file.
 
-File loading may surprise users: handleLoad (line 102) prefers localStorage content with the same filename over the file the user just opened. Same-name imports can silently load stale browser storage.
+File loading behavior is now unsurprising. File import reads the selected file and `handleLoad` uses the imported filename/source directly, instead of preferring a same-name localStorage draft. Autosave can still persist that imported content after it is loaded.
 
-Follow-up: audit whether `StoryPreview` still owns compile orchestration. If it has a real independent compile lifecycle, move compile ownership into `useInkStory` or a dedicated `useInkCompiler` hook so `StoryPreview` only receives runtime/preview state.
+State ownership remains intentionally local. No global app store, Zustand, Redux, large Context provider, event bus, or command manager is needed for the current app shape. `editor.tsx` owns the active document/title and coordinates the shell; `useInkStory` owns compile/runtime playback state; `useAutosave` owns save timing/status; import/export stay in focused feature helpers.
+
+`StoryPreview` is now presentation-only for runtime output and choices. Its unused independent compile state/path was removed, leaving compile orchestration in `useInkStory` via the editor shell.
 
 # Suggested Next Refactor
 
-The next useful slice is file loading. `handleLoad` currently prefers localStorage content with the same filename over the file the user just opened, so same-name imports can silently load stale browser storage. Move local story persistence/import behavior into a `features/files/useLocalStories.ts` boundary and make import semantics explicit.
+The next useful slice is local persistence ergonomics. Browser drafts now behave safely during import, but there is still no explicit user-facing draft/recovery surface. Keep this local and KISS for now: a future `features/files/useLocalStories.ts` boundary may make sense if the app adds recent files, draft recovery, snapshot browsing, or multi-document tabs.
+
+Global state should wait for concrete pressure such as multi-document/project tabs, persistent user settings, recent files, cloud sync, or command palette state shared across distant components.
 
 Keep TypeScript and production build green after each slice:
 
