@@ -157,15 +157,16 @@ function OptionChip({ label, title, pressed, onPressedChange }: {
           {label}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{title}</TooltipContent>
+      <TooltipContent side="bottom">{title}</TooltipContent>
     </Tooltip>
   );
 }
 
-function IconAction({ title, onClick, children }: {
+function IconAction({ title, onClick, children, className }: {
   title: string;
   onClick: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <Tooltip>
@@ -176,12 +177,12 @@ function IconAction({ title, onClick, children }: {
           size="icon"
           aria-label={title}
           onClick={onClick}
-          className="h-7 w-7 shrink-0 text-text-secondary hover:text-text-emphasis"
+          className={cn("h-7 w-7 shrink-0 text-text-secondary hover:text-text-emphasis", className)}
         >
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{title}</TooltipContent>
+      <TooltipContent side="bottom">{title}</TooltipContent>
     </Tooltip>
   );
 }
@@ -214,7 +215,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
     <TooltipProvider delayDuration={500}>
       <div
         role="search"
-        className="inkpad-search-panel"
+        className={cn("inkpad-search-panel", replaceOpen && "is-replace-open")}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
@@ -278,6 +279,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
             <span
               aria-live="polite"
               className={cn(
+                "inkpad-search-count",
                 "whitespace-nowrap px-1.5 text-xs tabular-nums",
                 snapshot.noResults ? "text-error" : "text-text-secondary",
               )}
@@ -285,26 +287,36 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
               {snapshot.countLabel}
             </span>
           )}
-          <IconAction title="Previous match (Shift+Enter)" onClick={() => findPrevious(view)}>
-            <ArrowUp />
-          </IconAction>
-          <IconAction title="Next match (Enter)" onClick={() => findNext(view)}>
-            <ArrowDown />
-          </IconAction>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label="Select all matches"
-            onClick={() => {
-              selectMatches(view);
-              view.focus();
-            }}
-            className="h-7 px-1.5 text-xs text-text-secondary hover:text-text-emphasis"
-          >
-            all
-          </Button>
-          <IconAction title="Close (Escape)" onClick={close}>
+          <div className="inkpad-search-nav-actions">
+            <IconAction
+              title="Previous match (Shift+Enter)"
+              onClick={() => findPrevious(view)}
+              className="inkpad-search-prev"
+            >
+              <ArrowUp />
+            </IconAction>
+            <IconAction
+              title="Next match (Enter)"
+              onClick={() => findNext(view)}
+              className="inkpad-search-next"
+            >
+              <ArrowDown />
+            </IconAction>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Select all matches"
+              onClick={() => {
+                selectMatches(view);
+                view.focus();
+              }}
+              className="inkpad-search-select-all h-7 px-1.5 text-xs text-text-secondary hover:text-text-emphasis"
+            >
+              all
+            </Button>
+          </div>
+          <IconAction title="Close (Escape)" onClick={close} className="inkpad-search-close">
             <X />
           </IconAction>
         </div>

@@ -241,6 +241,13 @@
   min-width: 0;
 }
 
+.cm-ink-search .inkpad-search-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
 .cm-ink-search .inkpad-search-replace-row {
   display: grid;
   grid-column: 2 / 4;
@@ -254,48 +261,98 @@
   min-width: max-content;
 }
 
-@container (max-width: 620px) {
+/*
+ * Below this width the find row (disclosure + field + count/nav/close) no
+ * longer fits on one line at a usable size. Row 1 keeps only the disclosure,
+ * field, and close button; count/nav drop to row 2, and when replace is
+ * open, nav shares row 2/3 with replace's own controls instead of each
+ * getting a dedicated row (which wastes vertical space for a few small
+ * buttons).
+ */
+@container (max-width: 440px) {
   .cm-ink-search .inkpad-search-panel {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .cm-ink-search .inkpad-search-actions {
+  .cm-ink-search .inkpad-search-disclosure {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cm-ink-search .inkpad-search-find-field {
     grid-column: 2;
-    justify-content: space-between;
-    width: 100%;
+    grid-row: 1;
   }
 
+  .cm-ink-search .inkpad-search-close {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .cm-ink-search .inkpad-search-field {
+    min-height: 2.25rem;
+  }
+
+  .cm-ink-search button {
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+
+  .cm-ink-search .inkpad-search-actions,
   .cm-ink-search .inkpad-search-replace-row {
-    grid-column: 2;
-    grid-template-columns: minmax(0, 1fr);
+    display: contents;
+  }
+
+  .cm-ink-search .inkpad-search-count {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .cm-ink-search .inkpad-search-nav-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    justify-self: start;
+    width: auto;
+  }
+
+  .cm-ink-search .inkpad-search-replace-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .cm-ink-search .inkpad-search-replace-actions {
-    justify-content: flex-start;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .cm-ink-search .is-replace-open .inkpad-search-count {
+    display: none;
+  }
+
+  .cm-ink-search .is-replace-open .inkpad-search-nav-actions {
+    grid-row: 3;
   }
 }
 
-@container (max-width: 430px) {
+@container (max-width: 400px) {
   .cm-ink-search .inkpad-search-panel {
     padding: 0.375rem;
   }
 
-  .cm-ink-search .inkpad-search-actions {
+  .cm-ink-search .inkpad-search-nav-actions {
     gap: 0.25rem;
   }
 
-  .cm-ink-search .inkpad-search-actions > span {
-    margin-right: auto;
-  }
-
   .cm-ink-search .inkpad-search-replace-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
+    gap: 0.25rem;
   }
 
   .cm-ink-search .inkpad-search-text-button {
-    width: 100%;
+    min-width: 5.5rem;
   }
 }
 
@@ -306,7 +363,7 @@
   }
 
   .cm-ink-search .inkpad-search-field {
-    min-height: 2.5rem;
+    min-height: 2.25rem;
   }
 
   .cm-ink-search .inkpad-search-input {
@@ -329,8 +386,12 @@
   }
 
   .cm-ink-search button {
-    min-width: 2.25rem;
-    min-height: 2.25rem;
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+
+  .cm-ink-search .inkpad-search-text-button {
+    min-height: 2rem;
   }
 }
 
