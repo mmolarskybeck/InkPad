@@ -1,0 +1,433 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(222.2, 84%, 4.9%);
+  --muted: hsl(210, 40%, 96.1%);
+  --muted-foreground: hsl(215.4, 16.3%, 46.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222.2, 84%, 4.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222.2, 84%, 4.9%);
+  --border: hsl(214.3, 31.8%, 91.4%);
+  --input: hsl(214.3, 31.8%, 91.4%);
+  --primary: hsl(221.2, 83.2%, 53.3%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(210, 40%, 96.1%);
+  --secondary-foreground: hsl(222.2, 47.4%, 11.2%);
+  --accent: hsl(210, 40%, 96.1%);
+  --accent-foreground: hsl(222.2, 47.4%, 11.2%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(221.2, 83.2%, 53.3%);
+  --radius: 0.5rem;
+  
+  /* InkPad Light Theme Colors (Modern, Vibrant, Lively) */
+  --editor-bg: hsl(228, 30%, 96%); /* #f1f3f7 */
+  --panel-bg: hsl(228, 30%, 93%);  /* #e9ebf2 */
+  --border-color: hsl(228, 20%, 85%); /* #d2d5de */
+  --accent-blue: hsl(240, 90%, 65%); /* #5c68fc - Vibrant indigo */
+  --secondary-blue: hsl(195, 90%, 50%); /* #0ea5e9 - Sky blue */
+  --text-primary: hsl(230, 25%, 35%); /* #42486f - Sleek indigo-grey */
+  --text-emphasis: hsl(230, 40%, 20%); /* #1f2447 - Dark punchy navy */
+  --text-secondary: hsl(230, 15%, 55%); /* #7d829d */
+  --success: hsl(151, 65%, 40%); /* Shared action/status emerald */
+  --error: hsl(340, 80%, 55%); /* #e82e6c - Vibrant pink-red */
+  --warning: hsl(30, 90%, 55%); /* #f58e1d - Bright orange */
+  --syntax-keyword: hsl(280, 70%, 60%); /* #a755ed - Vibrant purple */
+  --syntax-string: hsl(171, 72%, 32%); /* Text/data teal */
+  --syntax-number: hsl(15, 80%, 55%); /* #eb6b2f - Fun orange */
+}
+
+.dark {
+  --background: hsl(235, 19%, 13%);
+  --foreground: hsl(226, 70%, 88%);
+  --muted: hsl(230, 26%, 16%);
+  --muted-foreground: hsl(229, 23%, 44%);
+  --popover: hsl(230, 26%, 16%);
+  --popover-foreground: hsl(226, 70%, 88%);
+  --card: hsl(230, 26%, 16%);
+  --card-foreground: hsl(226, 70%, 88%);
+  --border: hsl(228, 23%, 21%);
+  --input: hsl(230, 26%, 16%);
+  --primary: hsl(227, 92%, 72%);
+  --primary-foreground: hsl(235, 19%, 13%);
+  --secondary: hsl(228, 23%, 21%);
+  --secondary-foreground: hsl(226, 70%, 88%);
+  --accent: hsl(228, 23%, 25%);
+  --accent-foreground: hsl(226, 70%, 88%);
+  --destructive: hsl(349, 89%, 72%);
+  --destructive-foreground: hsl(235, 19%, 13%);
+  --ring: hsl(227, 92%, 72%);
+  
+  /* InkPad Dark Theme Colors - Tokyo Night Inspired */
+  --editor-bg: hsl(235, 19%, 13%);
+  --panel-bg: hsl(230, 26%, 16%);
+  --border-color: hsl(228, 23%, 21%);
+  --accent-blue: hsl(227, 92%, 72%);
+  --secondary-blue: hsl(200, 100%, 75%);
+  --text-primary: hsl(229, 39%, 75%);
+  --text-emphasis: hsl(226, 70%, 88%);
+  --text-secondary: hsl(229, 25%, 62%);
+  --success: hsl(155, 62%, 61%);
+  --error: hsl(349, 89%, 72%);
+  --warning: hsl(35, 100%, 70%);
+  --syntax-keyword: hsl(277, 86%, 79%);
+  --syntax-string: #9ece6a;
+  --syntax-number: hsl(27, 100%, 70%);
+}
+
+.high-contrast {
+  --background: #000000;
+  --foreground: #ffffff;
+  --muted: #101010;
+  --muted-foreground: #d6d6d6;
+  --popover: #000000;
+  --popover-foreground: #ffffff;
+  --card: #000000;
+  --card-foreground: #ffffff;
+  --border: #ffffff;
+  --input: #ffffff;
+  --primary: #ffff00;
+  --primary-foreground: #000000;
+  --secondary: #161616;
+  --secondary-foreground: #ffffff;
+  --accent: #222222;
+  --accent-foreground: #ffffff;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #000000;
+  --ring: #ffff00;
+
+  --editor-bg: #000000;
+  --panel-bg: #0a0a0a;
+  --border-color: #ffffff;
+  --accent-blue: #ffff00;
+  --secondary-blue: #00ffff;
+  --text-primary: #ffffff;
+  --text-emphasis: #ffffff;
+  --text-secondary: #d6d6d6;
+  --success: #72ff72;
+  --error: #ff6b6b;
+  --warning: #ffff00;
+  --syntax-keyword: #ffff00;
+  --syntax-string: #72ff72;
+  --syntax-number: #00ffff;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  
+  ::selection {
+    background-color: hsl(267, 85%, 80%, 0.4); /* #bb9af7 with 40% opacity */
+    color: inherit;
+  }
+}
+
+/* Custom scrollbars — visible on Windows; macOS overlays them. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+  /* Redundant utility classes removed: Tailwind config now generates these automatically */
+
+/* Ensure resizable panels take full height */
+.data-\[panel-group-direction\=horizontal\] {
+  height: 100%;
+}
+
+.data-\[panel-group-direction\=vertical\] {
+  width: 100%;
+}
+
+/* Code editor container fixes */
+.cm-editor {
+  min-height: 0 !important;
+}
+
+.story-preview-copy {
+  font-size: var(--preview-font-size, 16px);
+}
+
+.story-preview-theme-system {
+  --background: hsl(228, 30%, 96%);
+  --foreground: hsl(230, 25%, 35%);
+  --border: hsl(228, 20%, 85%);
+  --input: hsl(228, 20%, 85%);
+  --accent: hsl(210, 40%, 96.1%);
+  --accent-foreground: hsl(230, 40%, 20%);
+  --editor-bg: hsl(228, 30%, 96%);
+  --panel-bg: hsl(228, 30%, 93%);
+  --border-color: hsl(228, 20%, 85%);
+  --accent-blue: hsl(240, 90%, 65%);
+  --secondary-blue: hsl(195, 90%, 50%);
+  --text-primary: hsl(230, 25%, 35%);
+  --text-emphasis: hsl(230, 40%, 20%);
+  --text-secondary: hsl(230, 15%, 55%);
+  --success: hsl(151, 65%, 40%);
+  --error: hsl(340, 80%, 55%);
+  --warning: hsl(30, 90%, 55%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .story-preview-theme-system {
+    --background: hsl(235, 19%, 13%);
+    --foreground: hsl(229, 39%, 75%);
+    --border: hsl(228, 23%, 21%);
+    --input: hsl(230, 26%, 16%);
+    --accent: hsl(228, 23%, 25%);
+    --accent-foreground: hsl(226, 70%, 88%);
+    --editor-bg: hsl(235, 19%, 13%);
+    --panel-bg: hsl(230, 26%, 16%);
+    --border-color: hsl(228, 23%, 21%);
+    --accent-blue: hsl(227, 92%, 72%);
+    --secondary-blue: hsl(200, 100%, 75%);
+    --text-primary: hsl(229, 39%, 75%);
+    --text-emphasis: hsl(226, 70%, 88%);
+    --text-secondary: hsl(229, 25%, 62%);
+    --success: hsl(155, 62%, 61%);
+    --error: hsl(349, 89%, 72%);
+    --warning: hsl(35, 100%, 70%);
+  }
+}
+
+.story-preview-theme-light {
+  --background: hsl(228, 30%, 96%);
+  --foreground: hsl(230, 25%, 35%);
+  --border: hsl(228, 20%, 85%);
+  --input: hsl(228, 20%, 85%);
+  --accent: hsl(210, 40%, 96.1%);
+  --accent-foreground: hsl(230, 40%, 20%);
+  --editor-bg: hsl(228, 30%, 96%);
+  --panel-bg: hsl(228, 30%, 93%);
+  --border-color: hsl(228, 20%, 85%);
+  --accent-blue: hsl(240, 90%, 65%);
+  --secondary-blue: hsl(195, 90%, 50%);
+  --text-primary: hsl(230, 25%, 35%);
+  --text-emphasis: hsl(230, 40%, 20%);
+  --text-secondary: hsl(230, 15%, 55%);
+  --success: hsl(151, 65%, 40%);
+  --error: hsl(340, 80%, 55%);
+  --warning: hsl(30, 90%, 55%);
+}
+
+.story-preview-theme-dark {
+  --background: hsl(235, 19%, 13%);
+  --foreground: hsl(229, 39%, 75%);
+  --border: hsl(228, 23%, 21%);
+  --input: hsl(230, 26%, 16%);
+  --accent: hsl(228, 23%, 25%);
+  --accent-foreground: hsl(226, 70%, 88%);
+  --editor-bg: hsl(235, 19%, 13%);
+  --panel-bg: hsl(230, 26%, 16%);
+  --border-color: hsl(228, 23%, 21%);
+  --accent-blue: hsl(227, 92%, 72%);
+  --secondary-blue: hsl(200, 100%, 75%);
+  --text-primary: hsl(229, 39%, 75%);
+  --text-emphasis: hsl(226, 70%, 88%);
+  --text-secondary: hsl(229, 25%, 62%);
+  --success: hsl(155, 62%, 61%);
+  --error: hsl(349, 89%, 72%);
+  --warning: hsl(35, 100%, 70%);
+}
+
+.story-preview-theme-high-contrast {
+  --background: #000000;
+  --foreground: #ffffff;
+  --border: #ffffff;
+  --input: #ffffff;
+  --accent: #222222;
+  --accent-foreground: #ffffff;
+  --editor-bg: #000000;
+  --panel-bg: #0a0a0a;
+  --border-color: #ffffff;
+  --accent-blue: #ffff00;
+  --secondary-blue: #00ffff;
+  --text-primary: #ffffff;
+  --text-emphasis: #ffffff;
+  --text-secondary: #d6d6d6;
+  --success: #72ff72;
+  --error: #ff6b6b;
+  --warning: #ffff00;
+}
+
+.story-preview-theme-sepia {
+  --background: hsl(39, 37%, 91%);
+  --foreground: hsl(27, 24%, 27%);
+  --border: hsl(34, 22%, 72%);
+  --input: hsl(34, 22%, 72%);
+  --accent: hsl(36, 30%, 83%);
+  --accent-foreground: hsl(24, 31%, 16%);
+  --editor-bg: hsl(39, 37%, 91%);
+  --panel-bg: hsl(36, 30%, 86%);
+  --border-color: hsl(34, 22%, 72%);
+  --text-primary: hsl(27, 24%, 27%);
+  --text-emphasis: hsl(24, 31%, 16%);
+  --text-secondary: hsl(28, 16%, 39%);
+  --accent-blue: hsl(17, 49%, 39%);
+  --success: hsl(151, 52%, 31%);
+  --error: hsl(358, 56%, 40%);
+  --warning: hsl(30, 76%, 42%);
+}
+
+/* Transient error-line flash highlight (cleared by JS after 1.2s) */
+.error-line-flash {
+  background-color: oklch(62% 0.22 27 / 0.18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .error-line-flash {
+    animation: error-line-fade 1.2s ease-out forwards;
+  }
+  @keyframes error-line-fade {
+    0%   { background-color: oklch(62% 0.22 27 / 0.28); }
+    100% { background-color: oklch(62% 0.22 27 / 0); }
+  }
+}
+
+.monaco-editor .overflow-guard {
+  position: relative !important;
+}
+
+.monaco-editor .find-widget {
+  border-color: var(--vscode-editorWidget-border);
+  box-shadow: 0 4px 14px var(--vscode-widget-shadow);
+}
+
+.monaco-editor .find-widget .monaco-inputbox {
+  border-radius: 4px;
+}
+
+.monaco-editor .find-widget .button,
+.monaco-editor .find-widget .codicon-find-selection {
+  color: var(--vscode-editorWidget-foreground);
+}
+
+/* Keep Monaco's native Find/Replace usable above a mobile keyboard. */
+.inkpad-mobile-editor .monaco-editor .find-widget {
+  left: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding-inline: 2px;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget > .find-part,
+.inkpad-mobile-editor .monaco-editor .find-widget > .replace-part {
+  margin-left: 36px;
+  margin-right: 50px;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget .monaco-findInput .input {
+  font-size: 16px;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget > .find-part .monaco-inputbox,
+.inkpad-mobile-editor .monaco-editor .find-widget > .replace-part .monaco-inputbox {
+  min-height: 28px;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget .button {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  margin-left: 0;
+  padding: 5px;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget .button.toggle {
+  left: 2px;
+  width: 34px;
+  height: 33px;
+  padding: 7px;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget > .button.codicon-widget-close {
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 33px;
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 0;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget > .button.codicon-widget-close::before {
+  display: none;
+}
+
+.inkpad-mobile-editor .monaco-editor .find-widget > .button.codicon-widget-close::after {
+  content: "Done";
+  font-family: var(--font-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Prevent zooming on iOS Safari when focusing editor inputs. */
+.cm-editor textarea,
+.monaco-editor .inputarea.ime-input,
+.monaco-editor textarea {
+  font-size: 16px !important;
+}
+
+/* Hide Monaco's mobile keyboard toggle or accessibility buttons visually. */
+.monaco-editor .iPadShowKeyboard,
+.monaco-editor .accessibilityHelpWidget {
+  display: none !important;
+}
+
+/* Keep Monaco's textarea cover available on mobile; WebKit uses this area for
+   native text focus and selection behavior. */
+.monaco-editor .textAreaCover {
+  display: none !important;
+}
+
+.inkpad-mobile-editor .monaco-editor .textAreaCover {
+  display: block !important;
+  pointer-events: none;
+}
+
+/* Selection on iOS is driven by our long-press drag handler against Monaco's
+   own model (see monaco-editor.tsx), not by native text selection. Suppress
+   the iOS callout/loupe on the editor surface so the system long-press gesture
+   does not hijack the touch (it fires touchcancel and races out our handler). */
+.inkpad-mobile-editor .monaco-editor,
+.inkpad-mobile-editor .monaco-editor .lines-content,
+.inkpad-mobile-editor .monaco-editor .view-line,
+.inkpad-mobile-editor .monaco-editor .view-lines {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inkpad-mobile-keyboard-offset {
+    transition-duration: 0ms !important;
+  }
+}

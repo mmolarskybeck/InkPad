@@ -1,0 +1,7 @@
+# InkPad
+
+InkPad is a browser-based editor for writing, testing, and exporting interactive ink stories.
+
+- [InkPad app](https://inkpad.shadowbox.games/)
+- [Ink language documentation](https://www.inklestudios.com/ink/)
+- [InkPad source repository](https://github.com/mmolarskybeck/InkPad)

@@ -1,0 +1,71 @@
+import { describe, expect, it } from "vitest";
+import {
+  createSingleFileProject,
+  isInkProject,
+  parseInkProject,
+  projectToCompileInput,
+} from "./ink-project";
+
+describe("InkProject", () => {
+  it("creates a versioned project that wraps the current single-file model", () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "story.ink",
+      content: "Hello",
+    });
+
+    expect(project).toEqual({
+      schemaVersion: 1,
+      id: "project-1",
+      name: "Story",
+      entryFile: "story.ink",
+      files: {
+        "story.ink": { content: "Hello" },
+      },
+    });
+    expect(isInkProject(project)).toBe(true);
+  });
+
+  it("rejects projects whose entry file is missing", () => {
+    expect(isInkProject({
+      schemaVersion: 1,
+      id: "project-1",
+      name: "Story",
+      entryFile: "main.ink",
+      files: {
+        "chapter.ink": { content: "Hello" },
+      },
+    })).toBe(false);
+  });
+
+  it("parses a serialized project snapshot", () => {
+    const serialized = JSON.stringify(createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "story.ink",
+      content: "Hello",
+    }));
+
+    expect(parseInkProject(serialized).entryFile).toBe("story.ink");
+  });
+
+  it("converts project files into the compiler's virtual file map", () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "story.ink",
+      content: "Hello",
+    });
+
+    project.files["chapter.ink"] = { content: "Chapter" };
+
+    expect(projectToCompileInput(project)).toEqual({
+      entryFile: "story.ink",
+      files: {
+        "story.ink": "Hello",
+        "chapter.ink": "Chapter",
+      },
+    });
+  });
+});

@@ -1,0 +1,74 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Versioned, browser-local `UserPreferences` storage with migration from the previous theme key
+- Responsive Settings sheet for story details, appearance, editor, preview, and About information
+- Dark, light, and high-contrast application and Monaco themes
+- Editor and preview font-size preferences plus editor word-wrap control
+- Project-local author and transcript/scene preview settings, preserved through save, recovery, rename, and duplication
+- Transcript and scene Story Preview renderers
+- Back and restart controls in the Story Preview header with accessible labels and tooltips
+- Versioned `InkProject` model with validation and single-file migration helpers
+- Virtual-file compiler requests using `{ entryFile, files }`
+- Ink `INCLUDE` compilation support through the worker’s in-memory file map
+- Recovery-aware top-level error boundary
+- Automated project-model and multi-file compiler tests
+- Phone/desktop progressive hydration split with viewport-gated Monaco loading, phone Preview default, delayed phone prefetch, and branded mobile loading fallback
+- Centralized privacy-preserving analytics wrapper with allowlisted events, opt-out storage, URL sanitization, and Vercel Analytics gating
+- Settings privacy/data toggle for analytics opt-in/out
+- Privacy tests and telemetry for coarse app events (load, run results, layout changes, settings changes)
+- `llms.txt` for AI assistant discoverability
+- HTML character entity decoder for safe rendering of spaces/tiles and common named entities in story output and exported HTML
+- Shared story typeface setting synchronized between Settings sheet and Playable HTML export modal
+- Native support for `# theme: system` metadata across parsing, preview styling, and export
+
+### Changed
+
+- Monaco appearance preferences now update the existing editor instance through `updateOptions`
+- Preview display mode is changed in Settings rather than through duplicate controls in the preview
+- Restart moved from the global navigation into the Story Preview header
+- Global preferences and story-local settings now use separate persistence scopes
+- Removed the duplicate editor-to-React source debounce
+- Simplified autosave by removing unused throttle machinery
+- Centralized non-cryptographic content hashing
+- Replaced blocking export error alerts with the existing toast system
+- Updated architecture and roadmap documentation around local-first project snapshots and eventual multi-file support
+- Optimized mobile `Code` tab by replacing `forceMount` with intent-based prefetching
+- Made mobile viewport detection synchronous and aligned to `max-width: 768px`
+- Polished Playable HTML export dialog to clarify that title and author are download-only
+- Playable HTML export now writes `# theme: ` tags to the Ink source when the export theme is changed
+- Replaced Monaco's bundled Codicon CSS import with a local override using `font-display: swap` for better font loading performance
+- Made Monaco Ink-only by dropping unused JSON/TS/HTML/CSS workers, reducing bundle size from 3.9MB to 3.3MB
+
+### Fixed
+
+- Mobile replay bug where restarting a completed story would load an empty state; now rebuilds a fresh runtime instance from compiled JSON on restart (applied to exported HTML as well)
+- Story rendering bug where HTML character references (like `&nbsp;` and `&#9608;`) were displayed literally instead of as spaces/tiles
+
+### Removed
+
+- One-off root-level `scratch*.js` and `scratch*.cjs` compiler experiments
+- Redundant project-local Impeccable skill bundle and GitHub Copilot hook; Codex uses the global skill with a minimal project hook
+- Unused compiler fallback and syntax-check helpers
+- Obsolete sample-story source files
+
+### Verification
+
+- 31 automated tests passing
+- TypeScript check passing
+- Production build passing
+- Desktop and mobile browser smoke testing completed for Settings and Story Preview controls
+
+## [1.0.0] - 2025-01-26
+
+### Added
+
+- Initial public release

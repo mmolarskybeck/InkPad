@@ -1,0 +1,18 @@
+@font-face {
+  font-family: "codicon";
+  font-display: swap;
+  src: url("monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf") format("truetype");
+}
+
+.codicon[class*="codicon-"] {
+  display: inline-block;
+  font: normal normal normal 16px/1 codicon;
+  text-align: center;
+  text-decoration: none;
+  text-rendering: auto;
+  text-transform: none;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+}

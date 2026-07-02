@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<!--
+  InkPad portable HTML export.
+  Story content is embedded, but InkJS and web fonts load from CDNs.
+  An internet connection is therefore required unless those dependencies are inlined.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="{{STORY_AUTHOR}}">
+    <title>{{STORY_TITLE}}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root,
+        body.theme-light,
+        body.theme-system {
+            --page: hsl(228, 30%, 96%);
+            --surface: hsl(228, 30%, 93%);
+            --border: hsl(228, 20%, 85%);
+            --text: hsl(230, 40%, 20%);
+            --muted: hsl(230, 15%, 55%);
+            --accent: hsl(240, 90%, 65%);
+            --accent-hover: hsl(240, 61%, 54%);
+            --button-text: hsl(228, 30%, 96%);
+            --error: hsl(340, 80%, 55%);
+        }
+
+        body.theme-dark {
+            --page: hsl(235, 19%, 13%);
+            --surface: hsl(230, 26%, 16%);
+            --border: hsl(228, 23%, 21%);
+            --text: hsl(226, 70%, 88%);
+            --muted: hsl(229, 39%, 75%);
+            --accent: hsl(227, 92%, 72%);
+            --accent-hover: hsl(200, 100%, 75%);
+            --button-text: hsl(235, 19%, 13%);
+            --error: hsl(349, 89%, 72%);
+        }
+
+        body.theme-sepia {
+            --page: #eee7da;
+            --surface: #e2d7c5;
+            --border: #c8b89e;
+            --text: #45372b;
+            --muted: #6f5b49;
+            --accent: #8a4936;
+            --accent-hover: #673225;
+            --button-text: #fffaf2;
+            --error: #9f2d32;
+        }
+
+        body.theme-high-contrast {
+            --page: #000000;
+            --surface: #101010;
+            --border: #ffffff;
+            --text: #ffffff;
+            --muted: #e0e0e0;
+            --accent: #ffff00;
+            --accent-hover: #00ffff;
+            --button-text: #000000;
+            --error: #ff7b7b;
+        }
+
+        body.font-serif {
+            --story-font: 'Lora', Georgia, serif;
+        }
+
+        body.font-sans {
+            --story-font: 'Inter', system-ui, sans-serif;
+        }
+
+        body.font-mono {
+            --story-font: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 60px 20px;
+            background: var(--page);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .story-container {
+            width: min(100%, 680px);
+            margin: 0 auto;
+        }
+
+        .story-header {
+            margin-bottom: 56px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .story-title {
+            margin: 0;
+            color: var(--accent);
+            font-family: var(--story-font, 'Lora', Georgia, serif);
+            font-size: clamp(2rem, 8vw, 2.75rem);
+            font-weight: 500;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+            text-wrap: balance;
+        }
+
+        .story-author {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .story-author[hidden] {
+            display: none;
+        }
+
+        .story-content {
+            margin-bottom: 40px;
+        }
+
+        .story-text {
+            margin-bottom: 32px;
+            color: var(--text);
+            font-family: var(--story-font, 'Lora', Georgia, serif);
+            font-size: 1.25rem;
+            line-height: 1.85;
+        }
+
+        .story-text p {
+            margin: 0 0 1.5em;
+            text-wrap: pretty;
+        }
+
+        .story-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 40px;
+        }
+
+        .choice,
+        .restart-btn {
+            min-height: 48px;
+            border-radius: 6px;
+            font-family: var(--story-font, 'Lora', Georgia, serif);
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.4;
+            cursor: pointer;
+            transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+        }
+
+        .choice {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--accent);
+            text-align: left;
+        }
+
+        .choice:hover {
+            border-color: var(--accent);
+            background: var(--surface);
+            color: var(--accent-hover);
+            transform: translateX(3px);
+        }
+
+        .choice:focus-visible,
+        .restart-btn:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .story-end {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        .story-end[hidden] {
+            display: none;
+        }
+
+        .story-end h2 {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-family: var(--story-font, 'Lora', Georgia, serif);
+            font-size: 1.75rem;
+            font-style: italic;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .story-end p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .restart-btn {
+            margin-top: 28px;
+            padding: 12px 24px;
+            border: 0;
+            background: var(--accent);
+            color: var(--button-text);
+            font-weight: 600;
+        }
+
+        .restart-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .error-message {
+            margin-bottom: 24px;
+            padding: 16px;
+            border: 1px solid var(--error);
+            border-radius: 6px;
+            color: var(--error);
+            font-size: 0.95rem;
+        }
+
+        .error-message[hidden] {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 36px 20px;
+            }
+
+            .story-header {
+                margin-bottom: 40px;
+            }
+
+            .story-text {
+                font-size: 1.125rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .choice,
+            .restart-btn {
+                transition: none;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body.theme-system {
+                --page: hsl(235, 19%, 13%);
+                --surface: hsl(230, 26%, 16%);
+                --border: hsl(228, 23%, 21%);
+                --text: hsl(226, 70%, 88%);
+                --muted: hsl(229, 39%, 75%);
+                --accent: hsl(227, 92%, 72%);
+                --accent-hover: hsl(200, 100%, 75%);
+                --button-text: hsl(235, 19%, 13%);
+                --error: hsl(349, 89%, 72%);
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/inkjs@2.3.2/dist/ink.js"></script>
+</head>
+<body class="theme-{{STORY_THEME}} font-{{STORY_FONT}}">
+    <main class="story-container">
+        <header class="story-header">
+            <h1 id="story-title" class="story-title">{{STORY_TITLE}}</h1>
+            <p id="story-author" class="story-author"></p>
+        </header>
+
+        <div id="error" class="error-message" role="alert" hidden></div>
+        <div id="story-content" class="story-content" aria-live="polite"></div>
+        <div id="choices" class="choices"></div>
+
+        <section id="story-end" class="story-end" hidden>
+            <h2>The End</h2>
+            <p>Thank you for playing.</p>
+            <button id="restart" class="restart-btn" type="button">Play Again</button>
+        </section>
+    </main>
+
+    <script id="story-data" type="application/json">{{STORY_DATA}}</script>
+    <script id="story-metadata" type="application/json">{{STORY_METADATA}}</script>
+    <script>
+        let story;
+        let storyData;
+
+        function readJsonElement(id) {
+            const element = document.getElementById(id);
+            if (!element) throw new Error(`Missing ${id}.`);
+            return JSON.parse(element.textContent || "");
+        }
+
+        function applyMetadata(metadata) {
+            document.title = metadata.title;
+            document.body.className = `theme-${metadata.theme} font-${metadata.font}`;
+            document.getElementById("story-title").textContent = metadata.title;
+
+            const authorElement = document.getElementById("story-author");
+            authorElement.textContent = metadata.author ? `by ${metadata.author}` : "";
+            authorElement.hidden = !metadata.author;
+        }
+
+        function decodeHtmlCharacterReferences(text) {
+            return text.replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi, (match, decimal, hex, named) => {
+                if (decimal || hex) {
+                    const codePoint = Number.parseInt(decimal || hex, decimal ? 10 : 16);
+                    if (Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff) {
+                        try {
+                            return String.fromCodePoint(codePoint);
+                        } catch {
+                            return match;
+                        }
+                    }
+                    return match;
+                }
+
+                const namedReferences = {
+                    amp: "&",
+                    apos: "'",
+                    copy: "\u00a9",
+                    emsp: "\u2003",
+                    ensp: "\u2002",
+                    gt: ">",
+                    hellip: "\u2026",
+                    laquo: "\u00ab",
+                    ldquo: "\u201c",
+                    lsquo: "\u2018",
+                    lt: "<",
+                    mdash: "\u2014",
+                    nbsp: "\u00a0",
+                    ndash: "\u2013",
+                    quot: "\"",
+                    raquo: "\u00bb",
+                    rdquo: "\u201d",
+                    reg: "\u00ae",
+                    rsquo: "\u2019",
+                    shy: "\u00ad",
+                    thinsp: "\u2009",
+                    trade: "\u2122",
+                };
+                return namedReferences[String(named).toLowerCase()] || match;
+            });
+        }
+
+        function appendStoryText(content) {
+            const lines = content
+                .trim()
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean);
+            if (lines.length === 0) return;
+
+            const passage = document.createElement("div");
+            passage.className = "story-text";
+
+            for (const line of lines) {
+                const paragraph = document.createElement("p");
+                paragraph.textContent = decodeHtmlCharacterReferences(line);
+                passage.appendChild(paragraph);
+            }
+
+            document.getElementById("story-content").appendChild(passage);
+        }
+
+        function renderChoices() {
+            const choicesElement = document.getElementById("choices");
+            choicesElement.replaceChildren();
+
+            story.currentChoices.forEach((choice, index) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "choice";
+                button.textContent = decodeHtmlCharacterReferences(choice.text);
+                button.addEventListener("click", () => makeChoice(index));
+                choicesElement.appendChild(button);
+            });
+        }
+
+        function continueStory() {
+            try {
+                let content = "";
+                while (story.canContinue) {
+                    content += story.Continue();
+                }
+
+                appendStoryText(content);
+
+                const storyEndElement = document.getElementById("story-end");
+                if (story.currentChoices.length > 0) {
+                    storyEndElement.hidden = true;
+                    renderChoices();
+                } else {
+                    document.getElementById("choices").replaceChildren();
+                    storyEndElement.hidden = false;
+                }
+            } catch (error) {
+                showError(`Story error: ${error.message}`);
+            }
+        }
+
+        function makeChoice(choiceIndex) {
+            try {
+                document.getElementById("story-content").replaceChildren();
+                story.ChooseChoiceIndex(choiceIndex);
+                continueStory();
+            } catch (error) {
+                showError(`Choice error: ${error.message}`);
+            }
+        }
+
+        function restartStory() {
+            story = new inkjs.Story(storyData);
+            document.getElementById("story-content").replaceChildren();
+            document.getElementById("choices").replaceChildren();
+            document.getElementById("story-end").hidden = true;
+            document.getElementById("error").hidden = true;
+            continueStory();
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById("error");
+            errorElement.textContent = message;
+            errorElement.hidden = false;
+        }
+
+        function initStory() {
+            try {
+                applyMetadata(readJsonElement("story-metadata"));
+                storyData = readJsonElement("story-data");
+                story = new inkjs.Story(storyData);
+                continueStory();
+            } catch (error) {
+                showError(`Failed to load story: ${error.message}`);
+            }
+        }
+
+        document.getElementById("restart").addEventListener("click", restartStory);
+        window.addEventListener("load", initStory);
+    </script>
+</body>
+</html>
