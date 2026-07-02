@@ -4,6 +4,7 @@ import {
   type InkProjectFile,
 } from "@/types/ink-project";
 import {
+  hasCaseInsensitiveInkProjectPathCollision,
   isNormalizedInkProjectPath,
   normalizeInkProjectPath,
 } from "@/lib/ink-project-paths";
@@ -67,6 +68,7 @@ export function isInkProject(value: unknown): value is InkProject {
 
   return (
     fileNames.length > 0
+    && !hasCaseInsensitiveInkProjectPathCollision(fileNames)
     && Object.prototype.hasOwnProperty.call(files, candidate.entryFile)
     && fileNames.every((fileName) => (
       isNormalizedInkProjectPath(fileName)
