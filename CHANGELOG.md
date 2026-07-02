@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Versioned `InkProject` model with validation and single-file migration helpers
 - Virtual-file compiler requests using `{ entryFile, files }`
 - Ink `INCLUDE` compilation support through the worker’s in-memory file map
+- Minimal multi-file authoring with a project file rail, active-file switching, strict project-file `INCLUDE` resolution, file-routed Problems jumps, and full `.inkpad` project export
 - Recovery-aware top-level error boundary
 - Automated project-model and multi-file compiler tests
 - Phone/desktop progressive hydration split with viewport-gated Monaco loading, phone Preview default, delayed phone prefetch, and branded mobile loading fallback
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTML character entity decoder for safe rendering of spaces/tiles and common named entities in story output and exported HTML
 - Shared story typeface setting synchronized between Settings sheet and Playable HTML export modal
 - Native support for `# theme: system` metadata across parsing, preview styling, and export
+- Export labels now distinguish the current `.ink` file from the full `.inkpad` project when multiple files exist
 
 ### Changed
 

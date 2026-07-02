@@ -72,14 +72,18 @@ This is the working implementation checklist. It favors small, testable slices a
 
 ## Phase 5: Multi-file projects
 
-- [ ] Promote editor state and persistence from `InkDocument` to `InkProject`
-- [ ] Add a project file list and active-file selection
+- [x] Promote live editor compile state from `InkDocument` to `InkProject`
+- [x] Add a project file list and active-file selection
 - [ ] Add create, rename, duplicate, and delete file operations
 - [ ] Prevent deletion or invalid renaming of the entry file without an explicit replacement
-- [ ] Resolve exact-name `INCLUDE` paths from the project file map
+- [x] Add minimal create-file support
+- [x] Resolve exact-name `INCLUDE` paths from the project file map
 - [ ] Decide and document relative-path behavior; inkjs `JsonFileHandler` does not resolve relative imports
-- [ ] Display compiler errors with filename and line information
-- [ ] Add `.inkproject` import/export
+- [x] Display compiler errors with filename and line information
+- [x] Route Problems clicks by file before jumping to the diagnostic line
+- [ ] Finish project persistence hardening beyond serialized `.inkpad` autosave
+- [x] Add `.inkpad` export
+- [ ] Add `.inkpad` import
 - [ ] Keep plain `.ink` import/export working as a single-file project workflow
 - [ ] Migrate existing local single-file saves safely
 - [ ] Add multi-file recovery and snapshot tests

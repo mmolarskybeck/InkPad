@@ -650,22 +650,63 @@ InkPad's architecture.
   correctly in isolation, so something in the click → drawer-open flow is
   interfering.
 
-## Next Checkpoint
+## 2026-07-02 - Checkpoint 13: Phase 7 minimal multi-file support
 
-Phases 3, 5, and 6 are closed for migration purposes. The next implementation
-checkpoint is Phase 7 minimal multi-file support:
+Implemented the narrow Phase 7 slice on top of the CodeMirror-only editor:
 
-- `.inkpad` project model with `files` map and explicit `entryFile`
-- file list/sidebar and active file switching
-- `INCLUDE` resolution against `project.files`
-- Problems clicks switch files before jumping to the diagnostic line
-- explicit export labels for current file vs full project
-- no project-wide search, graph view, or elaborate file-management UI yet
+- The editor page now keeps an `InkProject` in memory with explicit
+  `entryFile`, `files`, and `activeFileId`, while preserving the existing
+  plain `.ink` single-file flow.
+- Added a compact project file rail:
+  - desktop: left sidebar inside the code pane
+  - phone: horizontal file strip above CodeMirror
+  - add-file uses InkPad's existing dialog pattern instead of a native prompt
+  - active file switching goes through CodeMirror's document replacement path
+- Live compile, Run, JSON export, and playable HTML export now pass the full
+  `{ entryFile, files }` input from the current project. This enables strict
+  `INCLUDE` resolution against `project.files` in the app surface.
+- Current `.ink` export is explicitly the active file. Multi-file projects also
+  expose full `.inkpad` project export, and multi-file autosave/manual save
+  store the serialized project JSON.
+- Problems rows keep and route by `fileId`; clicking a problem switches to the
+  diagnostic's file before jumping to the line.
+- Knot navigation searches the project file map and switches files before
+  revealing the declaration.
+- Added a `useInkStory` regression test proving project compile inputs are
+  passed through without being flattened to a single string.
+
+Verification:
+
+- `npm run check`
+- `npm test` (28 files, 219 tests)
+- `npm run build`
+- Browser smoke on desktop:
+  - CodeMirror rendered with the file rail
+  - added `chapter.ink`
+  - typed included-file content
+  - changed `story.ink` to `INCLUDE chapter.ink` + `-> chapter`
+  - Run succeeded and preview showed included content
+  - Problems reported no issues
+  - no Monaco DOM or Monaco script chunks
+- Browser smoke on mobile viewport `390x844`:
+  - CodeMirror mounted after opening the Code tab
+  - file strip rendered at 40px tall
+  - exactly one accessible add-file button
+  - no horizontal overflow
+  - no Monaco DOM
+
+Notes:
+
+- The browser console log API retained old errors from the earlier native
+  `window.prompt` implementation during the same automation session. The
+  prompt was removed and the final state uses an in-app dialog.
+- Rich file management remains out of scope for this checkpoint: rename,
+  duplicate, delete, entry-file replacement, project-wide search, and graph
+  view are still later work.
 
 ## Later Checkpoints
 
 - Phase 2 diagnostic model hardening:
-  - Finish multi-file Problems-click behavior when the multi-file UI exists.
   - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
     InkPad-authored lint rules are added.
 - Phase 4 mobile authoring:
@@ -678,10 +719,9 @@ checkpoint is Phase 7 minimal multi-file support:
     preservation or whether remount-on-layout-change is acceptable.
   - Fix the Problems/Snippets drawer-open keyboard-dismiss regression noted
     above.
-- Phase 7 minimal multi-file support:
-  - Add project file list/sidebar.
-  - Switch active files through the CodeMirror document-replacement API.
-  - Resolve `INCLUDE` against `project.files`.
-  - Route Problems clicks by `fileId`.
+- Multi-file follow-up:
+  - Add rename, duplicate, delete, and entry-file replacement flows.
+  - Add `.inkpad` import from disk once the file picker accepts project files.
+  - Add project-level recovery/snapshot tests beyond serialized autosave.
   - Keep project-wide search, graph view, and advanced file management out of
-    the first multi-file slice.
+    the migration-critical path.
