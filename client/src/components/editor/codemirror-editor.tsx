@@ -193,10 +193,19 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
     ".cm-gutters": {
       backgroundColor: "var(--editor-bg)",
       color: "var(--text-secondary)",
-      borderRight: "1px solid var(--border-color)",
+      border: "none",
+      paddingRight: "10px",
     },
-    ".cm-activeLineGutter, .cm-activeLine": {
+    ".cm-lineNumbers .cm-gutterElement": {
+      minWidth: "2.5em",
+      padding: "0 4px 0 8px",
+    },
+    ".cm-activeLine": {
       backgroundColor: "color-mix(in srgb, var(--accent-blue) 9%, transparent)",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "transparent",
+      color: "var(--text-emphasis)",
     },
     ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
       backgroundColor: "color-mix(in srgb, var(--accent-blue) 34%, transparent)",
