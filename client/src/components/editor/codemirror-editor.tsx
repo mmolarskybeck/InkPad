@@ -140,6 +140,19 @@ const flashLineField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+const DEFAULT_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0";
+const ZOOM_LOCKED_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+
+// A smaller-than-16px mobile font (see effectiveFontSize) would otherwise
+// trigger iOS Safari's auto-zoom on focus. Instead of flooring the font
+// size, disable pinch-zoom for the duration of the focus so any font size
+// is safe; zoom is restored the instant the editor blurs.
+function setMobileZoomLocked(locked: boolean) {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  meta.setAttribute("content", locked ? ZOOM_LOCKED_VIEWPORT_CONTENT : DEFAULT_VIEWPORT_CONTENT);
+}
+
 function getSaveStatus(saveState: SaveState) {
   switch (saveState) {
     case "dirty":
@@ -155,7 +168,7 @@ function getSaveStatus(saveState: SaveState) {
   }
 }
 
-function createThemeExtension(fontSize: number, isDark: boolean) {
+function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout: boolean) {
   return EditorView.theme({
     "&": {
       height: "100%",
@@ -177,17 +190,17 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
       padding: "12px 0 48px",
     },
     ".cm-line": {
-      padding: "0 14px 0 4px",
+      padding: isMobileLayout ? "0 10px 0 2px" : "0 14px 0 4px",
     },
     ".cm-gutters": {
       backgroundColor: "var(--editor-bg)",
       color: "var(--text-secondary)",
       border: "none",
-      paddingRight: "10px",
+      paddingRight: isMobileLayout ? "6px" : "10px",
     },
     ".cm-lineNumbers .cm-gutterElement": {
-      minWidth: "2.5em",
-      padding: "0 4px 0 8px",
+      minWidth: isMobileLayout ? "1.6em" : "2.5em",
+      padding: isMobileLayout ? "0 3px 0 1px" : "0 4px 0 8px",
     },
     ".cm-activeLine": {
       backgroundColor: "color-mix(in srgb, var(--accent-blue) 9%, transparent)",
@@ -309,10 +322,13 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   wordWrap = true,
   saveState = "saved",
 }, ref) => {
-  // iOS Safari auto-zooms the page when focusing an editable element whose
-  // font-size is below 16px. Floor the mobile font size regardless of the
-  // user's chosen preference so tapping into the editor never zooms.
-  const effectiveFontSize = isMobileLayout ? Math.max(fontSize, 16) : fontSize;
+  // Mobile renders a touch slightly smaller than the desktop preference
+  // (dense monospace reads fine at arm's length on a phone). iOS Safari's
+  // auto-zoom-on-focus, which this would otherwise trigger below 16px, is
+  // handled separately by locking pinch-zoom while the editor is focused
+  // (see the focus/blur domEventHandlers below) rather than by flooring the
+  // font size, so the mobile size can go below 16px.
+  const effectiveFontSize = isMobileLayout ? Math.max(fontSize - 1, 11) : fontSize;
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView>();
   const changeEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -439,7 +455,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     indentUnit.of("  "),
     languageCompartmentRef.current.of(InkLanguageSupport()),
     syntaxHighlighting(inkHighlightStyle),
-    themeCompartmentRef.current.of(createThemeExtension(effectiveFontSize, effectiveTheme !== "light")),
+    themeCompartmentRef.current.of(createThemeExtension(effectiveFontSize, effectiveTheme !== "light", isMobileLayout)),
     wrappingCompartmentRef.current.of(wordWrap ? EditorView.lineWrapping : []),
     editableCompartmentRef.current.of([
       EditorView.editable.of(true),
@@ -463,7 +479,13 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         scheduleChangeEmit();
       }
     }),
-  ], [effectiveFontSize, effectiveTheme, fileName, scheduleChangeEmit, updateControlState, wordWrap]);
+    isMobileLayout
+      ? EditorView.domEventHandlers({
+          focus: () => setMobileZoomLocked(true),
+          blur: () => setMobileZoomLocked(false),
+        })
+      : [],
+  ], [effectiveFontSize, effectiveTheme, fileName, isMobileLayout, scheduleChangeEmit, updateControlState, wordWrap]);
 
   const createState = useCallback((doc: string, selection?: { from: number; to?: number }) => (
     EditorState.create({
@@ -693,6 +715,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
       }
+      if (isMobileLayout) setMobileZoomLocked(false);
     };
     // Create exactly one EditorView per mount. Runtime settings update through
     // compartments below rather than by recreating the view.
@@ -705,11 +728,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
 
     view.dispatch({
       effects: themeCompartmentRef.current.reconfigure(
-        createThemeExtension(effectiveFontSize, effectiveTheme !== "light"),
+        createThemeExtension(effectiveFontSize, effectiveTheme !== "light", isMobileLayout),
       ),
     });
     view.requestMeasure();
-  }, [effectiveFontSize, effectiveTheme]);
+  }, [effectiveFontSize, effectiveTheme, isMobileLayout]);
 
   useEffect(() => {
     const view = viewRef.current;

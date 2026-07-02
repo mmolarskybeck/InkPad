@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import { AlertTriangle, ArrowLeft, Braces, Columns2, List, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Braces, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -128,7 +128,7 @@ export function EditorWorkspace({
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
   const pointerActivationHandledRef = useRef(false);
   const restoreFindAfterFocusRef = useRef(false);
-  const snippetTapGestureRef = useRef<{
+  const tapGestureRef = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
@@ -136,6 +136,7 @@ export function EditorWorkspace({
   } | null>(null);
   // Incremented each time split view is restored, forcing a clean PanelGroup mount.
   const [splitKey, setSplitKey] = useState(0);
+  const [expandedSnippetId, setExpandedSnippetId] = useState<string | null>(null);
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -198,16 +199,6 @@ export function EditorWorkspace({
     }
     setMobileTab("code");
   }, [editorRef, setMobileDrawer, setMobileTab]);
-
-  const handleInsertPointerDown = useCallback((
-    event: React.PointerEvent<HTMLElement>,
-    insert: CodeMirrorEditorInsertOptions,
-    closeDrawer = false,
-  ) => {
-    event.preventDefault();
-    markPointerActivationHandled();
-    insertAtCursor(insert, closeDrawer);
-  }, [insertAtCursor, markPointerActivationHandled]);
 
   const handleInsertClick = useCallback((
     event: React.MouseEvent<HTMLElement>,
@@ -272,11 +263,17 @@ export function EditorWorkspace({
     handleMobileDrawerToggle("problems");
   }, [editorRef, handleMobileDrawerToggle]);
 
-  const handleSnippetPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
+  // Shared tap-vs-drag gesture guard. Buttons that live inside a
+  // horizontally- or vertically-scrollable region can't fire their action on
+  // pointerdown, or the very touch that starts a scroll drag triggers them.
+  // Instead we track movement and only commit the action on pointerup if the
+  // finger never travelled past the threshold; a real drag is left alone so
+  // native scrolling still works.
+  const handleTapPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse") return;
 
     event.stopPropagation();
-    snippetTapGestureRef.current = {
+    tapGestureRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
@@ -284,8 +281,8 @@ export function EditorWorkspace({
     };
   }, []);
 
-  const handleSnippetPointerMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const gesture = snippetTapGestureRef.current;
+  const handleTapPointerMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    const gesture = tapGestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId || gesture.moved) return;
 
     if (
@@ -296,14 +293,14 @@ export function EditorWorkspace({
     }
   }, []);
 
-  const handleSnippetPointerUp = useCallback((
+  const handleTapPointerUp = useCallback((
     event: React.PointerEvent<HTMLElement>,
-    insert: CodeMirrorEditorInsertOptions,
+    onTap: () => void,
   ) => {
     if (event.pointerType === "mouse") return;
 
-    const gesture = snippetTapGestureRef.current;
-    snippetTapGestureRef.current = null;
+    const gesture = tapGestureRef.current;
+    tapGestureRef.current = null;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     if (gesture.moved) {
       markPointerActivationHandled();
@@ -313,33 +310,45 @@ export function EditorWorkspace({
     event.preventDefault();
     event.stopPropagation();
     markPointerActivationHandled();
-    insertAtCursor(insert, true);
-  }, [insertAtCursor, markPointerActivationHandled]);
+    onTap();
+  }, [markPointerActivationHandled]);
 
-  const handleSnippetPointerCancel = useCallback(() => {
-    snippetTapGestureRef.current = null;
+  const handleTapPointerCancel = useCallback(() => {
+    tapGestureRef.current = null;
   }, []);
+
+  // Opening the drawer dismisses the keyboard: browsing snippets is a read
+  // task, and the drawer needs the vertical space the keyboard is occupying.
+  // The keyboard comes back on its own when a snippet is actually inserted
+  // (insertAtCursor refocuses the editor).
+  const toggleSnippetsDrawer = useCallback(() => {
+    setMobileDrawer((drawer) => {
+      if (drawer === "snippets") return null;
+      editorRef.current?.getEditor()?.contentDOM.blur();
+      return "snippets";
+    });
+  }, [editorRef, setMobileDrawer]);
 
   const handleSnippetsTogglePointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.preventDefault();
     markPointerActivationHandled();
-    setMobileDrawer((drawer) => drawer === "snippets" ? null : "snippets");
-  }, [markPointerActivationHandled, setMobileDrawer]);
+    toggleSnippetsDrawer();
+  }, [markPointerActivationHandled, toggleSnippetsDrawer]);
 
   const handleSnippetsToggleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
     if (pointerActivationHandledRef.current) {
       event.preventDefault();
       return;
     }
-    setMobileDrawer((drawer) => drawer === "snippets" ? null : "snippets");
-  }, [setMobileDrawer]);
+    toggleSnippetsDrawer();
+  }, [toggleSnippetsDrawer]);
 
   const handleSnippetsToggleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     markPointerActivationHandled();
-    setMobileDrawer((drawer) => drawer === "snippets" ? null : "snippets");
-  }, [markPointerActivationHandled, setMobileDrawer]);
+    toggleSnippetsDrawer();
+  }, [markPointerActivationHandled, toggleSnippetsDrawer]);
 
   const drawerTitle = mobileDrawer === "variables"
     ? "Variables"
@@ -391,6 +400,11 @@ export function EditorWorkspace({
     const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
     return () => window.clearTimeout(timer);
   }, [editorRef, isMobileSearchMode, setMobileDrawer]);
+
+  // Always reopen the snippet list collapsed.
+  useEffect(() => {
+    if (mobileDrawer !== "snippets") setExpandedSnippetId(null);
+  }, [mobileDrawer]);
 
   // Re-measure after the chrome rows mount/unmount around the keyboard.
   useEffect(() => {
@@ -605,12 +619,16 @@ export function EditorWorkspace({
               </button>
             </div>
           )}
-          <div className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
+          <div className="flex min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto">
             {MOBILE_SYNTAX_INSERTS.map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onPointerDown={(event) => handleInsertPointerDown(event, item.insert)}
+                onPointerDown={handleTapPointerDown}
+                onPointerMove={handleTapPointerMove}
+                onPointerUp={(event) => handleTapPointerUp(event, () => insertAtCursor(item.insert))}
+                onPointerCancel={handleTapPointerCancel}
+                onLostPointerCapture={handleTapPointerCancel}
                 onClick={(event) => handleInsertClick(event, item.insert)}
                 onKeyDown={(event) => handleInsertKeyDown(event, item.insert)}
                 className="flex h-full min-w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg px-2 font-mono text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
@@ -723,43 +741,62 @@ export function EditorWorkspace({
                       {group.category}
                     </h3>
                     <div className="space-y-2">
-                      {group.snippets.map((snippet) => (
-                        <button
-                          key={snippet.id}
-                          type="button"
-                          onPointerDown={(event) => {
-                            handleSnippetPointerDown(event);
-                          }}
-                          onPointerMove={handleSnippetPointerMove}
-                          onPointerUp={(event) => {
-                            handleSnippetPointerUp(event, getSnippetInsert(snippet.mobileInsert));
-                          }}
-                          onPointerCancel={handleSnippetPointerCancel}
-                          onLostPointerCapture={handleSnippetPointerCancel}
-                          onClick={(event) => {
-                            handleInsertClick(event, getSnippetInsert(snippet.mobileInsert), true);
-                          }}
-                          onKeyDown={(event) => {
-                            handleInsertKeyDown(event, getSnippetInsert(snippet.mobileInsert), true);
-                          }}
-                          className="block w-full rounded border border-border-color bg-editor-bg p-3 text-left text-text-primary transition-colors hover:border-accent-blue hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-                        >
-                          <span className="flex items-center justify-between gap-3">
-                            <span className="text-[0.875rem] font-medium text-text-emphasis">
-                              {snippet.label}
-                            </span>
-                            <span className="shrink-0 font-mono text-[0.6875rem] text-text-secondary">
-                              {snippet.aliases[0]}
-                            </span>
-                          </span>
-                          <span className="mt-1 block text-[0.75rem] leading-snug text-text-secondary">
-                            {snippet.description}
-                          </span>
-                          <code className="mt-2 block max-h-20 overflow-hidden whitespace-pre-wrap rounded bg-panel-bg px-2 py-1.5 font-mono text-[0.75rem] leading-relaxed text-text-primary">
-                            {snippet.mobileInsert}
-                          </code>
-                        </button>
-                      ))}
+                      {group.snippets.map((snippet) => {
+                        const isExpanded = expandedSnippetId === snippet.id;
+                        return (
+                          <div
+                            key={snippet.id}
+                            className="overflow-hidden rounded border border-border-color bg-editor-bg transition-colors data-[expanded=true]:border-accent-blue/60"
+                            data-expanded={isExpanded}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setExpandedSnippetId((id) => id === snippet.id ? null : snippet.id)}
+                              aria-expanded={isExpanded}
+                              className="flex w-full items-center gap-3 p-3 text-left text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center gap-2">
+                                  <span className="text-[0.875rem] font-medium text-text-emphasis">
+                                    {snippet.label}
+                                  </span>
+                                  <span className="shrink-0 font-mono text-[0.6875rem] text-text-secondary">
+                                    {snippet.aliases[0]}
+                                  </span>
+                                </span>
+                                <span className="mt-0.5 block truncate text-[0.75rem] leading-snug text-text-secondary">
+                                  {snippet.description}
+                                </span>
+                              </span>
+                              <ChevronDown
+                                className={`h-4 w-4 shrink-0 text-text-secondary transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                aria-hidden="true"
+                              />
+                            </button>
+                            {isExpanded && (
+                              <div className="border-t border-border-color px-3 pb-3 pt-2">
+                                <code className="block whitespace-pre-wrap rounded bg-panel-bg px-2 py-1.5 font-mono text-[0.75rem] leading-relaxed text-text-primary">
+                                  {snippet.mobileInsert}
+                                </code>
+                                <button
+                                  type="button"
+                                  onPointerDown={handleTapPointerDown}
+                                  onPointerMove={handleTapPointerMove}
+                                  onPointerUp={(event) => handleTapPointerUp(event, () => insertAtCursor(getSnippetInsert(snippet.mobileInsert), true))}
+                                  onPointerCancel={handleTapPointerCancel}
+                                  onLostPointerCapture={handleTapPointerCancel}
+                                  onClick={(event) => handleInsertClick(event, getSnippetInsert(snippet.mobileInsert), true)}
+                                  onKeyDown={(event) => handleInsertKeyDown(event, getSnippetInsert(snippet.mobileInsert), true)}
+                                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded bg-accent-blue px-3 py-2 text-[0.8125rem] font-medium text-editor-bg transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                  Insert
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </section>
                 ))}
