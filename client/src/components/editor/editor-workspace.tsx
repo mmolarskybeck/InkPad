@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import { AlertTriangle, ArrowLeft, Braces, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookMarked, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -606,17 +606,6 @@ export function EditorWorkspace({
               >
                 <Redo2 className="h-4 w-4" />
               </button>
-              <button
-                type="button"
-                onPointerDown={(event) => handleAccessoryCommandPointerDown(event, onToggleFind)}
-                onClick={(event) => handleAccessoryCommandClick(event, onToggleFind)}
-                onKeyDown={(event) => handleAccessoryCommandKeyDown(event, onToggleFind)}
-                className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-                aria-label="Find and replace"
-                title="Find and replace"
-              >
-                <Search className="h-4 w-4" />
-              </button>
             </div>
           )}
           <div className="flex min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto">
@@ -662,7 +651,7 @@ export function EditorWorkspace({
               title="Snippets"
               className={`flex h-full shrink-0 items-center justify-center gap-1.5 rounded border border-border-color bg-panel-bg text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue aria-pressed:border-accent-blue aria-pressed:text-accent-blue ${isMobileKeyboardOpen ? "w-10" : "min-w-[6.5rem] px-3"}`}
             >
-              <Braces className="h-4 w-4" />
+              <BookMarked className="h-4 w-4" />
               {!isMobileKeyboardOpen && "Snippets"}
             </button>
           </div>
@@ -751,6 +740,7 @@ export function EditorWorkspace({
                           >
                             <button
                               type="button"
+                              onPointerDown={(event) => event.stopPropagation()}
                               onClick={() => setExpandedSnippetId((id) => id === snippet.id ? null : snippet.id)}
                               aria-expanded={isExpanded}
                               className="flex w-full items-center gap-3 p-3 text-left text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
