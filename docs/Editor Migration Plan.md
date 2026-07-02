@@ -918,7 +918,7 @@ Accessibility is part of done, not deferred polish.
 
 Settle these as implementation reveals the real constraints:
 
-- **mavnn local patches vs fork vs vendored grammar**: decide after fixtures run.
+- ~~**mavnn local patches vs fork vs vendored grammar**: decide after fixtures run.~~ Resolved 2026-07-02 (Checkpoint 7): vendored and patched. See `client/src/editor/codemirror/ink-lang/README.md` for the patch list and reasoning, and `docs/editor-migration-updates.md` for the fixture evidence behind the decision.
 - **Built-in function highlighting mechanism**: grammar node vs separate decoration extension.
 - **Canonical built-in set**: verify against Ink spec/inkjs, not Ace autocomplete or InkPad Monarch guesses.
 - **INCLUDE quote handling**: verify against inkjs.

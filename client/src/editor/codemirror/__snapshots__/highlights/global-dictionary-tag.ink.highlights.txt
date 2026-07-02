@@ -1,0 +1,13 @@
+"LIST " -> keyword
+"mood" -> name
+" = " -> keyword
+"happy" -> name
+", " -> keyword
+"cautious" -> name
+", " -> keyword
+"tired" -> name
+"# theme:railway" -> labelName
+"# speaker:conductor" -> labelName
+"The platform breathes steam." -> content
+"->" -> controlOperator
+"END" -> keyword

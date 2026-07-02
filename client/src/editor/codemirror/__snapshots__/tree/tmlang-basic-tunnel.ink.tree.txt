@@ -1,0 +1,1 @@
+Script(LineComment,ContentLine(Divert(DivertArrow,DivertTarget(Path),Divert(DivertArrow))),LineComment,LineComment,LineComment,LineComment,LineComment,ContentLine(Glue),LineComment,LineComment,Knot(KnotName,⚠),LineComment,LineComment,LineComment,LineComment,LineComment,ContentLine,LineComment,ContentLine(Divert(TunnelReturn)),LineComment,LineComment)

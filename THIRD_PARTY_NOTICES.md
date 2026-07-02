@@ -23,9 +23,40 @@ InkPad uses `inkjs` for ink compilation and runtime support in JavaScript.
 
 ## Monaco Editor
 
-InkPad uses Monaco Editor for browser-based code editing.
+InkPad uses Monaco Editor for browser-based code editing. InkPad is migrating
+its editor to CodeMirror 6 (see `docs/Editor Migration Plan.md`); Monaco
+remains in the dependency tree until that migration's Monaco-removal
+checkpoint is complete.
 
 * Repository: https://github.com/microsoft/monaco-editor
+* License: MIT License
+
+## CodeMirror 6
+
+InkPad's editor is built on CodeMirror 6.
+
+* Repository: https://github.com/codemirror/dev
+* License: MIT License
+
+## Ink language support for CodeMirror (vendored fork)
+
+`client/src/editor/codemirror/ink-lang/` is a vendored, patched fork of
+`@mavnn/codemirror-lang-ink` `0.9.27` by Michael Newton, rather than an npm
+dependency. See `client/src/editor/codemirror/ink-lang/README.md` for the
+patches applied and the reasoning for vendoring instead of depending on the
+published package.
+
+* Original repository: https://github.com/mavnn/codemirror-lang-ink
+* License: MIT License (original license text preserved at
+  `client/src/editor/codemirror/ink-lang/LICENSE-mavnn-codemirror-lang-ink`)
+
+## ink-tmlanguage (fixture corpus)
+
+Some of InkPad's CodeMirror language-evaluation fixtures
+(`client/src/editor/codemirror/__fixtures__/tmlang-*.ink`) are pulled from
+Inkle's `ink-tmlanguage` test corpus.
+
+* Repository: https://github.com/inkle/ink-tmlanguage
 * License: MIT License
 
 ## React

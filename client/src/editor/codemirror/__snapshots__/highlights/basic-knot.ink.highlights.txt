@@ -1,0 +1,15 @@
+"=== " -> heading1
+"chapter" -> name
+" ===\n" -> heading1
+"The train arrives in silence." -> content
+"* " -> controlOperator
+"(" -> paren
+"greeting" -> name
+")" -> paren
+"[" -> squareBracket
+"Wave to the conductor" -> content
+"]" -> squareBracket
+"He tips his hat." -> content
+"# warm" -> labelName
+"->" -> controlOperator
+"END" -> keyword

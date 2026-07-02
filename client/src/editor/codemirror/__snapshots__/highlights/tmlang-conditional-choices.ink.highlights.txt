@@ -1,0 +1,76 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"* { " -> controlOperator
+" } { " -> controlOperator
+" } " -> controlOperator
+"not displayed" -> content
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"//         ^ keyword.control.ink\n" -> comment
+"//          ^^^^^^^ keyword.control.ink\n" -> comment
+"//                 ^ keyword.control.ink\n" -> comment
+"//                  ^^^^^^^^^^^^^^^ source.ink\n" -> comment
+"* { " -> controlOperator
+" } { " -> controlOperator
+" }" -> controlOperator
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"//         ^ keyword.control.ink\n" -> comment
+"//          ^^^^^^ keyword.control.ink\n" -> comment
+"//                ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"true and true " -> content
+"  one" -> content
+"//<-- source.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^^^^^^^^^^ keyword.control.ink\n" -> comment
+"//                ^ keyword.control.ink\n" -> comment
+"//                 ^^^^^^ source.ink\n" -> comment
+"* { " -> controlOperator
+" } " -> controlOperator
+"not displayed" -> content
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^^ keyword.control.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"//         ^^^^^^^^^^^^^^^ source.ink\n" -> comment
+"* " -> controlOperator
+"(" -> paren
+"name" -> name
+")" -> paren
+" { " -> controlOperator
+" } " -> controlOperator
+"two" -> content
+"//<- keyword.choice.ink\n" -> comment
+"//^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"// ^^^^ string.label.ink entity.name.label.ink string.quoted.other.ink\n" -> comment
+"//     ^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"//        ^^^^^^ keyword.control.ink\n" -> comment
+"//              ^ keyword.control.ink\n" -> comment
+"//               ^^^^^ source.ink\n" -> comment
+"* { " -> controlOperator
+" }" -> controlOperator
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"true " -> content
+"//<-- source.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"three" -> content
+"//<------- source.ink\n" -> comment
+"* { " -> controlOperator
+" }" -> controlOperator
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"four" -> content
+"//<------- source.ink\n" -> comment

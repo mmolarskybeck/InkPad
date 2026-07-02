@@ -1,0 +1,216 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vendored Ink language (client/src/editor/codemirror/ink-lang) > records parser error-node counts and fold coverage for the fixture corpus 1`] = `
+[
+  {
+    "errorNodeCount": 1,
+    "foldableLines": [
+      1,
+    ],
+    "name": "basic-knot.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [
+      4,
+    ],
+    "name": "built-in-functions.ink",
+  },
+  {
+    "errorNodeCount": 1,
+    "foldableLines": [
+      3,
+    ],
+    "name": "cjk-hangul-identifiers.ink",
+  },
+  {
+    "errorNodeCount": 1,
+    "foldableLines": [
+      6,
+    ],
+    "name": "divert-function-call.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [
+      1,
+      4,
+    ],
+    "name": "divert-parameterized.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [
+      4,
+      5,
+    ],
+    "name": "divert-three-part-path.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [
+      1,
+      6,
+    ],
+    "name": "divert-tunnel.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "emoji-offsets.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "escape-sequences.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [
+      4,
+    ],
+    "name": "external-declaration.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [
+      3,
+      7,
+    ],
+    "name": "function-knot.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "global-dictionary-tag.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "glue.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "include-quoted-path.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "include-subfolder-path.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "nested-conditional.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [],
+    "name": "sequence.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [
+      1,
+      2,
+    ],
+    "name": "stitch.ink",
+  },
+  {
+    "errorNodeCount": 16,
+    "foldableLines": [],
+    "name": "tmlang-arithmetic.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [],
+    "name": "tmlang-basic-string-literals.ink",
+  },
+  {
+    "errorNodeCount": 1,
+    "foldableLines": [],
+    "name": "tmlang-basic-tunnel.ink",
+  },
+  {
+    "errorNodeCount": 7,
+    "foldableLines": [],
+    "name": "tmlang-conditional-choices.ink",
+  },
+  {
+    "errorNodeCount": 4,
+    "foldableLines": [],
+    "name": "tmlang-conditionals.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [],
+    "name": "tmlang-default-choices.ink",
+  },
+  {
+    "errorNodeCount": 5,
+    "foldableLines": [],
+    "name": "tmlang-divert-in-conditional.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [],
+    "name": "tmlang-divert-targets-with-parameters.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [],
+    "name": "tmlang-external-binding.ink",
+  },
+  {
+    "errorNodeCount": 4,
+    "foldableLines": [],
+    "name": "tmlang-floor-ceiling-casts.ink",
+  },
+  {
+    "errorNodeCount": 15,
+    "foldableLines": [],
+    "name": "tmlang-knot-stitch-function-declaration.ink",
+  },
+  {
+    "errorNodeCount": 1,
+    "foldableLines": [],
+    "name": "tmlang-path-to-self.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [],
+    "name": "tmlang-same-line-divert.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "tmlang-simple-glue.ink",
+  },
+  {
+    "errorNodeCount": 3,
+    "foldableLines": [],
+    "name": "tmlang-tags.ink",
+  },
+  {
+    "errorNodeCount": 2,
+    "foldableLines": [],
+    "name": "tmlang-todo.ink",
+  },
+  {
+    "errorNodeCount": 16,
+    "foldableLines": [],
+    "name": "tmlang-turns-since.ink",
+  },
+  {
+    "errorNodeCount": 18,
+    "foldableLines": [],
+    "name": "tmlang-variable-declarations.ink",
+  },
+  {
+    "errorNodeCount": 0,
+    "foldableLines": [],
+    "name": "todo-author-warning.ink",
+  },
+]
+`;

@@ -1,0 +1,1 @@
+Script(Knot(KnotName,Stitch(StitchName,ContentLine,ContentLine(Divert(DivertArrow,DivertTarget(Path)))),LineComment(⚠),ContentLine,ContentLine(Divert(DivertArrow,DivertTarget(END)))),⚠)

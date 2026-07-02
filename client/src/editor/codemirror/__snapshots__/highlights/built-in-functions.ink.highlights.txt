@@ -1,0 +1,56 @@
+"LIST " -> keyword
+"fruit" -> name
+" = " -> keyword
+"apple" -> name
+", " -> keyword
+"pear" -> name
+"VAR " -> keyword
+"count" -> name
+" = " -> keyword
+"0" -> number
+"=== " -> heading1
+"start" -> name
+" ===\n" -> heading1
+"~ " -> operatorKeyword
+"temp" -> keyword
+"roll" -> name
+" = " -> operatorKeyword
+"RANDOM" -> name
+"1" -> number
+"6" -> number
+"~ " -> operatorKeyword
+"temp" -> keyword
+"turns" -> name
+" = " -> operatorKeyword
+"TURNS_SINCE" -> name
+"> " -> operator
+"start" -> name
+"~ " -> operatorKeyword
+"temp" -> keyword
+"seen" -> name
+" = " -> operatorKeyword
+"CHOICE_COUNT" -> name
+"~ " -> operatorKeyword
+"count" -> name
+" = " -> operatorKeyword
+"LIST_COUNT" -> name
+"fruit" -> name
+"Roll " -> content
+"{" -> bracket
+"roll" -> name
+"}" -> bracket
+"; turns " -> content
+"{" -> bracket
+"turns" -> name
+"}" -> bracket
+"; choices " -> content
+"{" -> bracket
+"seen" -> name
+"}" -> bracket
+"; fruit " -> content
+"{" -> bracket
+"count" -> name
+"}" -> bracket
+"." -> content
+"->" -> controlOperator
+"END" -> keyword

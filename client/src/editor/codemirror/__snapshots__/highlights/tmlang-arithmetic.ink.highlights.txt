@@ -1,0 +1,40 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"{ " -> bracket
+"2 " -> content
+"* " -> controlOperator
+"3 + 5 * 6 " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<--------------- keyword.control.ink\n" -> comment
+"//              ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"8 mod 3" -> content
+"//<- keyword.control.ink\n" -> comment
+"//<------- keyword.control.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"13 % 5" -> content
+"//<- keyword.control.ink\n" -> comment
+"//<------ keyword.control.ink\n" -> comment
+"//     ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"7 / 3 " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<-------- keyword.control.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"7 / 3.0 " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<--------- keyword.control.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"10 - 2 " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<-------- keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"{ " -> bracket
+"2 " -> content
+"* " -> controlOperator
+"(5-1) " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<----------- keyword.control.ink\n" -> comment
+"//          ^ keyword.control.ink\n" -> comment

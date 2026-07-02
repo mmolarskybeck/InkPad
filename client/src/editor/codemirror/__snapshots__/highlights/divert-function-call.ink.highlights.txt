@@ -1,0 +1,27 @@
+"VAR " -> keyword
+"score" -> name
+" = " -> keyword
+"1" -> number
+"* " -> controlOperator
+"Call" -> content
+"# computed" -> labelName
+"->" -> controlOperator
+"calculate" -> name
+"score" -> name
+" + " -> arithmeticOperator
+"1" -> number
+"->" -> controlOperator
+"END" -> keyword
+"=== " -> heading1
+"calculate" -> name
+"(" -> bracket
+"value" -> name
+")" -> bracket
+" ===\n" -> heading1
+"Calculated " -> content
+"{" -> bracket
+"value" -> name
+"}" -> bracket
+"." -> content
+"->" -> controlOperator
+"END" -> keyword

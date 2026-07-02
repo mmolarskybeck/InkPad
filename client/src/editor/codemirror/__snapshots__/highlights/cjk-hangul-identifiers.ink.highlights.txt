@@ -1,0 +1,14 @@
+"VAR " -> keyword
+"café" -> name
+" = " -> keyword
+"1" -> number
+"VAR " -> keyword
+"점수" -> name
+" = " -> keyword
+"2" -> number
+"=== " -> heading1
+"서울" -> name
+" ===\n" -> heading1
+"안녕하세요." -> content
+"->" -> controlOperator
+"END" -> keyword

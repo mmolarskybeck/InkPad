@@ -1,0 +1,49 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"VAR " -> keyword
+"x" -> name
+" = " -> keyword
+"->" -> controlOperator
+"place" -> name
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^ variable.other.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^ keyword.operator.assignment.ink\n" -> comment
+"//     ^ source.ink\n" -> comment
+"//      ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//        ^^^^^ variable.other.knot.ink\n" -> comment
+"->" -> controlOperator
+"x " -> name
+"5" -> number
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ variable.function.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^ punctuation.section.parens.begin.ink\n" -> comment
+"//   ^ constant.numeric.ink\n" -> comment
+"//    ^ punctuation.section.parens.end.ink\n" -> comment
+"== " -> heading1
+"place" -> name
+"(" -> bracket
+"a" -> name
+")" -> bracket
+" ==\n" -> heading1
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^ entity.name.function.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^ punctuation.section.parens.begin.ink\n" -> comment
+"//        ^ variable.parameter.function.ink\n" -> comment
+"//         ^ punctuation.section.parens.end.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^ storage.knot.ink storage.type.ink\n" -> comment
+"{" -> bracket
+"a" -> name
+"}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<~- keyword.control.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"->" -> controlOperator
+"DONE" -> keyword
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^ support.constant.ink\n" -> comment

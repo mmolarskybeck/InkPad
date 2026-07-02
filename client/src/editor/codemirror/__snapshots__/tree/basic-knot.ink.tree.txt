@@ -1,0 +1,1 @@
+Script(Knot(KnotName,ContentLine,OnceOnlyChoice(BracketedChoiceName(Name),WeaveBracket(WeaveContent),PostweaveChoiceContent,ChoiceTag),ContentLine(Divert(DivertArrow,DivertTarget(END)))),⚠)

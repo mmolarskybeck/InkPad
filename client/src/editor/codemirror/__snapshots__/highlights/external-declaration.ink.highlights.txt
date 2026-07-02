@@ -1,0 +1,10 @@
+"EXTERNAL play_sound(name)" -> content
+"EXTERNAL achievement(ref id)" -> content
+"=== " -> heading1
+"start" -> name
+" ===\n" -> heading1
+"~ " -> operatorKeyword
+"play_sound" -> name
+"(\"bell\")" -> content
+"->" -> controlOperator
+"END" -> keyword

@@ -29,6 +29,7 @@ import {
   foldKeymap,
   indentOnInput,
   indentUnit,
+  syntaxHighlighting,
 } from "@codemirror/language";
 import {
   closeSearchPanel,
@@ -56,6 +57,8 @@ import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
+import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
+import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 
@@ -284,6 +287,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const wrappingCompartmentRef = useRef(new Compartment());
   const editableCompartmentRef = useRef(new Compartment());
   const contentAttributesCompartmentRef = useRef(new Compartment());
+  const languageCompartmentRef = useRef(new Compartment());
   const { effectiveTheme } = useTheme();
   const [historyState, setHistoryState] = useState({
     canUndo: false,
@@ -388,6 +392,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     flashLineField,
     EditorState.tabSize.of(2),
     indentUnit.of("  "),
+    languageCompartmentRef.current.of(InkLanguageSupport()),
+    syntaxHighlighting(inkHighlightStyle),
     themeCompartmentRef.current.of(createThemeExtension(fontSize, effectiveTheme !== "light")),
     wrappingCompartmentRef.current.of(wordWrap ? EditorView.lineWrapping : []),
     editableCompartmentRef.current.of([

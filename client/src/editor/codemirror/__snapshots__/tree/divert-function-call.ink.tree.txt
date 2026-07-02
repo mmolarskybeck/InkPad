@@ -1,0 +1,1 @@
+Script(VariableDeclaration(Name,Int),OnceOnlyChoice(PreweaveChoiceContent,ChoiceTag),ContentLine(Divert(DivertArrow,DivertTarget(Path(DivertCallArguments(ExpressionAdd(Name,Int)))))),ContentLine(Divert(DivertArrow,DivertTarget(END))),Knot(KnotName,KnotArguments(Name),ContentLine(InlineDisplayVariable(Name)),ContentLine(Divert(DivertArrow,DivertTarget(END)))),⚠)

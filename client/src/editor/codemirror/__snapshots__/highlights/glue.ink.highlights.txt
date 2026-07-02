@@ -1,0 +1,6 @@
+"We hurry " -> content
+"<>" -> operator
+"<>" -> operator
+" home." -> content
+"->" -> controlOperator
+"END" -> keyword

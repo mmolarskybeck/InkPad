@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { ensureSyntaxTree, foldable } from "@codemirror/language";
 import { highlightTree, tagHighlighter, tags } from "@lezer/highlight";
-import { InkLanguageSupport } from "@mavnn/codemirror-lang-ink";
+import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import { compileInkProject } from "@/workers/compile-ink-project";
 
 const fixturesDir = path.resolve(process.cwd(), "client/src/editor/codemirror/__fixtures__");
@@ -26,6 +26,7 @@ const inkEvaluationHighlighter = tagHighlighter([
   { tag: tags.squareBracket, class: "squareBracket" },
   { tag: tags.paren, class: "paren" },
   { tag: tags.comment, class: "comment" },
+  { tag: tags.special(tags.comment), class: "authorWarning" },
   { tag: tags.blockComment, class: "blockComment" },
   { tag: tags.bool, class: "bool" },
   { tag: tags.separator, class: "separator" },
@@ -39,6 +40,14 @@ type HighlightSpan = {
 
 type FixtureCompileStatus = "valid" | "invalid";
 
+// InkPad-authored fixtures target specific taxonomy/coordinate cases (see
+// docs/Editor Migration Plan.md). "tmlang-*" fixtures are pulled from
+// inkle/ink-tmlanguage's tests/cases/ corpus (MIT) and are not required to be
+// valid inkjs programs -- that corpus exists to exercise a TextMate
+// tokenizer against edge-case/partial syntax, not to be a runnable-story
+// suite. Each fixture's real compile status is recorded here and asserted
+// below so a future contributor can trust the "invalid" ones are
+// deliberate, not drift.
 const expectedFixtureCompileStatus: Record<string, FixtureCompileStatus> = {
   "basic-knot.ink": "valid",
   "built-in-functions.ink": "valid",
@@ -59,6 +68,24 @@ const expectedFixtureCompileStatus: Record<string, FixtureCompileStatus> = {
   "sequence.ink": "valid",
   "stitch.ink": "valid",
   "todo-author-warning.ink": "valid",
+  "tmlang-arithmetic.ink": "valid",
+  "tmlang-basic-string-literals.ink": "valid",
+  "tmlang-basic-tunnel.ink": "valid",
+  "tmlang-conditional-choices.ink": "valid",
+  "tmlang-conditionals.ink": "valid",
+  "tmlang-default-choices.ink": "valid",
+  "tmlang-divert-in-conditional.ink": "valid",
+  "tmlang-divert-targets-with-parameters.ink": "valid",
+  "tmlang-external-binding.ink": "valid",
+  "tmlang-floor-ceiling-casts.ink": "valid",
+  "tmlang-knot-stitch-function-declaration.ink": "invalid",
+  "tmlang-path-to-self.ink": "valid",
+  "tmlang-same-line-divert.ink": "valid",
+  "tmlang-simple-glue.ink": "valid",
+  "tmlang-tags.ink": "invalid",
+  "tmlang-todo.ink": "invalid",
+  "tmlang-turns-since.ink": "valid",
+  "tmlang-variable-declarations.ink": "invalid",
 };
 
 function readFixture(name: string) {
@@ -73,7 +100,7 @@ function createInkState(source: string) {
 }
 
 function getTreeString(state: EditorState) {
-  const tree = ensureSyntaxTree(state, state.doc.length, 1000);
+  const tree = ensureSyntaxTree(state, state.doc.length, 5000);
   expect(tree, "Expected CodeMirror to produce an Ink syntax tree").toBeTruthy();
 
   return tree?.toString() ?? "";
@@ -92,18 +119,6 @@ function getFoldableLines(state: EditorState) {
 
 function countErrorNodes(treeString: string) {
   return treeString.match(/⚠/g)?.length ?? 0;
-}
-
-function getErrorNodeContexts(treeString: string) {
-  const contexts: string[] = [];
-  let index = treeString.indexOf("⚠");
-
-  while (index !== -1) {
-    contexts.push(treeString.slice(Math.max(0, index - 35), index + 36));
-    index = treeString.indexOf("⚠", index + 1);
-  }
-
-  return contexts;
 }
 
 function createCompileFiles(name: string, source: string) {
@@ -135,7 +150,7 @@ function getFixtureCompileStatus(name: string, source: string): FixtureCompileSt
 
 function collectHighlightSpans(source: string): HighlightSpan[] {
   const state = createInkState(source);
-  const tree = ensureSyntaxTree(state, state.doc.length, 1000);
+  const tree = ensureSyntaxTree(state, state.doc.length, 5000);
   expect(tree, "Expected CodeMirror to produce an Ink syntax tree").toBeTruthy();
   const spans: HighlightSpan[] = [];
 
@@ -155,54 +170,67 @@ function classesForText(spans: HighlightSpan[], text: string) {
   return match?.classes ?? "";
 }
 
-describe("@mavnn/codemirror-lang-ink evaluation", () => {
-  it("records parser error-node and fold coverage for the InkPad fixture corpus", async () => {
+describe("vendored Ink language (client/src/editor/codemirror/ink-lang)", () => {
+  it("matches the recorded inkjs compile status for every fixture", async () => {
+    const fixtureNames = (await readdir(fixturesDir))
+      .filter((name) => name.endsWith(".ink"))
+      .sort();
+
+    const actualStatus = Object.fromEntries(
+      fixtureNames.map((name) => [name, getFixtureCompileStatus(name, readFixture(name))]),
+    );
+
+    expect(Object.keys(expectedFixtureCompileStatus).sort()).toEqual(fixtureNames);
+    expect(actualStatus).toEqual(expectedFixtureCompileStatus);
+  });
+
+  it("records parser error-node counts and fold coverage for the fixture corpus", async () => {
     const fixtureNames = (await readdir(fixturesDir))
       .filter((name) => name.endsWith(".ink"))
       .sort();
 
     const report = fixtureNames.map((name) => {
-      const source = readFixture(name);
-      const state = createInkState(source);
+      const state = createInkState(readFixture(name));
       const treeString = getTreeString(state);
 
       return {
         name,
-        inkjsStatus: getFixtureCompileStatus(name, source),
         errorNodeCount: countErrorNodes(treeString),
-        errorNodeContexts: getErrorNodeContexts(treeString),
         foldableLines: getFoldableLines(state),
       };
     });
 
-    expect(Object.keys(expectedFixtureCompileStatus).sort()).toEqual(fixtureNames);
-    expect(Object.fromEntries(report.map((item) => [item.name, item.inkjsStatus]))).toEqual(
-      expectedFixtureCompileStatus,
-    );
-    expect(report).toEqual([
-      { name: "basic-knot.ink", inkjsStatus: "valid", errorNodeCount: 1, errorNodeContexts: ["t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1] },
-      { name: "built-in-functions.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["Comparison(ExpressionSubtract(Bool(⚠),⚠),Name))),VariableAssignment(Tem", "parison(ExpressionSubtract(Bool(⚠),⚠),Name))),VariableAssignment(Temp,N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [4] },
-      { name: "cjk-hangul-identifiers.ink", inkjsStatus: "valid", errorNodeCount: 4, errorNodeContexts: ["eDeclaration(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentL", "tion(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,Cont", "n(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,Content", "ntentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,ContentLine(Divert(Di"], foldableLines: [] },
-      { name: "divert-function-call.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine,⚠,RepeatingChoice(Prew", "DivertTarget(Path))),⚠,ContentLine,⚠,RepeatingChoice(PreweaveChoiceCont", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [6] },
-      { name: "divert-parameterized.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine),⚠,Knot(KnotName,KnotA", "ivertTarget(Path))),⚠,ContentLine),⚠,Knot(KnotName,KnotArguments(Name,N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1, 4] },
-      { name: "divert-three-part-path.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine,ContentLine(Divert(Div", "t(DivertArrow,DivertTarget(END)))),⚠),⚠)", "ivertArrow,DivertTarget(END)))),⚠),⚠)"], foldableLines: [4, 5] },
-      { name: "divert-tunnel.ink", inkjsStatus: "valid", errorNodeCount: 2, errorNodeContexts: ["t(DivertArrow,DivertTarget(END)))),⚠,Knot(KnotName,ContentLine,ContentL", "ContentLine(Divert(TunnelReturn))),⚠)"], foldableLines: [1, 6] },
-      { name: "emoji-offsets.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "escape-sequences.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "external-declaration.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(KnotName,VariableAssignment(Name,⚠),⚠,ContentLine,ContentLine(Divert(", "notName,VariableAssignment(Name,⚠),⚠,ContentLine,ContentLine(Divert(Div", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [4] },
-      { name: "function-knot.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["e)),VariableAssignment(Return,Name,⚠)),⚠,Knot(KnotName,VariableAssignme", "VariableAssignment(Return,Name,⚠)),⚠,Knot(KnotName,VariableAssignment(N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [3, 7] },
-      { name: "global-dictionary-tag.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "glue.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "include-quoted-path.ink", inkjsStatus: "invalid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "include-subfolder-path.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "nested-conditional.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-      { name: "sequence.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["eContent)),ContentLine(Conditional(⚠),⚠(Pipe),InlineSequence(⚠,Sequence", "ntent)),ContentLine(Conditional(⚠),⚠(Pipe),InlineSequence(⚠,SequenceCon", "ditional(⚠),⚠(Pipe),InlineSequence(⚠,SequenceContent,Pipe,SequenceConte"], foldableLines: [] },
-      { name: "stitch.ink", inkjsStatus: "valid", errorNodeCount: 2, errorNodeContexts: [",DivertTarget(Path)))),LineComment(⚠),ContentLine,ContentLine(Divert(Di", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1, 2] },
-      { name: "todo-author-warning.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
-    ]);
+    expect(report).toMatchSnapshot();
   });
 
-  it("surfaces useful highlight tags where the candidate grammar parses cleanly", () => {
+  it("snapshots the full syntax tree shape per fixture", async () => {
+    const fixtureNames = (await readdir(fixturesDir))
+      .filter((name) => name.endsWith(".ink"))
+      .sort();
+
+    for (const name of fixtureNames) {
+      const state = createInkState(readFixture(name));
+      await expect(getTreeString(state)).toMatchFileSnapshot(
+        `__snapshots__/tree/${name}.tree.txt`,
+      );
+    }
+  });
+
+  it("snapshots highlight spans per fixture", async () => {
+    const fixtureNames = (await readdir(fixturesDir))
+      .filter((name) => name.endsWith(".ink"))
+      .sort();
+
+    for (const name of fixtureNames) {
+      const spans = collectHighlightSpans(readFixture(name));
+      const rendered = spans.map((span) => `${JSON.stringify(span.text)} -> ${span.classes}`).join("\n");
+      await expect(rendered).toMatchFileSnapshot(
+        `__snapshots__/highlights/${name}.highlights.txt`,
+      );
+    }
+  });
+
+  it("surfaces useful highlight tags where the grammar parses cleanly", () => {
     const spans = collectHighlightSpans(readFixture("basic-knot.ink"));
 
     expect(classesForText(spans, "=== ")).toContain("heading1");
@@ -212,13 +240,53 @@ describe("@mavnn/codemirror-lang-ink evaluation", () => {
     expect(classesForText(spans, "END")).toContain("keyword");
   });
 
-  it("documents candidate gaps that need patching or a fallback StreamLanguage path", () => {
-    const todoSpans = collectHighlightSpans(readFixture("todo-author-warning.ink"));
-    const cjkState = createInkState(readFixture("cjk-hangul-identifiers.ink"));
-    const functionState = createInkState(readFixture("function-knot.ink"));
+  it("tags AuthorWarning distinctly from LineComment when the node is produced", () => {
+    // The `todo` token uses @dynamicPrecedence in the vendored grammar, and
+    // its resolution is sensitive to what follows on later lines -- see the
+    // next test and client/src/editor/codemirror/ink-lang/README.md. A
+    // single TODO line immediately followed by a `//` comment is a case
+    // that reliably produces a real AuthorWarning node, which is what this
+    // test needs to isolate the highlight-tag patch (t.special(t.comment))
+    // from that separate, unresolved node-recognition gap.
+    const spans = collectHighlightSpans("TODO: Tighten this scene.\n// This is a normal comment.\n");
 
-    expect(classesForText(todoSpans, "TODO: Tighten this scene.")).toBe("content");
-    expect(getTreeString(cjkState)).toContain("⚠");
-    expect(getTreeString(functionState)).toContain("⚠");
+    expect(classesForText(spans, "TODO: Tighten this scene.")).toBe("authorWarning");
+    expect(classesForText(spans, "// This is a normal comment.")).toBe("comment");
+  });
+
+  it("still shows the known unpatched gap: AuthorWarning recognition is context-sensitive", () => {
+    // In the full todo-author-warning.ink fixture (TODO line, then a FIXME
+    // line, then comments), neither TODO nor FIXME is recognized as
+    // AuthorWarning -- both parse as plain ContentLine. This was already
+    // documented in Checkpoint 2 as "parsed as plain content, not
+    // author-warning tokens". What's newly understood: the `todo`
+    // @dynamicPrecedence token's resolution isn't simply "unsupported", it
+    // is inconsistent based on lookahead -- the same "TODO: ..." text
+    // parses as AuthorWarning in the isolated case above but as ContentLine
+    // here. Retagging alone (this session's patch) cannot fix that; it
+    // needs the `todo`/AuthorWarning grammar rule itself reworked.
+    const spans = collectHighlightSpans(readFixture("todo-author-warning.ink"));
+
+    expect(classesForText(spans, "TODO: Tighten this scene.")).toBe("content");
+  });
+
+  it("parses CJK/Hangul identifiers and parameterized divert targets without error nodes", () => {
+    const cjkState = createInkState(readFixture("cjk-hangul-identifiers.ink"));
+    const paramState = createInkState(readFixture("divert-parameterized.ink"));
+
+    // One systemic zero-width error node remains at the trailing knot/EOF
+    // boundary (see client/src/editor/codemirror/ink-lang/README.md) --
+    // that is not related to CJK identifiers or divert-call arguments, and
+    // is not fixable by patching either of those constructs. The
+    // parameterized fixture has two knots, so it hits the systemic
+    // knot-boundary artifact twice (once between knots, once at EOF).
+    expect(countErrorNodes(getTreeString(cjkState))).toBe(1);
+    expect(countErrorNodes(getTreeString(paramState))).toBe(2);
+  });
+
+  it("still shows the known unpatched gap: compound sequence keywords swallow real content", () => {
+    const state = createInkState(readFixture("sequence.ink"));
+
+    expect(getTreeString(state)).toContain("⚠");
   });
 });

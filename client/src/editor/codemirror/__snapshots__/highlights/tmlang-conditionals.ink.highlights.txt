@@ -1,0 +1,160 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"{" -> bracket
+":not true" -> bracket
+"|" -> separator
+"true}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<------ keyword.control.ink\n" -> comment
+"//     ^^^^^^^^ source.ink\n" -> comment
+"//             ^ keyword.control.ink\n" -> comment
+"//              ^^^^ source.ink\n" -> comment
+"//                  ^ keyword.control.ink\n" -> comment
+"{\n" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"   - " -> bracket
+"4" -> number
+" > " -> operator
+"5" -> number
+": " -> controlOperator
+"not true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^ keyword.control.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"//         ^^^^^^^^^^ source.ink\n" -> comment
+"   - " -> bracket
+"5" -> number
+" > " -> operator
+"4" -> number
+": " -> controlOperator
+"true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^ keyword.control.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"//         ^^^^^^ source.ink\n" -> comment
+"}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"{ " -> bracket
+"2" -> number
+"*" -> arithmeticOperator
+"2" -> number
+" > " -> operator
+"3" -> number
+":\n" -> controlOperator
+"//<- keyword.control.ink\n" -> comment
+"//<--------- keyword.control.ink\n" -> comment
+"- true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^^^^^^ source.ink\n" -> comment
+"- not true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^^^^^^^^^^ source.ink\n" -> comment
+"}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"{\n" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"   - " -> bracket
+"1" -> number
+" > " -> operator
+"3" -> number
+": " -> controlOperator
+"not true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^ keyword.control.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"//         ^^^^^^^^^^ source.ink\n" -> comment
+"- " -> content
+"{" -> bracket
+" 2+2 " -> content
+" 4:" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^ keyword.control.ink\n" -> comment
+"//    ^^^^^^^^^^ keyword.control.ink\n" -> comment
+"- true" -> content
+"//<-------- source.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"//       ^^^^^^ source.ink\n" -> comment
+"- not true" -> content
+"//<-------- source.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"//       ^^^^^^^^^^ source.ink\n" -> comment
+"   }" -> bracket
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//<- keyword.control.ink\n" -> comment
+"{ " -> bracket
+"2" -> number
+"*" -> arithmeticOperator
+"3" -> number
+":\n" -> controlOperator
+"//<----- keyword.control.ink\n" -> comment
+"   - " -> bracket
+"1" -> number
+"+" -> arithmeticOperator
+"7" -> number
+": " -> controlOperator
+"not true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^ keyword.control.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"//       ^^^^^^^^^^ source.ink\n" -> comment
+"   - " -> bracket
+"9" -> number
+": " -> controlOperator
+"not true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^ keyword.control.ink\n" -> comment
+"//    ^ keyword.control.ink\n" -> comment
+"//     ^^^^^^^^^^ source.ink\n" -> comment
+"   - " -> bracket
+"1" -> number
+"+" -> arithmeticOperator
+"1" -> number
+"+" -> arithmeticOperator
+"1" -> number
+"+" -> arithmeticOperator
+"3" -> number
+": " -> controlOperator
+"true" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^^^ keyword.control.ink\n" -> comment
+"//          ^ keyword.control.ink\n" -> comment
+"//           ^^^^^^ source.ink\n" -> comment
+"   - " -> bracket
+"9" -> number
+"3" -> number
+": " -> controlOperator
+"also true but not printed" -> content
+"//<--- source.ink\n" -> comment
+"// ^ keyword.control.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^ keyword.control.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"//       ^^^^^^^^^^^^^^^^^^^^^^^^^^^ source.ink\n" -> comment
+"}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"{ " -> bracket
+":\n" -> controlOperator
+"//<- keyword.control.ink\n" -> comment
+"//<------ keyword.control.ink\n" -> comment
+"great" -> content
+"//<--------- source.ink\n" -> comment
+"right?" -> content
+"//<---------- source.ink\n" -> comment
+"}" -> bracket
+"//<- keyword.control.ink\n" -> comment

@@ -1,0 +1,49 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"=== " -> heading1
+"intro" -> name
+"//<--- storage.knot.ink storage.type.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^ entity.name.function.ink\n" -> comment
+"top" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^ entity.name.function.ink\n" -> comment
+"{ " -> bracket
+"main" -> name
+": " -> bracket
+" done }" -> bracket
+"//<---- source.ink\n" -> comment
+"//  ^ keyword.control.ink\n" -> comment
+"//   ^^^^^^ keyword.control.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^^^^ variable.other.knot.ink\n" -> comment
+"//                 ^ source.ink\n" -> comment
+"//                  ^ keyword.control.ink\n" -> comment
+"->" -> controlOperator
+"END" -> keyword
+"//<---- source.ink\n" -> comment
+"//  ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^ support.constant.ink\n" -> comment
+"main" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ entity.name.function.ink\n" -> comment
+"->" -> controlOperator
+"top" -> name
+"//<---- source.ink\n" -> comment
+"//  ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^ variable.other.knot.ink\n" -> comment
+"done" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ entity.name.function.ink\n" -> comment
+"->" -> controlOperator
+"END" -> keyword
+"//<---- source.ink\n" -> comment
+"//  ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^ support.constant.ink\n" -> comment

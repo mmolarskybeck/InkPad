@@ -1,0 +1,511 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"/** VARIABLES *****************************************************************/" -> blockComment
+"VAR " -> keyword
+"list" -> name
+" = " -> keyword
+"(" -> content
+", " -> content
+")" -> content
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^ variable.other.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^ keyword.operator.assignment.ink\n" -> comment
+"//        ^^ source.ink\n" -> comment
+"//          ^^^ variable.other.ink\n" -> comment
+"//             ^^ source.ink\n" -> comment
+"//               ^^^ variable.other.ink\n" -> comment
+"//                  ^ source.ink\n" -> comment
+"VAR " -> keyword
+"string" -> name
+" = " -> keyword
+"\"Hello\"" -> string
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^ variable.other.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.assignment.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ punctuation.definition.string.begin.ink\n" -> comment
+"//            ^^^^^ string.quoted.double.ink\n" -> comment
+"//                 ^ punctuation.definition.string.end.ink\n" -> comment
+"VAR 987r_tr5xc09 " -> content
+" 10" -> content
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^^^^^^^ variable.other.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^ keyword.operator.assignment.ink\n" -> comment
+"//                ^ source.ink\n" -> comment
+"//                 ^^ constant.numeric.ink\n" -> comment
+"VAR " -> keyword
+"number" -> name
+" = " -> keyword
+"0.7" -> number
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^ variable.other.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.assignment.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^^ constant.numeric.ink\n" -> comment
+"VAR " -> keyword
+"boolean" -> name
+" = " -> keyword
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^^ variable.other.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^ keyword.operator.assignment.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"VAR " -> keyword
+"boolean" -> name
+" = " -> keyword
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^^ variable.other.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^ keyword.operator.assignment.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"VAR " -> keyword
+"previous" -> name
+" = " -> keyword
+"string" -> content
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^^^ variable.other.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ keyword.operator.assignment.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^^^^^^ variable.other.ink\n" -> comment
+"VAR " -> keyword
+"divert" -> name
+" = " -> keyword
+"->" -> controlOperator
+"target_divert" -> name
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^ variable.other.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.assignment.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^^^^^^^^^^^^ variable.other.knot.ink\n" -> comment
+"VAR " -> keyword
+"list" -> name
+" = " -> keyword
+"(" -> content
+", " -> content
+")" -> content
+"// Test comment\n" -> comment
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^ variable.other.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^ keyword.operator.assignment.ink\n" -> comment
+"//        ^^ source.ink\n" -> comment
+"//          ^^^ variable.other.ink\n" -> comment
+"//             ^^ source.ink\n" -> comment
+"//               ^^^ variable.other.ink\n" -> comment
+"//                  ^^ source.ink\n" -> comment
+"//                    ^^ comment.line.ink punctuation.definition.comment.ink\n" -> comment
+"//                      ^^^^^^^^^^^^^ comment.line.ink\n" -> comment
+"/** CONSTANTS *****************************************************************/" -> blockComment
+"CONST " -> keyword
+"LIST" -> name
+" = " -> keyword
+"(" -> content
+", " -> content
+")" -> content
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^ variable.other.constant.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.assignment.ink\n" -> comment
+"//          ^^ source.ink\n" -> comment
+"//            ^^^ variable.other.ink\n" -> comment
+"//               ^^ source.ink\n" -> comment
+"//                 ^^^ variable.other.ink\n" -> comment
+"//                    ^ source.ink\n" -> comment
+"CONST " -> keyword
+"STRING" -> name
+" = " -> keyword
+"\"Hello\"" -> string
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^ variable.other.constant.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ keyword.operator.assignment.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ punctuation.definition.string.begin.ink\n" -> comment
+"//              ^^^^^ string.quoted.double.ink\n" -> comment
+"//                   ^ punctuation.definition.string.end.ink\n" -> comment
+"CONST 987T_TR5XC09 " -> content
+" 10" -> content
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^^^^^^^ variable.other.constant.ink\n" -> comment
+"//                ^ source.ink\n" -> comment
+"//                 ^ keyword.operator.assignment.ink\n" -> comment
+"//                  ^ source.ink\n" -> comment
+"//                   ^^ constant.numeric.ink\n" -> comment
+"CONST " -> keyword
+"NUMBER" -> name
+" = " -> keyword
+"0.7" -> number
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^ variable.other.constant.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ keyword.operator.assignment.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^^^ constant.numeric.ink\n" -> comment
+"CONST " -> keyword
+"BOOLEAN" -> name
+" = " -> keyword
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^^ variable.other.constant.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^ keyword.operator.assignment.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"CONST " -> keyword
+"BOOLEAN" -> name
+" = " -> keyword
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^^ variable.other.constant.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^ keyword.operator.assignment.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"CONST " -> keyword
+"PREVIOUS" -> name
+" = " -> keyword
+"STRING" -> content
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^^^ variable.other.constant.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ keyword.operator.assignment.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^^^^^ variable.other.ink\n" -> comment
+"CONST " -> keyword
+"DIVERT" -> name
+" = " -> keyword
+"->" -> controlOperator
+"target_divert" -> name
+"//<----- storage.type.const.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^^^^^^ variable.other.constant.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ keyword.operator.assignment.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//               ^ source.ink\n" -> comment
+"//                ^^^^^^^^^^^^^ variable.other.knot.ink\n" -> comment
+"CONST " -> keyword
+"string" -> name
+" = " -> keyword
+"\"Hello\"" -> string
+"/*\n//<----- storage.type.const.ink\n//   ^ source.ink\n//    ^^^^^^ variable.other.constant.ink\n//          ^ source.ink\n//           ^ keyword.operator.assignment.ink\n//            ^ source.ink\n//             ^ punctuation.definition.string.begin.ink\n//              ^^^^^ string.quoted.double.ink\n//                   ^ punctuation.definition.string.end.ink\n//                    ^ source.ink\n//                     ^^ comment.block.ink punctuation.definition.comment.ink\n    test comment\n//<---------------- comment.block.ink\n*/" -> blockComment
+"//<-- comment.block.ink punctuation.definition.comment.ink\n" -> comment
+"/** TEMPS *********************************************************************/" -> blockComment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"list" -> name
+" = " -> operatorKeyword
+"(" -> content
+", " -> content
+")" -> content
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^ variable.other.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^ keyword.assignment.ink\n" -> comment
+"//           ^^ source.ink\n" -> comment
+"//             ^^^ variable.other.ink\n" -> comment
+"//                ^^ source.ink\n" -> comment
+"//                  ^^^ variable.other.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"string" -> name
+" = " -> operatorKeyword
+"\"Hello\"" -> string
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^ variable.other.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^ keyword.assignment.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^ punctuation.definition.string.begin.ink\n" -> comment
+"//               ^^^^^ string.quoted.double.ink\n" -> comment
+"//                    ^ punctuation.definition.string.end.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"r_tr5xc09" -> name
+" = " -> operatorKeyword
+"10" -> number
+"// Test comment\n" -> comment
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                 ^ source.ink\n" -> comment
+"//                  ^ keyword.assignment.ink\n" -> comment
+"//                   ^ source.ink\n" -> comment
+"//                    ^^ constant.numeric.ink\n" -> comment
+"//                      ^ source.ink\n" -> comment
+"//                       ^^ comment.line.ink punctuation.definition.comment.ink\n" -> comment
+"//                         ^^^^^^^^^^^^^ comment.line.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"number" -> name
+" = " -> operatorKeyword
+"0.7" -> number
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^ variable.other.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^ keyword.assignment.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^^ constant.numeric.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"boolean" -> name
+" = " -> operatorKeyword
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^^ variable.other.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ keyword.assignment.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"boolean" -> name
+" = " -> operatorKeyword
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^^ variable.other.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ keyword.assignment.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^^^ constant.language.boolean.ink constant.language.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"previous" -> name
+" = " -> operatorKeyword
+"string" -> name
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^^^ variable.other.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^ keyword.assignment.ink\n" -> comment
+"//               ^ source.ink\n" -> comment
+"//                ^^^^^^ variable.other.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"compute" -> name
+" = " -> operatorKeyword
+"pow" -> name
+"a" -> name
+"b" -> name
+" + " -> arithmeticOperator
+"max" -> name
+"1" -> number
+"3" -> number
+" + " -> arithmeticOperator
+"abc" -> name
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^^ variable.other.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ keyword.assignment.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^^ variable.function.ink\n" -> comment
+"//                  ^  punctuation.section.parens.begin.ink\n" -> comment
+"//                   ^ variable.other.ink\n" -> comment
+"//                    ^ punctuation.separator.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"//                      ^ variable.other.ink\n" -> comment
+"//                       ^  punctuation.section.parens.end.ink\n" -> comment
+"//                        ^ source.ink\n" -> comment
+"//                         ^ keyword.operator.arithmetic.ink\n" -> comment
+"//                          ^ source.ink\n" -> comment
+"//                           ^^^ variable.function.ink\n" -> comment
+"//                              ^  punctuation.section.parens.begin.ink\n" -> comment
+"//                               ^ constant.numeric.ink\n" -> comment
+"//                                ^ punctuation.separator.ink\n" -> comment
+"//                                 ^ source.ink\n" -> comment
+"//                                  ^ constant.numeric.ink\n" -> comment
+"//                                   ^  punctuation.section.parens.end.ink\n" -> comment
+"//                                    ^ source.ink\n" -> comment
+"//                                     ^ keyword.operator.arithmetic.ink\n" -> comment
+"//                                      ^ source.ink\n" -> comment
+"//                                       ^^^ variable.other.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"computed" -> name
+" = " -> operatorKeyword
+"987" -> number
+" * " -> arithmeticOperator
+"34" -> number
+" + " -> arithmeticOperator
+"abc" -> name
+" / " -> arithmeticOperator
+"35" -> number
+" * " -> arithmeticOperator
+"0.1" -> number
+"/*\n//<- keyword.logic.ink\n//<~- source.ink\n//^^^^ storage.modifier.ink\n//    ^ source.ink\n//     ^^^^^^^^ variable.other.ink\n//             ^ source.ink\n//              ^ keyword.assignment.ink\n//               ^ source.ink\n//                ^^^ constant.numeric.ink\n//                   ^ source.ink\n//                    ^ keyword.operator.arithmetic.ink\n//                     ^ source.ink\n//                      ^^ constant.numeric.ink\n//                        ^ source.ink\n//                         ^ keyword.operator.arithmetic.ink\n//                          ^ source.ink\n//                           ^^^ variable.other.ink\n//                              ^ source.ink\n//                               ^ keyword.operator.arithmetic.ink\n//                                ^^ source.ink\n//                                  ^^ constant.numeric.ink\n//                                    ^ source.ink\n//                                     ^ keyword.operator.arithmetic.ink\n//                                      ^ source.ink\n//                                       ^^^ constant.numeric.ink\n//                                          ^^ source.ink\n//                                            ^^ comment.block.ink punctuation.definition.comment.ink\n    test comment\n//<---------------- comment.block.ink\n*/" -> blockComment
+"//<-- comment.block.ink punctuation.definition.comment.ink\n" -> comment
+"~ " -> operatorKeyword
+"temp" -> keyword
+"divert" -> name
+" = " -> operatorKeyword
+"->" -> controlOperator
+"target_divert" -> name
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ storage.modifier.ink\n" -> comment
+"//    ^ source.ink\n" -> comment
+"//     ^^^^^^ variable.other.ink\n" -> comment
+"//           ^ source.ink\n" -> comment
+"//            ^ keyword.assignment.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//                ^ source.ink\n" -> comment
+"//                 ^^^^^^^^^^^^^ variable.other.knot.ink\n" -> comment
+"/** LISTS *********************************************************************/" -> blockComment
+"LIST " -> keyword
+"DoctorsInSurgery" -> name
+" = " -> keyword
+"Adams" -> name
+", " -> keyword
+"Bernard" -> name
+", " -> keyword
+"Cartwright" -> name
+", " -> keyword
+"Denver" -> name
+", " -> keyword
+"Eamonn" -> name
+"//<---- storage.type.ink storage.type.list.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^^^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                   ^ source.ink\n" -> comment
+"//                    ^ keyword.operator.assignment.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"//                      ^^^^^ variable.other.ink\n" -> comment
+"//                           ^ punctuation.separator.ink\n" -> comment
+"//                            ^ source.ink\n" -> comment
+"//                             ^^^^^^^ variable.other.ink\n" -> comment
+"//                                    ^ punctuation.separator.ink\n" -> comment
+"//                                     ^ source.ink\n" -> comment
+"//                                      ^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                                                ^ punctuation.separator.ink\n" -> comment
+"//                                                 ^ source.ink\n" -> comment
+"//                                                  ^^^^^^ variable.other.ink\n" -> comment
+"//                                                        ^ punctuation.separator.ink\n" -> comment
+"//                                                         ^ source.ink\n" -> comment
+"//                                                          ^^^^^^ variable.other.ink\n" -> comment
+"LIST " -> keyword
+"DoctorsInSurgery" -> name
+" = " -> keyword
+", " -> keyword
+", " -> keyword
+", " -> keyword
+", " -> keyword
+"// Test comment\n" -> comment
+"//<---- storage.type.ink storage.type.list.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^^^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                   ^ source.ink\n" -> comment
+"//                    ^ keyword.operator.assignment.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"//                      ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                       ^^^^^ variable.other.ink\n" -> comment
+"//                            ^ punctuation.section.parens.end.ink\n" -> comment
+"//                             ^ punctuation.separator.ink\n" -> comment
+"//                              ^ source.ink\n" -> comment
+"//                               ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                                ^^^^^^^ variable.other.ink\n" -> comment
+"//                                       ^ punctuation.section.parens.end.ink\n" -> comment
+"//                                        ^ punctuation.separator.ink\n" -> comment
+"//                                         ^ source.ink\n" -> comment
+"//                                          ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                                           ^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                                                     ^ punctuation.section.parens.end.ink\n" -> comment
+"//                                                      ^ punctuation.separator.ink\n" -> comment
+"//                                                       ^ source.ink\n" -> comment
+"//                                                        ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                                                         ^^^^^^ variable.other.ink\n" -> comment
+"//                                                               ^ punctuation.section.parens.end.ink\n" -> comment
+"//                                                                ^ punctuation.separator.ink\n" -> comment
+"//                                                                 ^ source.ink\n" -> comment
+"//                                                                  ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                                                                   ^^^^^^ variable.other.ink\n" -> comment
+"//                                                                         ^ punctuation.section.parens.end.ink\n" -> comment
+"//                                                                          ^ source.ink\n" -> comment
+"//                                                                           ^^ comment.line.ink punctuation.definition.comment.ink\n" -> comment
+"//                                                                             ^^^^^^^^^^^^^ comment.line.ink\n" -> comment
+"LIST " -> keyword
+"DoctorsInSurgery" -> name
+" = " -> keyword
+", " -> keyword
+"Bernard" -> name
+", " -> keyword
+", " -> keyword
+"Denver" -> name
+", " -> keyword
+"Eamonn" -> name
+"//<---- storage.type.ink storage.type.list.ink\n" -> comment
+"//  ^ source.ink\n" -> comment
+"//   ^^^^^^^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                   ^ source.ink\n" -> comment
+"//                    ^ keyword.operator.assignment.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"//                      ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                       ^^^^^ variable.other.ink\n" -> comment
+"//                            ^ punctuation.section.parens.end.ink\n" -> comment
+"//                             ^ punctuation.separator.ink\n" -> comment
+"//                              ^ source.ink\n" -> comment
+"//                               ^^^^^^^ variable.other.ink\n" -> comment
+"//                                      ^ punctuation.separator.ink\n" -> comment
+"//                                       ^ source.ink\n" -> comment
+"//                                        ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                                         ^^^^^^^^^^ variable.other.ink\n" -> comment
+"//                                                   ^ punctuation.section.parens.end.ink\n" -> comment
+"//                                                    ^ punctuation.separator.ink\n" -> comment
+"//                                                     ^ source.ink\n" -> comment
+"//                                                      ^^^^^^ variable.other.ink\n" -> comment
+"//                                                            ^ punctuation.separator.ink\n" -> comment
+"//                                                             ^ source.ink\n" -> comment
+"//                                                              ^^^^^^ variable.other.ink\n" -> comment
+"LIST " -> keyword
+"primeNumbers" -> name
+" = " -> keyword
+", " -> keyword
+"3, (five " -> content
+" 5)" -> content
+"/*\n//<---- storage.type.ink storage.type.list.ink\n//  ^ source.ink\n//   ^^^^^^^^^^^^ variable.other.ink\n//               ^ source.ink\n//                ^ keyword.operator.assignment.ink\n//                 ^ source.ink\n//                  ^ punctuation.section.parens.begin.ink\n//                   ^^^ variable.other.ink\n//                      ^ source.ink\n//                       ^ keyword.operator.assignment.ink\n//                        ^ source.ink\n//                         ^ constant.numeric.ink\n//                          ^ punctuation.section.parens.end.ink\n//                           ^ punctuation.separator.ink\n//                            ^ source.ink\n//                             ^ punctuation.section.parens.begin.ink\n//                              ^^^^^ variable.other.ink\n//                                   ^ punctuation.section.parens.end.ink\n//                                    ^ source.ink\n//                                     ^ keyword.operator.assignment.ink\n//                                      ^ source.ink\n//                                       ^ constant.numeric.ink\n//                                        ^ punctuation.separator.ink\n//                                         ^ source.ink\n//                                          ^ punctuation.section.parens.begin.ink\n//                                           ^^^^ variable.other.ink\n//                                               ^ source.ink\n//                                                ^ keyword.operator.assignment.ink\n//                                                 ^ source.ink\n//                                                  ^ constant.numeric.ink\n//                                                   ^ punctuation.section.parens.end.ink\n//                                                    ^ source.ink\n//                                                     ^^ comment.block.ink punctuation.definition.comment.ink\n    test comment\n//<---------------- comment.block.ink\n*/" -> blockComment
+"//<-- comment.block.ink punctuation.definition.comment.ink\n" -> comment

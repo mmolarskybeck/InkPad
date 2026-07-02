@@ -1,0 +1,6 @@
+"TODO: Tighten this scene." -> content
+"FIXME: Check the branch." -> content
+"// This is a normal comment.\n" -> comment
+"/* This is a block comment. */" -> blockComment
+"->" -> controlOperator
+"END" -> keyword

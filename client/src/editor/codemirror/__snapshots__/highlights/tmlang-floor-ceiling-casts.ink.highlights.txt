@@ -1,0 +1,52 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"{" -> bracket
+"FLOOR" -> name
+"(" -> bracket
+"1.2" -> number
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<---------- keyword.control.ink\n" -> comment
+"//         ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"INT" -> name
+"(" -> bracket
+"1.2" -> number
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<-------- keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"CEILING" -> name
+"(" -> bracket
+"1.2" -> number
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<------------ keyword.control.ink\n" -> comment
+"//           ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"CEILING" -> name
+"(" -> bracket
+"1.2" -> number
+") " -> bracket
+"/ 3" -> content
+"//<- keyword.control.ink\n" -> comment
+"//<---------------- keyword.control.ink\n" -> comment
+"//               ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"INT" -> name
+"(" -> bracket
+"CEILING" -> name
+"1.2" -> number
+") " -> bracket
+"/ 3" -> content
+"//<- keyword.control.ink\n" -> comment
+"//<--------------------- keyword.control.ink\n" -> comment
+"//                    ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"FLOOR" -> name
+"(" -> bracket
+"1" -> number
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<-------- keyword.control.ink\n" -> comment
+"//     ^ keyword.control.ink\n" -> comment

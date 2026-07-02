@@ -1,0 +1,1 @@
+Script(VariableDeclaration(Name,Int),Function(function,KnotName,KnotArguments(Name,ref,Name),VariableAssignment(Name,ExpressionAdd(Name,Name)),VariableAssignment(Return,Name,⚠)),⚠,Knot(KnotName,VariableAssignment(Name,ExpressionFunctionCall(Name,Int,Name)),ContentLine(InlineDisplayVariable(Name)),ContentLine(Divert(DivertArrow,DivertTarget(END)))),⚠)

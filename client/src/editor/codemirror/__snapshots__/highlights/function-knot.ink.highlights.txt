@@ -1,0 +1,37 @@
+"VAR " -> keyword
+"total" -> name
+" = " -> keyword
+"0" -> number
+"=== " -> heading1
+"calculate_bonus" -> name
+"(" -> bracket
+"score" -> name
+", " -> bracket
+"ref" -> keyword
+"running_total" -> name
+")" -> bracket
+" ===\n" -> heading1
+"~ " -> operatorKeyword
+"running_total" -> name
+" = " -> operatorKeyword
+"running_total" -> name
+" + " -> arithmeticOperator
+"score" -> name
+"~ " -> operatorKeyword
+"return" -> keyword
+"running_total" -> name
+"=== " -> heading1
+"start" -> name
+" ===\n" -> heading1
+"~ " -> operatorKeyword
+"total" -> name
+" = " -> operatorKeyword
+"calculate_bonus" -> name
+"2" -> number
+"total" -> name
+"Total: " -> content
+"{" -> bracket
+"total" -> name
+"}" -> bracket
+"->" -> controlOperator
+"END" -> keyword

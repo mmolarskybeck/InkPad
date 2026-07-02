@@ -1,0 +1,11 @@
+"VAR " -> keyword
+"score" -> name
+" = " -> keyword
+"1" -> number
+"The lantern glows 😀 beside the gate." -> content
+"* " -> controlOperator
+"[" -> squareBracket
+"Take it" -> content
+"]" -> squareBracket
+"->" -> controlOperator
+"END" -> keyword

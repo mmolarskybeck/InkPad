@@ -1,0 +1,22 @@
+"VAR " -> keyword
+"score" -> name
+" = " -> keyword
+"2" -> number
+"{ " -> bracket
+"score" -> name
+" > " -> operator
+"0" -> number
+":\n" -> controlOperator
+"  - " -> bracket
+"score" -> name
+" > " -> operator
+"10" -> number
+":\n" -> controlOperator
+"Excellent." -> content
+"\n  - " -> bracket
+"else" -> name
+":\n" -> controlOperator
+"Fine." -> content
+"\n}" -> bracket
+"->" -> controlOperator
+"END" -> keyword

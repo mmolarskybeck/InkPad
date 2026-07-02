@@ -1,0 +1,393 @@
+@dialects { visualink }
+
+@top Script { endOfLine* lineSep<context> }
+
+@precedence {
+  restrictedPath @left,
+  pathComponent @left,
+  list @left,
+  parens @left,
+  mod @left,
+  divide @left,
+  multiply @left,
+  subtract @left,
+  add @left,
+  presence @left,
+  comparison @left,
+  andOr @left,
+  functionCall @left,
+  variableName @left,
+  blockCase @left,
+  keyword @left,
+  condition @left,
+  choiceDivert @left,
+  choice @left,
+  content @left
+}
+
+context {
+  line |
+  knotOrFunction
+}
+
+line {
+  AuthorWarning |
+  ContentLine |
+  Include |
+  VariableDeclaration |
+  ConstDeclaration |
+  ListDeclaration |
+  StackDeclaration |
+  VariableAssignment |
+  choice |
+  Gather |
+  ThreadLine |
+  conditionalLine |
+  BlockSequence
+}
+
+blockLine {
+  AuthorWarning |
+  ContentLine |
+  VariableDeclaration |
+  ConstDeclaration |
+  ListDeclaration |
+  StackDeclaration |
+  VariableAssignment |
+  choice |
+  ThreadLine |
+  conditionalLine |
+  BlockSequence
+}
+
+@skip { (spaces | BlockComment) }
+@context trackKnotName from "./context"
+
+glueLine { ~opening !content Glue (content* ((Glue? | Tag*) | (Tag* | Glue?)) Divert?) }
+nonGlueLine { ~opening !content (content+ (Tag* | Glue?) Divert?) }
+tagLine { ~opening !content Tag+ Glue? Divert? }
+divertLine { ~opening !content Divert }
+ContentLine { glueLine | nonGlueLine | tagLine | divertLine }
+AuthorWarning { ~opening !keyword todo notEol+ eol }
+todo[@dynamicPrecedence=1] { @extend<contentWord, "TODO:"> }
+Include { ~opening !keyword opener<"INCLUDE"> notEol+ eol }
+openBracketedChoiceName[@dynamicPrecedence=1] { !parens @extend<choiceContentWord, "("> }
+openBracketedGatherName[@dynamicPrecedence=1] { !parens @extend<contentWord, "("> }
+openWeaveBracket[@dynamicPrecedence=1] { !parens @extend<choiceContentWord, "["> }
+
+content {
+  contentWord | contentEscape | inline
+}
+
+// Knots and Stitches
+@external tokens endOfKnot from "./tokens" {
+  endOfKnotMarker,
+  endOfStitchMarker
+}
+
+knotOrFunction {
+  Knot | Function
+}
+Function { knotMarker ~functionOrKnot kw<"function"> knotOrFunctionTail endOfLine lineSep<line> endOfKnotMarker }
+Knot { knotMarker ~functionOrKnot knotOrFunctionTail endOfLine (lineSep<line | Stitch>)? endOfKnotMarker }
+KnotName { !parens identifier }
+knotOrFunctionTail { KnotName KnotArguments? knotMarker? }
+KnotArguments { "(" commaSep<knotArgument> ")" }
+knotArgument { kw<"ref">? Name }
+StitchName { !parens identifier }
+Stitch { ~opening stitchMarker StitchName KnotArguments? stitchMarker? endOfLine lineSep<line> (endOfKnotMarker | endOfStitchMarker) }
+Gather { ~opening !keyword gatherMarker (gatherNamed | gatherUnnamed) }
+gatherNamed { BracketedGatherName ContentLine? }
+gatherUnnamed { ContentLine? }
+BracketedGatherName { openBracketedGatherName Name ")" }
+
+// To avoid issues with dashes being "mis-tokenized" midline, we need
+// the gather marker at the line start to be an extension of the broader
+// contentWord token. Unfortunately, extending going only be done with
+// literal values, so we are limited to supporting a fixed depth of gathers.
+gatherMarker[@dynamicPrecedence=2] {
+  opener<"-"> |
+  opener<"--"> |
+  opener<"---"> |
+  opener<"----"> |
+  opener<"-----"> |
+  opener<"------"> |
+  opener<"-------">
+}
+
+// Declarations
+VariableDeclaration {
+  ~opening !keyword opener<"VAR"> Name "=" (literal | List | ExpressionDivertTarget | Stack)
+}
+ConstDeclaration {
+  ~opening !keyword opener<"CONST"> Name "=" (literal | List | ExpressionDivertTarget | Stack)
+}
+ListDeclaration {
+  ~opening !keyword opener<"LIST"> Name "=" endOfLine? ListDefinition
+}
+ListDefinition {
+  (Name | SelectedName) ("," endOfLine? (Name | SelectedName))*
+}
+SelectedName {
+  "(" identifier ")"
+}
+// Provided by plugins in the VisualInk environment, not part of the Ink standard
+StackDeclaration[@dynamicPrecedence=1] {
+  ~opening !keyword visualinkOpener<"STACK"> Name Int (literal | List | ExpressionDivertTarget)
+}
+
+// Assignments
+VariableAssignment {
+  !keyword assignmentMarker (Temp | Return)? Name (variableAssignValue | Adjust | IncDec)
+}
+Temp {
+  "temp"
+}
+Return {
+  "return"
+}
+variableAssignValue {
+  "=" expression
+}
+Adjust {
+  ("+=" | "-=") (literal | Name | List)
+}
+IncDec {
+  "++" | "--"
+}
+
+// Choices
+choice { OnceOnlyChoice | RepeatingChoice }
+OnceOnlyChoice {
+  onceOnlyChoiceMarker choiceTail
+}
+RepeatingChoice {
+  repeatingChoiceMarker choiceTail
+}
+choiceTail {
+  BracketedChoiceName? (!condition ChoiceCondition)* choiceContentStart ChoiceTag* Divert?
+}
+choiceContentStart {
+  (PreweaveChoiceContent (WeaveBracket PostweaveChoiceContent?)?) | (WeaveBracket PostweaveChoiceContent?)
+}
+PreweaveChoiceContent { choiceContent (choiceContent | inline)* }
+PostweaveChoiceContent { (choiceContent | inline)+ }
+BracketedChoiceName { openBracketedChoiceName Name ")" }
+WeaveBracket { openWeaveBracket WeaveContent ChoiceTag* "]" }
+WeaveContent { (choiceContent | inline)* }
+choiceContent {
+  choiceContentWord | contentEscape
+}
+ChoiceCondition { "{" ~bracket expression "}" }
+
+// Blocks
+@external tokens checkBrace from "./tokens" {
+  inlineConditionalOpen,
+  inlineSequenceOpen,
+  inlineDisplayVariableOpen,
+  blockOpen
+}
+
+inline {
+  Conditional | InlineSequence | InlineDisplayVariable
+}
+
+Conditional {
+   "{" ~bracket inlineConditionalOpen conditionMarker? expression ":" content+ Divert? "}"
+}
+BlockConditional {
+  "{" ~bracket blockOpen conditionMarker? BlockConditionCase blockTail |
+  "{" ~bracket endOfLine+ blockTail
+}
+InlineDisplayVariable {
+  "{" ~bracket inlineDisplayVariableOpen Name ("(" commaSep<expression> ")")? "}"
+}
+blockTail {
+  (blockConditionCaseLine | blockLine endOfLine+)+ "}"
+}
+BlockConditionCase { expression ":" ContentLine? endOfLine+ }
+blockConditionCaseLine { caseOpener BlockConditionCase }
+caseOpener[@dynamicPrecedence=1] { ~opener opener<"-"> }
+conditionalLine { !keyword BlockConditional }
+
+BlockSequence {
+  "{" ~bracket blockOpen blockSequenceKeyword ":" endOfLine
+  ((BlockSequenceItem | ContentLine) endOfLine)+
+  "}"
+}
+BlockSequenceItem { caseOpener ContentLine }
+
+blockSequenceKeyword {
+  kw<"stopping"> | kw<"shuffle"> | kw<"cycle"> | kw<"once">
+}
+
+InlineSequence {
+  "{" ~bracket inlineSequenceOpen SequenceTypeMarker? pipeSep1<SequenceContent> "}"
+}
+SequenceContent { content* Divert? }
+
+// Tags
+Tag { "#" openTagContent+  }
+ChoiceTag { "#" (choiceTagContent | choiceTagNotDivert)+ }
+
+// Threads
+ThreadLine { !keyword threadArrow DivertTarget }
+
+// Logic
+Name { !parens identifier }
+
+expression[@isGroup=Expression] {
+    binaryOperator {
+      ExpressionAndOr { expression !andOr andOrOp expression } |
+      ExpressionComparison { expression !comparison comparisonOp expression } |
+      ExpressionPresence { expression !presence presenceOp expression } |
+      ExpressionMod { expression !add ("%" | "mod") expression } |
+      ExpressionAdd { expression !add "+" expression } |
+      ExpressionSubtract { expression !subtract "-" expression } |
+      ExpressionMultiply { expression !multiply "*" expression } |
+      ExpressionDivide { expression !divide "/" expression }
+    } |
+    ExpressionParen { !parens "(" expression ")" } |
+    ExpressionNot { kw<"not"> expression } |
+    ExpressionFunctionCall { !functionCall Name "(" commaSep<expression> ")" } |
+    expressionVariableReference { !variableName Name } |
+    List |
+    ExpressionDivertTarget |
+    Stack |
+    literal
+}
+
+ExpressionDivertTarget { DivertArrow DivertTarget }
+List { !list "(" commaSep<ListMember> ")" } 
+Stack { !list "[" commaSep<expression> "]" }
+
+literal[@isGroup=Literal] {
+  Bool |
+  String |
+  Int |
+  Float
+}
+
+Bool { kw<"true"> | kw<"false"> }
+String { string }
+Int { int }
+Float { float }
+
+@local tokens {
+  stringEnd { '"' }
+  stringEscape { "\\" _ }
+  @else stringContent
+}
+
+@skip {} { string { '"' (stringContent | stringEscape)* stringEnd } }
+
+ListMember {
+  !list identifier ("." identifier)?
+}
+
+// Diverts
+Divert {
+    DivertArrow | TunnelReturn | DivertArrow DivertTarget Divert?
+}
+
+DivertArrow { @extend<arrowToken, "->"> }
+TunnelReturn { @extend<arrowToken, "->->"> }
+
+DivertTarget {
+  (!pathComponent Path) | !restrictedPath kw<"END"> | !restrictedPath kw<"DONE">
+}
+
+Path {
+  identifier ("." identifier)? DivertCallArguments?
+}
+DivertCallArguments {
+  !parens "(" commaSep<expression> ")"
+}
+
+// Comments
+@skip {} { BlockComment { blockCommentStart commentContent blockCommentEnd } }
+
+@local tokens {
+  blockCommentEnd { "*/" }
+  @else commentContent
+}
+
+LineComment { lineCommentStart notEol* eol }
+
+commaSep<content> {
+  (content ("," content)*)?
+}
+pipeSep1<content> {
+  (content (Pipe content)*)
+}
+lineSep<content> {
+  (content endOfLine+)+
+}
+kw<word> { @specialize[@name={word}]<identifier, word> }
+opener<word> { @extend<contentWord, word> }
+visualinkOpener<word> { @extend[@dialect=visualink]<contentWord, word> }
+endOfLine { LineComment | eol }
+
+@tokens {
+  spaces { $[ \t] }
+  notEol { ![\n\r] }
+  eol { $[\n\r] }
+
+  Glue { "<>" }
+
+  andOrOp { "&&" | "||" | "and" | "or" }
+  comparisonOp { "==" | "<" "="? | ">" "="? | "!=" }
+  presenceOp { "?" | "has" "nt"? | "!?" | "^" }
+  contentEscape { "\\" _ }
+  contentChar { ![\n\r \t{}#\\|\(]  }
+  contentWord { "(" | contentChar+ }
+
+  choiceContentChar { ![\n\r \t{}#\\|[\](] }
+  choiceContentWord { "(" | "[" | choiceContentChar+ }
+  choiceTagContent { ![\n\r#\[\]-] }
+  choiceTagNotDivert { "-" ![>] }
+
+  onceOnlyChoiceMarker { "*"+ }
+  repeatingChoiceMarker { "+"+ }
+
+  openTagContent { ![\n\r#] }
+
+  int { @digit+ }
+  float { @digit+ "." @digit* }
+
+  identifierChar { (identifierStartChar | @digit | "_") }
+  identifierStartChar { @asciiLetter | $[\u0600-\u06FF\u0530-\u058F\u0400-\u04FF\u0370-\u03FF\u0590-\u05FF\u0100-\u017F\u0180-\u024F\u0080-\u00FF\u1100-\u11FF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7A3] }
+  identifier { identifierStartChar identifierChar* }
+
+  arrowToken { "->" "->"? }
+  threadArrow { "<-" }
+  blockCommentStart { "/*" }
+  lineCommentStart { "//" }
+  SequenceTypeMarker { "~" | "&" | "!" }
+  conditionMarker { "-" }
+  Pipe { "|" }
+  assignmentMarker { "~" }
+  knotMarker { "=" "="+ }
+  stitchMarker { "=" }
+
+  @precedence { knotMarker, stitchMarker, contentWord }
+  @precedence { arrowToken, choiceTagContent }
+  @precedence { float, int, identifier }
+  @precedence { spaces, notEol }
+  @precedence { presenceOp, comparisonOp }
+  @precedence { arrowToken, Glue, contentWord }
+  @precedence { arrowToken, Glue, choiceContentWord }
+  @precedence { arrowToken, openTagContent, spaces }
+  @precedence { conditionMarker, arrowToken }
+  @precedence { "temp", "return", identifier }
+  @precedence { assignmentMarker, contentWord }
+  @precedence { SequenceTypeMarker, contentWord }
+  @precedence { conditionMarker, contentWord }
+  @precedence { SequenceTypeMarker, choiceContentWord }
+  @precedence { conditionMarker, choiceContentWord }
+  @precedence { blockCommentStart, lineCommentStart, contentWord }
+  @precedence { blockCommentStart, lineCommentStart, choiceContentWord }
+  @precedence { choiceTagContent, spaces }
+  @precedence { onceOnlyChoiceMarker, repeatingChoiceMarker, contentWord }
+  @precedence { threadArrow, contentWord }
+}

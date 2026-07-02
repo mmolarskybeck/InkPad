@@ -1,0 +1,91 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"TODO: Lorem ipsum\n" -> authorWarning
+"//<---- comment.line.ink entity.todo.ink constant.other entity.todo.begin.ink\n" -> comment
+"//  ^^^^^^^^^^^^^ comment.line.ink entity.todo.ink\n" -> comment
+"=== " -> heading1
+"knot" -> name
+" ===\n" -> heading1
+"//<--- storage.knot.ink storage.type.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^ entity.name.function.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^ storage.knot.ink storage.type.ink\n" -> comment
+"stitch" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ entity.name.function.ink\n" -> comment
+"{\n" -> bracket
+"//<---- source.ink\n" -> comment
+"//  ^ keyword.control.ink\n" -> comment
+"        - " -> bracket
+"variable" -> name
+" != " -> operator
+"4" -> number
+":\n" -> controlOperator
+"//<-------- source.ink\n" -> comment
+"//      ^ keyword.control.ink\n" -> comment
+"//       ^ source.ink\n" -> comment
+"//        ^^^^^^^^^^^^^^^ keyword.control.ink\n" -> comment
+"//                       ^ keyword.control.ink\n" -> comment
+"TODO: Lorem ipsum\n" -> authorWarning
+"//<------------ comment.line.ink entity.todo.ink\n" -> comment
+"//          ^^^^ comment.line.ink entity.todo.ink constant.other entity.todo.begin.ink\n" -> comment
+"//              ^^^^^^^^^^^^^ comment.line.ink entity.todo.ink\n" -> comment
+"Text" -> content
+"//<------------ source.ink\n" -> comment
+"    }" -> bracket
+"//<---- source.ink\n" -> comment
+"//  ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"condition" -> name
+":\n" -> controlOperator
+"//<---- source.ink\n" -> comment
+"//  ^ keyword.control.ink\n" -> comment
+"//   ^^^^^^^^^^ keyword.control.ink\n" -> comment
+"TODO: Lorem ipsum\n" -> authorWarning
+"//<-------- comment.line.ink entity.todo.ink\n" -> comment
+"//      ^^^^ comment.line.ink entity.todo.ink constant.other entity.todo.begin.ink\n" -> comment
+"//          ^^^^^^^^^^^^^ comment.line.ink entity.todo.ink\n" -> comment
+"Text" -> content
+"//<-------- source.ink\n" -> comment
+"    }" -> bracket
+"//<---- source.ink\n" -> comment
+"//  ^ keyword.control.ink\n" -> comment
+"TODO: Lorem ipsum\n" -> authorWarning
+"//<---- comment.line.ink entity.todo.ink constant.other entity.todo.begin.ink\n" -> comment
+"//  ^^^^^^^^^^^^^ comment.line.ink entity.todo.ink\n" -> comment
+"* " -> controlOperator
+"(" -> paren
+"label" -> name
+")" -> paren
+" {" -> controlOperator
+"condition" -> name
+"} " -> controlOperator
+"[" -> squareBracket
+"Hello" -> content
+"]" -> squareBracket
+"Choice" -> content
+"//<- keyword.choice.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"// ^^^^^ string.label.ink entity.name.label.ink string.quoted.other.ink\n" -> comment
+"//      ^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"//       ^ source.ink\n" -> comment
+"//        ^ keyword.control.ink\n" -> comment
+"//         ^^^^^^^^^ keyword.control.ink\n" -> comment
+"//                  ^ keyword.control.ink\n" -> comment
+"//                   ^ source.ink\n" -> comment
+"//                    ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"//                     ^^^^^ source.ink\n" -> comment
+"//                          ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"//                           ^^^^^^^ source.ink\n" -> comment
+"TODO: Lorem ipsum\n" -> authorWarning
+"//<---- comment.line.ink entity.todo.ink constant.other entity.todo.begin.ink\n" -> comment
+"//  ^^^^^^^^^^^^^ comment.line.ink entity.todo.ink\n" -> comment
+"->" -> controlOperator
+"the_end" -> name
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^^ variable.other.knot.ink entity.name.variable.other.knot.ink\n" -> comment
+"/*\n//<-- comment.block.ink punctuation.definition.comment.ink\n    TODO: Lorem ipsum\n//<--------------------- comment.block.ink\n*/" -> blockComment
+"//<-- comment.block.ink punctuation.definition.comment.ink\n" -> comment

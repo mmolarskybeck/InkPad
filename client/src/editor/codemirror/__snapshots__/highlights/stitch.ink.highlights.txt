@@ -1,0 +1,12 @@
+"=== " -> heading1
+"orient_express" -> name
+" ===\n" -> heading1
+"= " -> heading2
+"first_class" -> name
+"The carriage is polished." -> content
+"->" -> controlOperator
+"third_class" -> name
+"= third_class\n" -> comment
+"The air smells of coal." -> content
+"->" -> controlOperator
+"END" -> keyword

@@ -1,0 +1,1 @@
+Script(LineComment,VariableDeclaration(Name,String),LineComment,LineComment,LineComment,LineComment,LineComment,LineComment,LineComment,LineComment,LineComment,ContentLine(InlineDisplayVariable(Name)),LineComment,LineComment,LineComment,ContentLine(InlineDisplayVariable(⚠),⚠),LineComment,LineComment,LineComment,LineComment,LineComment)

@@ -1,0 +1,19 @@
+"The radio says " -> content
+"{" -> bracket
+"~" -> operatorKeyword
+"heads" -> content
+"|" -> separator
+"tails" -> content
+"|" -> separator
+"static" -> content
+"}" -> bracket
+"." -> content
+"{" -> bracket
+"shuffle once: first" -> content
+"|" -> separator
+"second" -> content
+"|" -> separator
+"third" -> content
+"}" -> bracket
+"->" -> controlOperator
+"END" -> keyword

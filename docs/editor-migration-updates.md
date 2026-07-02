@@ -277,15 +277,166 @@ start the fallback `StreamLanguage` path using the same fixtures.
 - `npm test` still prints the known Monaco `marked.umd.js.map` sourcemap
   warning.
 
+## 2026-07-02 - Checkpoint 7: Language mode decided, vendored, and wired in
+
+### Root-cause investigation, not just fixture patching
+
+Before deciding keep-vs-fork-vs-fallback, cloned `mavnn/codemirror-lang-ink`
+at the `v0.9.27` tag (the exact pinned version) to test against the real
+grammar source, not just the published bundle. Findings:
+
+- **Upstream's own test suite cannot catch parser errors.** `test/ink.test.ts`
+  uses `@lezer/generator`'s `testTree(tree, expected, mayIgnore)` with the
+  default `mayIgnore = (type) => /\W/.test(type.name)`. The anonymous error
+  node's type name is the single non-word character `⚠`, so `mayIgnore`
+  silently skips it on every comparison. Upstream's fixtures showing a
+  "clean" parse (27/27 passing) says nothing about whether error nodes are
+  present -- confirmed by running their own `knot.ink` fixture through a raw
+  `parser.parse()` call outside their test harness and finding 5 real error
+  nodes in a file their own `.expect` file shows as fully clean.
+- **A systemic, universal parser bug**: every `Knot`/`Function`/`Stitch` in
+  every file produces at least one spurious zero-width error node, either
+  right before the next knot/stitch header or at end-of-file. Minimal repro:
+  `=== a ===\n` alone. Root cause and practical-impact assessment are
+  written up in `client/src/editor/codemirror/ink-lang/README.md` (short
+  version: the top-level grammar's `lineSep<context>` requires a trailing
+  `endOfLine+` after every item including knots, but a knot's own body
+  already greedily consumes all available trailing newlines internally, so
+  there's nothing left for the outer wrapper -- not fixable by document
+  formatting, verified). Zero-width, so it doesn't corrupt highlighting or
+  fold ranges, and per the migration plan inkjs (not CodeMirror's tree)
+  already owns user-facing validity -- but it does mean a naive "does this
+  file have error nodes" check is meaningless for this grammar without
+  filtering zero-width nodes.
+- **Real, fixable gaps** confirmed with exact reproductions (not guesses):
+  CJK/Hangul/Hiragana/Katakana identifiers entirely missing from
+  `identifierStartChar`; parameterized divert targets and function-call
+  diverts (`-> knot(args)`) entirely unsupported by the `Path`/`DivertTarget`
+  rule (a required "Match" case per the migration plan); `AuthorWarning`
+  mapped to the exact same highlight tag as `LineComment`.
+- **Real, un-fixed-this-session gaps**: a leading `SequenceTypeMarker`
+  (`{~a|b|c}`) and compound `blockSequenceKeyword` forms (`{shuffle once:
+  ...}`) both produce a real (non-zero-width) 1-character content swallow.
+  `AuthorWarning`/`todo` recognition turned out to be context-sensitive, not
+  simply unsupported -- the same `TODO: ...` text parses as `AuthorWarning`
+  when immediately followed by a comment, but as plain `ContentLine` when
+  followed by another content line (as in InkPad's own
+  `todo-author-warning.ink` fixture). All documented in
+  `client/src/editor/codemirror/ink-lang/README.md`.
+
+### Decision: vendor a patched fork, not the npm package, not a `StreamLanguage` fallback
+
+Reasoning: the grammar's overall structure (proper Lezer tree, not a
+regex/state tokenizer) is sound and covers the large majority of Ink syntax
+well once patched; throwing it away for `StreamLanguage` would be a real
+downgrade (no real fold precision, no bracket matching from tree structure,
+worse incremental reparse) to work around gaps that turned out to be
+narrower and more fixable than Checkpoint 2's evaluation assumed. The
+remaining known gaps (compound sequence keywords, AuthorWarning
+context-sensitivity, the systemic zero-width knot-boundary node) are real
+but scoped and don't block wiring the language in for highlighting/folding,
+which is the only thing CodeMirror's parse tree is responsible for in
+InkPad's architecture.
+
+### Implemented
+
+- Vendored `@mavnn/codemirror-lang-ink` `0.9.27` into
+  `client/src/editor/codemirror/ink-lang/` (grammar source, `context.ts`,
+  `tokens.ts`, `index.ts`, and the generated parser tables -- see that
+  directory's README for exactly what's checked in and why, and how to
+  regenerate after a further grammar edit). Removed the
+  `@mavnn/codemirror-lang-ink` npm dependency; added `@lezer/common` and
+  `@lezer/lr` as exact-pinned direct dependencies (previously transitive)
+  and `@lezer/generator` as a pinned devDependency for future regeneration.
+- Patched three things in the vendored grammar (all verified against
+  upstream's own 27-test suite, still 27/27 after each patch, plus
+  InkPad's fixture corpus):
+  1. `identifierStartChar` now includes Hangul Jamo, Hiragana/Katakana, CJK
+     Unified Ideographs (+ Extension A), and Hangul Syllables.
+  2. `AuthorWarning` now tags as `t.special(t.comment)` instead of
+     `t.comment`, so a `HighlightStyle` can style it distinctly from an
+     ordinary comment (recognition itself remains unreliable, see above).
+  3. Added `DivertCallArguments` to the `Path` rule so
+     `-> knot.stitch(args)` and `-> functionKnot(args)` parse without error
+     nodes.
+- Added `client/src/editor/codemirror/ink-highlight-style.ts`: an InkPad
+  `HighlightStyle` mapping the grammar's highlight tags onto InkPad's
+  existing theme CSS variables (`--syntax-keyword`, `--syntax-string`,
+  `--syntax-number`, `--secondary-blue`, `--warning`, `--error`,
+  `--success`, `--text-primary`, `--text-secondary`) rather than hardcoded
+  colors, so light/dark/high-contrast themes all work without extra work.
+  Visual intent (knots bold and prominent, diverts distinct and warm-colored,
+  TODO louder than a comment, tags distinct) follows
+  `client/src/utils/ink-monarch.ts`'s Monaco theme, per the migration plan's
+  guidance to treat the Monarch file as a record of visual intent.
+- Wired `InkLanguageSupport()` (behind a new `Compartment`, matching the
+  plan's compartment rule for language support) and
+  `syntaxHighlighting(inkHighlightStyle)` into
+  `codemirror-editor.tsx`'s `buildExtensions()`.
+- Expanded the fixture corpus from 19 to 37 files: added 18 fixtures pulled
+  from `inkle/ink-tmlanguage`'s `tests/cases/` corpus (MIT), covering
+  tunnels, self-diverts, parameterized divert targets, conditional/default
+  choices, glue, knot/stitch/function declarations, tags, TODO, variable
+  declarations, external bindings, arithmetic, and string literals. Fixed 4
+  InkPad-authored fixtures that were themselves invalid Ink (contaminating
+  earlier grammar-gap evidence): `built-in-functions.ink`,
+  `function-knot.ink`, `divert-three-part-path.ink`,
+  `divert-function-call.ink`.
+- Rewrote `ink-language-evaluation.test.ts`: real committed snapshots
+  (`__snapshots__/tree/*.tree.txt`, `__snapshots__/highlights/*.txt`, one
+  per fixture) replace the old boolean-only `hasErrorNodes` check, per the
+  migration plan's requirement that token snapshots alone aren't enough for
+  a Lezer-based language. Kept the inkjs compile-status gate from
+  Checkpoint 5 and extended it to all 37 fixtures (`ink-tmlanguage`'s corpus
+  is a TextMate scope-testing corpus, not a runnable-story corpus, so
+  several of those fixtures are correctly recorded as `"invalid"`).
+
+### Verified
+
+- `npm run check` passes.
+- `npm test` passes: 25 test files, 202 tests.
+- `npm run build` passes (`codemirror-editor` chunk grew from ~14kB to
+  ~44kB gzipped, now that it includes the vendored parser).
+- Browser smoke test on the running dev server: knot headers, `VAR`
+  keywords, diverts, strings, and numbers all render with the intended
+  distinct colors (confirmed via computed-style inspection, not just
+  screenshot pixels) in both the desktop and mobile layouts. Fold
+  gutter/triangle correctly collapses a knot to its `═══ name ═══ …`
+  placeholder and back. No console or server errors on either viewport.
+- Did not do a real-device iPhone/iPad pass this checkpoint -- that's still
+  Phase 0/4 work, tracked below.
+
+### Remaining Follow-Ups
+
+- `sequence.ink`-class gap (compound sequence keywords, leading
+  `SequenceTypeMarker`) and `AuthorWarning` context-sensitivity are real,
+  scoped, unpatched gaps -- see
+  `client/src/editor/codemirror/ink-lang/README.md` for exact repro steps
+  before attempting either.
+- The systemic zero-width knot-boundary error node means any future code
+  that walks the CodeMirror tree for its own diagnostics (rather than
+  trusting inkjs, which is already the architecture) must explicitly ignore
+  zero-width error nodes.
+- `client/src/editor/codemirror/ink-highlight-style.ts` doesn't yet
+  differentiate `KnotName`/`StitchName`/`Path` from a generic variable
+  `Name` -- they share the same `t.name` tag in the grammar's `styleTags`
+  map. Splitting that out would need a further grammar patch, not just a
+  `HighlightStyle` change.
+
 ## Next Checkpoint
 
-Phase 3 language-mode work:
+Phase 3 remaining exit criteria:
 
-- Expand fixture corpus for Ink highlighting/folding/parsing.
-- Pull relevant fixtures from `ink-tmlanguage/tests/cases/`.
-- Decide whether to patch/vendor/fork `@mavnn/codemirror-lang-ink` or fall back to a `StreamLanguage` tokenizer.
-- Add InkPad `HighlightStyle`.
-- Validate fold ranges.
+- INCLUDE quoting/resolution decision tested against inkjs (fixture already
+  exists: `include-quoted-path.ink` is confirmed `"invalid"`; the
+  quoted-vs-bare-path product decision itself is still open, see Open
+  Decisions in the migration plan).
+- Built-in highlighting policy: currently built-ins (`RANDOM`,
+  `TURNS_SINCE`, etc.) get no distinct treatment from other function calls
+  in the vendored grammar's `styleTags` map. Decide grammar-node vs.
+  decoration-extension per the migration plan's Open Decisions, and verify
+  the canonical built-in set against inkjs source, not the Ace/Monarch
+  guesses.
 
 ## Later Checkpoints
 

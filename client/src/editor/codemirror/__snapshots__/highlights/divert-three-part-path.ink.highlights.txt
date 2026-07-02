@@ -1,0 +1,18 @@
+"Continue " -> content
+"->" -> controlOperator
+"chapter.arrival" -> name
+".greet" -> content
+"->" -> controlOperator
+"END" -> keyword
+"=== " -> heading1
+"chapter" -> name
+" ===\n" -> heading1
+"= " -> heading2
+"arrival" -> name
+"- " -> controlOperator
+"(" -> paren
+"greet" -> name
+")" -> paren
+"Hello from arrival." -> content
+"->" -> controlOperator
+"END" -> keyword

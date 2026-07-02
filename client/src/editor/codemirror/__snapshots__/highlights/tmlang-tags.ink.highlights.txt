@@ -1,0 +1,113 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"* " -> controlOperator
+"[" -> squareBracket
+"Hi" -> content
+"]" -> squareBracket
+"Hello" -> content
+"->" -> controlOperator
+"END" -> keyword
+"#hey" -> labelName
+"//<- keyword.choice.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"// ^^ source.ink\n" -> comment
+"//   ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"//    ^^^^^^ source.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"//             ^ source.ink\n" -> comment
+"//              ^^^ support.constant.ink\n" -> comment
+"//                 ^ source.ink\n" -> comment
+"//                  ^ string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//                   ^^^ string.quoted.other.ink entity.tag.ink\n" -> comment
+"* { " -> controlOperator
+"test" -> name
+" } " -> controlOperator
+"visible choice" -> content
+"#hey" -> labelName
+"//<- keyword.choice.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^ keyword.control.ink\n" -> comment
+"//       ^ keyword.control.ink\n" -> comment
+"//        ^^^^^^^^^^^^^^^ source.ink\n" -> comment
+"//                       ^ source.ink\n" -> comment
+"//                        ^ string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//                         ^^^ string.quoted.other.ink entity.tag.ink\n" -> comment
+"*   " -> controlOperator
+"(" -> paren
+"firstOpt" -> name
+")" -> paren
+"[" -> squareBracket
+"First choice" -> content
+"]" -> squareBracket
+"#tag" -> labelName
+"//<- keyword.choice.ink\n" -> comment
+"//<~--- source.ink\n" -> comment
+"//  ^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"//   ^^^^^^^^ string.label.ink entity.name.label.ink string.quoted.other.ink\n" -> comment
+"//           ^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"//            ^ source.ink\n" -> comment
+"//             ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"//              ^^^^^^^^^^^^ source.ink\n" -> comment
+"//                          ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"//                           ^^^ source.ink\n" -> comment
+"//                              ^ string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//                               ^^^ string.quoted.other.ink entity.tag.ink\n" -> comment
+"VAR " -> keyword
+"x" -> name
+" = " -> keyword
+"2" -> number
+"//<--- storage.type.ink storage.type.var.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^ variable.other.ink\n" -> comment
+"//   ^ source.ink\n" -> comment
+"//    ^ keyword.operator.assignment.ink\n" -> comment
+"//     ^ source.ink\n" -> comment
+"//      ^ constant.numeric.ink\n" -> comment
+"# author: Joe" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<------------ string.quoted.other.ink entity.tag.ink\n" -> comment
+"# title: My Great Story" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<---------------------- string.quoted.other.ink entity.tag.ink\n" -> comment
+"This is the content" -> content
+"//<------------------- source.ink\n" -> comment
+"== " -> heading1
+"knot" -> name
+" ==\n" -> heading1
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^ entity.name.function.ink\n" -> comment
+"//     ^ source.ink\n" -> comment
+"//      ^^ storage.knot.ink storage.type.ink\n" -> comment
+"# knot tag" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<--------- string.quoted.other.ink entity.tag.ink\n" -> comment
+"Knot content" -> content
+"//<------------ source.ink\n" -> comment
+"# end of knot tag" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<---------------- string.quoted.other.ink entity.tag.ink\n" -> comment
+"->" -> controlOperator
+"END" -> keyword
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^ support.constant.ink\n" -> comment
+"stitch" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ entity.name.function.ink\n" -> comment
+"# stitch tag" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<----------- string.quoted.other.ink entity.tag.ink\n" -> comment
+"Stitch content" -> content
+"//<-------------- source.ink\n" -> comment
+"# this tag is below some content so isn't included in the static tags for the stitch" -> labelName
+"//<- string.quoted.other.ink entity.tag.ink punctuation.definition.comment.ink comment.line.ink entity.tag.begin.ink\n" -> comment
+"//<----------------------------------------------------------------------------------- string.quoted.other.ink entity.tag.ink\n" -> comment
+"->" -> controlOperator
+"END" -> keyword
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^ support.constant.ink\n" -> comment

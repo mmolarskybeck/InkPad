@@ -1,0 +1,35 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"- " -> controlOperator
+"(" -> paren
+"dododo" -> name
+")" -> paren
+"//<- keyword.gather.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"// ^^^^^^ string.label.ink entity.name.label.ink string.quoted.other.ink\n" -> comment
+"//       ^ string.label.ink entity.name.label.ink string.quoted.other.ink punctuation.definition.string.label.begin.ink punctuation.definition.string.begin.ink\n" -> comment
+"->" -> controlOperator
+"tunnel " -> name
+"->" -> controlOperator
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^ variable.other.knot.ink\n" -> comment
+"//       ^ source.ink\n" -> comment
+"//        ^^ keyword.divert.ink keyword.other.ink\n" -> comment
+"->" -> controlOperator
+"dododo" -> name
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^ variable.other.knot.ink\n" -> comment
+"== " -> heading1
+"tunnel" -> name
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^ entity.name.function.ink\n" -> comment
+"+ " -> controlOperator
+"A" -> content
+"//<- keyword.choice.sticky.ink\n" -> comment
+"//<~--- source.ink\n" -> comment
+"->->" -> controlOperator
+"//<-- keyword.divert.ink keyword.other.ink\n" -> comment
+"//^^ keyword.divert.ink keyword.other.ink\n" -> comment

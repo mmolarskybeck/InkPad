@@ -1,0 +1,57 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"EXTERNAL message(x)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^^^ entity.name.function.ink\n" -> comment
+"//              ^ punctuation.section.parens.begin.ink\n" -> comment
+"//               ^ variable.parameter.function.ink\n" -> comment
+"//                ^ punctuation.section.parens.end.ink\n" -> comment
+"EXTERNAL multiply(x,y)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^^^^ entity.name.function.ink\n" -> comment
+"//               ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                ^ variable.parameter.function.ink\n" -> comment
+"//                 ^ punctuation.separator.ink\n" -> comment
+"//                  ^ variable.parameter.function.ink\n" -> comment
+"//                   ^ punctuation.section.parens.end.ink\n" -> comment
+"EXTERNAL times(i,str)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^ entity.name.function.ink\n" -> comment
+"//            ^ punctuation.section.parens.begin.ink\n" -> comment
+"//             ^ variable.parameter.function.ink\n" -> comment
+"//              ^ punctuation.separator.ink\n" -> comment
+"//               ^^^ variable.parameter.function.ink\n" -> comment
+"//                  ^ punctuation.section.parens.end.ink\n" -> comment
+"~ " -> operatorKeyword
+"message" -> name
+"(\"hello world\")" -> content
+"//<~ keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^^ variable.function.ink\n" -> comment
+"//       ^ source.ink\n" -> comment
+"//        ^ punctuation.definition.string.begin.ink\n" -> comment
+"//         ^^^^^^^^^^^ string.quoted.double.ink\n" -> comment
+"//                    ^ punctuation.definition.string.end.ink\n" -> comment
+"//                     ^ source.ink\n" -> comment
+"{" -> bracket
+"multiply" -> name
+"(" -> bracket
+"5.0" -> number
+", " -> bracket
+"3" -> number
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<~---------------- keyword.control.ink\n" -> comment
+"//               ^ keyword.control.ink\n" -> comment
+"{" -> bracket
+"times" -> name
+"(" -> bracket
+"3" -> number
+", " -> bracket
+"\"knock \"" -> string
+")}" -> bracket
+"//<- keyword.control.ink\n" -> comment
+"//<~------------------ keyword.control.ink\n" -> comment
+"//                 ^ keyword.control.ink\n" -> comment

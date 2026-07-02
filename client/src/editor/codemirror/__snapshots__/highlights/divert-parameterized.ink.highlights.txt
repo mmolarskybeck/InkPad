@@ -1,0 +1,27 @@
+"=== " -> heading1
+"entry" -> name
+" ===\n" -> heading1
+"->" -> controlOperator
+"greet" -> name
+"\"Marina\"" -> string
+"RANDOM" -> name
+"1" -> number
+"3" -> number
+"=== " -> heading1
+"greet" -> name
+"(" -> bracket
+"name" -> name
+", " -> bracket
+"roll" -> name
+")" -> bracket
+" ===\n" -> heading1
+"Hello, " -> content
+"{" -> bracket
+"name" -> name
+"}" -> bracket
+". Roll: " -> content
+"{" -> bracket
+"roll" -> name
+"}" -> bracket
+"->" -> controlOperator
+"END" -> keyword

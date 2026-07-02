@@ -1,0 +1,79 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"{ " -> bracket
+"TURNS_SINCE" -> name
+"(" -> bracket
+"->" -> controlOperator
+"test" -> name
+") " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<---------------------- keyword.control.ink\n" -> comment
+"//                     ^ keyword.control.ink\n" -> comment
+"~ " -> operatorKeyword
+"test" -> name
+"()" -> content
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^ variable.function.ink\n" -> comment
+"//    ^^ source.ink\n" -> comment
+"{ " -> bracket
+"TURNS_SINCE" -> name
+"(" -> bracket
+"->" -> controlOperator
+"test" -> name
+") " -> content
+"//<- keyword.control.ink\n" -> comment
+"//<---------------------- keyword.control.ink\n" -> comment
+"//                     ^ keyword.control.ink\n" -> comment
+"* " -> controlOperator
+"[" -> squareBracket
+"choice 1" -> content
+"]" -> squareBracket
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"// ^^^^^^^^ source.ink\n" -> comment
+"//         ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"- " -> controlOperator
+"{ " -> bracket
+"TURNS_SINCE" -> name
+"(" -> bracket
+"->" -> controlOperator
+"test" -> name
+") " -> content
+"//<- keyword.gather.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^^^^^^^^^^^^^^^^^ keyword.control.ink\n" -> comment
+"//                       ^ keyword.control.ink\n" -> comment
+"* " -> controlOperator
+"[" -> squareBracket
+"choice 2" -> content
+"]" -> squareBracket
+"//<- keyword.choice.ink\n" -> comment
+"//^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"// ^^^^^^^^ source.ink\n" -> comment
+"//         ^ keyword.choice.suppression.ink keyword.control.ink\n" -> comment
+"- " -> controlOperator
+"{ " -> bracket
+"TURNS_SINCE" -> name
+"(" -> bracket
+"->" -> controlOperator
+"test" -> name
+") " -> content
+"//<- keyword.gather.ink\n" -> comment
+"//^ keyword.control.ink\n" -> comment
+"// ^^^^^^^^^^^^^^^^^^^^^^ keyword.control.ink\n" -> comment
+"//                       ^ keyword.control.ink\n" -> comment
+"== " -> heading1
+"test" -> name
+" ==\n" -> heading1
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^^^ storage.type.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^^^^ entity.name.function.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^ storage.knot.ink storage.type.ink\n" -> comment
+"~ " -> operatorKeyword
+"return" -> keyword
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ keyword.control.ink\n" -> comment

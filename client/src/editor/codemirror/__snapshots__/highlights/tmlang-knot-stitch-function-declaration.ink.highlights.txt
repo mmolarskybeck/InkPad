@@ -1,0 +1,156 @@
+"// SYNTAX TEST \"source.ink\"\n" -> comment
+"/** EXTERNALS *****************************************************************/" -> blockComment
+"EXTERNAL message(x)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^^^ entity.name.function.ink\n" -> comment
+"//              ^ punctuation.section.parens.begin.ink\n" -> comment
+"//               ^ variable.parameter.function.ink\n" -> comment
+"//                ^ punctuation.section.parens.end.ink\n" -> comment
+"EXTERNAL multiply(x,y)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^^^^ entity.name.function.ink\n" -> comment
+"//               ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                ^ variable.parameter.function.ink\n" -> comment
+"//                 ^ punctuation.separator.ink\n" -> comment
+"//                  ^ variable.parameter.function.ink\n" -> comment
+"//                   ^ punctuation.section.parens.end.ink\n" -> comment
+"EXTERNAL times(i, str)" -> content
+"//<----- storage.type.external.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^^^^^ entity.name.function.ink\n" -> comment
+"//            ^ punctuation.section.parens.begin.ink\n" -> comment
+"//             ^ variable.parameter.function.ink\n" -> comment
+"//              ^ punctuation.separator.ink\n" -> comment
+"//               ^ source.ink\n" -> comment
+"//                ^^^ variable.parameter.function.ink\n" -> comment
+"//                   ^ punctuation.section.parens.end.ink\n" -> comment
+"/** FUNCTIONS *****************************************************************/" -> blockComment
+"== " -> heading1
+"passthrough" -> name
+"(" -> bracket
+"x" -> name
+")" -> bracket
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^^^ storage.type.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^^^^^^^^^^^ entity.name.function.ink\n" -> comment
+"//                     ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                      ^ variable.parameter.function.ink\n" -> comment
+"//                       ^ punctuation.section.parens.end.ink\n" -> comment
+"In passthrough" -> content
+"//<-------------- source.ink\n" -> comment
+"~ " -> operatorKeyword
+"return" -> keyword
+"x" -> name
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ keyword.control.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^ variable.other.ink\n" -> comment
+"== " -> heading1
+"increment" -> name
+"(" -> bracket
+"x" -> name
+")" -> bracket
+" ==\n" -> heading1
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^ source.ink\n" -> comment
+"// ^^^^^^^^ storage.type.ink\n" -> comment
+"//         ^ source.ink\n" -> comment
+"//          ^^^^^^^^^ entity.name.function.ink\n" -> comment
+"//                   ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                    ^ variable.parameter.function.ink\n" -> comment
+"//                     ^ punctuation.section.parens.end.ink\n" -> comment
+"//                      ^ source.ink\n" -> comment
+"//                       ^^ storage.knot.ink storage.type.ink\n" -> comment
+"~ " -> operatorKeyword
+"return" -> keyword
+"x" -> name
+"+ " -> controlOperator
+"1" -> content
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ keyword.control.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^  variable.other.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.arithmetic.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^ constant.numeric.ink\n" -> comment
+"==  " -> heading1
+"multiply" -> name
+"( " -> bracket
+"x" -> name
+" ,  " -> bracket
+"abc" -> name
+" )" -> bracket
+" ===\n" -> heading1
+"//<-- storage.knot.ink storage.type.ink\n" -> comment
+"//^^ source.ink\n" -> comment
+"//  ^^^^^^^^ storage.type.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^^^^^^^ entity.name.function.ink\n" -> comment
+"//                   ^ punctuation.section.parens.begin.ink\n" -> comment
+"//                    ^ source.ink\n" -> comment
+"//                     ^ variable.parameter.function.ink\n" -> comment
+"//                      ^ source.ink\n" -> comment
+"//                       ^ punctuation.separator.ink\n" -> comment
+"//                        ^^ source.ink\n" -> comment
+"//                          ^^^ variable.parameter.function.ink\n" -> comment
+"//                             ^ source.ink\n" -> comment
+"//                              ^ punctuation.section.parens.end.ink\n" -> comment
+"//                               ^ source.ink\n" -> comment
+"//                                ^^^ storage.knot.ink storage.type.ink\n" -> comment
+"~ " -> operatorKeyword
+"return" -> keyword
+"x" -> name
+"* " -> controlOperator
+"abc" -> content
+"//<- keyword.logic.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^ keyword.control.ink\n" -> comment
+"//      ^ source.ink\n" -> comment
+"//       ^ variable.other.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//         ^ keyword.operator.arithmetic.ink\n" -> comment
+"//          ^ source.ink\n" -> comment
+"//           ^^^ variable.other.ink\n" -> comment
+"=== " -> heading1
+"knot" -> name
+" ===\n" -> heading1
+"//<--- storage.knot.ink storage.type.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^ entity.name.function.ink\n" -> comment
+"//        ^ source.ink\n" -> comment
+"//          ^^^ storage.knot.ink storage.type.ink\n" -> comment
+"1stitch" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^^^ entity.name.function.ink\n" -> comment
+"..." -> content
+"//<------- source.ink\n" -> comment
+"stitch2(ab)" -> content
+"//<- storage.knot.ink storage.type.ink\n" -> comment
+"//<~- source.ink\n" -> comment
+"//^^^^^^^ entity.name.function.ink\n" -> comment
+"//       ^ punctuation.section.parens.begin.ink\n" -> comment
+"//        ^^ variable.parameter.function.ink\n" -> comment
+"//          ^ punctuation.section.parens.end.ink\n" -> comment
+"..." -> content
+"//<------- source.ink\n" -> comment
+"=== " -> heading1
+"2_knot(with, param)   " -> content
+"//<--- storage.knot.ink storage.type.ink\n" -> comment
+"// ^ source.ink\n" -> comment
+"//  ^^^^^^ entity.name.function.ink\n" -> comment
+"//        ^ punctuation.section.parens.begin.ink\n" -> comment
+"//         ^^^^ variable.parameter.function.ink\n" -> comment
+"//             ^ punctuation.separator.ink\n" -> comment
+"//              ^ source.ink\n" -> comment
+"//               ^^^^^ variable.parameter.function.ink\n" -> comment
+"//                    ^ punctuation.section.parens.end.ink\n" -> comment
+"//                     ^^^ source.ink\n" -> comment
+"//                        ^^ storage.knot.ink storage.type.ink\n" -> comment

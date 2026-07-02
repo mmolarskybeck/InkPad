@@ -1,0 +1,14 @@
+"=== " -> heading1
+"entry" -> name
+" ===\n" -> heading1
+"->" -> controlOperator
+"tunnel " -> name
+"->" -> controlOperator
+"Back again." -> content
+"->" -> controlOperator
+"END" -> keyword
+"=== " -> heading1
+"tunnel" -> name
+" ===\n" -> heading1
+"Inside the tunnel." -> content
+"->->" -> controlOperator
