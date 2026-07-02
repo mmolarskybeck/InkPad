@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export type FileActionMode = "save-as" | "rename";
+export type FileActionMode = "save-as" | "rename" | "add-file";
 
 interface FileActionDialogProps {
   mode: FileActionMode | null;
@@ -32,6 +32,12 @@ const actionCopy = {
     description: "Change the local file name without changing the story title.",
     label: "File name",
     confirm: "Rename",
+  },
+  "add-file": {
+    title: "Add Ink File",
+    description: "Create a project-relative Ink file for INCLUDE.",
+    label: "File path",
+    confirm: "Add file",
   },
 } satisfies Record<FileActionMode, {
   title: string;

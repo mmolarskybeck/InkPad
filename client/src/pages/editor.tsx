@@ -378,6 +378,7 @@ export default function Editor() {
   // tab layout shared with mobile. Cleared when the window narrows into true mobile.
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddProjectFileOpen, setIsAddProjectFileOpen] = useState(false);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
   const [storySessionKey, setStorySessionKey] = useState(0);
   const [editorControlState, setEditorControlState] = useState<CodeMirrorEditorControlState>({
@@ -773,10 +774,11 @@ export default function Editor() {
   ]);
 
   const handleAddProjectFile = useCallback(() => {
-    const requestedPath = window.prompt("New Ink file path", "chapter.ink");
-    if (requestedPath === null) return;
+    setIsAddProjectFileOpen(true);
+  }, []);
 
-    const normalizedPath = normalizeInkProjectPath(requestedPath);
+  const handleConfirmAddProjectFile = useCallback((requestedPath: string) => {
+    const normalizedPath = normalizeInkProjectPath(requestedPath.replace(/\.ink$/i, "") + ".ink");
     if (!normalizedPath) {
       toast({
         title: "Could not add file",
@@ -823,6 +825,7 @@ export default function Editor() {
       updatedAt: Date.now(),
     }));
     compileLive(getProjectCompileInput(nextProject));
+    setIsAddProjectFileOpen(false);
     setMobileTab("code");
     window.setTimeout(() => editorRef.current?.layout(), 0);
   }, [
@@ -1050,26 +1053,28 @@ export default function Editor() {
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
   const projectFilesPane = (
     <aside className={`${isMobile ? "flex h-10 items-stretch overflow-x-auto border-b" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
-      <div className={`${isMobile ? "sr-only" : "flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3"}`}>
-        <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
-          Files
-        </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleAddProjectFile}
-              className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
-              aria-label="Add Ink file"
-            >
-              <FilePlus2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Add Ink file</TooltipContent>
-        </Tooltip>
-      </div>
+      {!isMobile && (
+        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3">
+          <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+            Files
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAddProjectFile}
+                className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
+                aria-label="Add Ink file"
+              >
+                <FilePlus2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Add Ink file</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
       <div className={`${isMobile ? "flex min-w-0 flex-1 items-stretch" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
         {projectFileIds.map((fileId) => {
           const isActive = fileId === activeFileId;
@@ -1270,6 +1275,13 @@ export default function Editor() {
           }
         }}
         onConfirm={handleConfirmFileAction}
+      />
+
+      <FileActionDialog
+        mode={isAddProjectFileOpen ? "add-file" : null}
+        initialName="chapter"
+        onOpenChange={setIsAddProjectFileOpen}
+        onConfirm={handleConfirmAddProjectFile}
       />
 
       <LocalSavesDialog

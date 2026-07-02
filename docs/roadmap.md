@@ -87,6 +87,7 @@ This is the working implementation checklist. It favors small, testable slices a
 - [ ] Keep plain `.ink` import/export working as a single-file project workflow
 - [ ] Migrate existing local single-file saves safely
 - [ ] Add multi-file recovery and snapshot tests
+- [ ] UI/UX pass - make project drawer collapsible, hidden by default when only a single ink file is open, and offer elegant responsive design for tablet/mobile phone versions of layout (possibly move file manager to small icon or to hamburger main menu on phones?) 
 
 ## Phase 6: Persistence hardening
 
