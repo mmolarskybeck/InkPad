@@ -22,6 +22,12 @@ import {
 } from "@/components/editor/editor-workspace";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogDescription,
@@ -43,7 +49,7 @@ import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, FilePlus2, FileText, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, File, FilePlus2, FileText, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -364,6 +370,9 @@ export default function Editor() {
   const [currentDocument, setCurrentDocument] = useState<InkDocument>(startupStateRef.current.document);
   const [currentProject, setCurrentProject] = useState<InkProject>(startupStateRef.current.project);
   const [activeFileId, setActiveFileId] = useState(startupStateRef.current.activeFileId);
+  const [isProjectFilesCollapsed, setIsProjectFilesCollapsed] = useState(() => (
+    Object.keys(startupStateRef.current?.project.files ?? {}).length <= 1
+  ));
   const title = currentDocument.title ?? getDisplayTitleFromFilename(currentDocument.filename);
   const [recentFiles, setRecentFiles] = useState<StoredInkDocument[]>(() => {
     try { return FileOperations.getAllFiles(); } catch { return []; }
@@ -389,6 +398,7 @@ export default function Editor() {
 
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
   const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
+  const previousProjectIdRef = useRef(currentProject.id);
   const isMobile = useIsMobile();
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile);
 
@@ -482,7 +492,8 @@ export default function Editor() {
     onSourceCommit: commitBufferedSource,
   });
 
-  const hasMultipleProjectFiles = Object.keys(currentProject.files).length > 1;
+  const projectFileCount = Object.keys(currentProject.files).length;
+  const hasMultipleProjectFiles = projectFileCount > 1;
   const currentProjectForSave = useMemo(
     () => withProjectFileSource(currentProject, activeFileId, currentDocument.source),
     [activeFileId, currentDocument.source, currentProject],
@@ -493,6 +504,15 @@ export default function Editor() {
   const localSaveContent = hasMultipleProjectFiles
     ? JSON.stringify(currentProjectForSave, null, 2)
     : currentDocument.source;
+
+  useEffect(() => {
+    if (previousProjectIdRef.current === currentProject.id) {
+      return;
+    }
+
+    previousProjectIdRef.current = currentProject.id;
+    setIsProjectFilesCollapsed(projectFileCount <= 1);
+  }, [currentProject.id, projectFileCount]);
 
   // Autosave system
   const autosave = useAutosave({
@@ -826,6 +846,7 @@ export default function Editor() {
     }));
     compileLive(getProjectCompileInput(nextProject));
     setIsAddProjectFileOpen(false);
+    setIsProjectFilesCollapsed(false);
     setMobileTab("code");
     window.setTimeout(() => editorRef.current?.layout(), 0);
   }, [
@@ -1051,31 +1072,81 @@ export default function Editor() {
   }, []);
 
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
+  const projectNewMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={`${isMobile ? "h-8 w-8 rounded-md border border-border-color/70 bg-editor-bg/70" : isProjectFilesCollapsed ? "h-8 w-8" : "h-7 w-7"} p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis`}
+          aria-label="New file or project"
+        >
+          <FilePlus2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52 border-border-color bg-panel-bg">
+        <DropdownMenuItem onClick={handleAddProjectFile} className="cursor-pointer">
+          <FilePlus2 className="h-4 w-4" />
+          Ink file
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
+          <File className="h-4 w-4" />
+          Blank project
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
   const projectFilesPane = (
-    <aside className={`${isMobile ? "flex h-10 items-stretch overflow-x-auto border-b" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
-      {!isMobile && (
-        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3">
-          <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
-            Files
-          </span>
+    <aside className={`${isMobile ? "flex h-11 items-center overflow-x-auto border-b px-2 py-1" : isProjectFilesCollapsed ? "flex w-10 flex-col items-center border-r" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
+      {!isMobile && isProjectFilesCollapsed && (
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1 py-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={handleAddProjectFile}
-                className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
-                aria-label="Add Ink file"
+                onClick={() => setIsProjectFilesCollapsed(false)}
+                className="h-8 w-8 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
+                aria-label="Show project files"
+                aria-expanded={false}
               >
-                <FilePlus2 className="h-3.5 w-3.5" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Add Ink file</TooltipContent>
+            <TooltipContent side="right">Show project files</TooltipContent>
           </Tooltip>
+          {projectNewMenu}
         </div>
       )}
-      <div className={`${isMobile ? "flex min-w-0 flex-1 items-stretch" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
+      {!isMobile && (
+        <div className={`${isProjectFilesCollapsed ? "hidden" : "flex"} h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3`}>
+          <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+            Files
+          </span>
+          <div className="flex items-center gap-1">
+            {projectNewMenu}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsProjectFilesCollapsed(true)}
+                  className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
+                  aria-label="Hide project files"
+                  aria-expanded={true}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Hide project files</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      )}
+      <div className={`${isMobile ? "flex min-w-0 flex-1 items-center gap-1.5" : isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
         {projectFileIds.map((fileId) => {
           const isActive = fileId === activeFileId;
           const isEntry = fileId === currentProject.entryFile;
@@ -1085,24 +1156,14 @@ export default function Editor() {
               type="button"
               onClick={() => switchToProjectFile(fileId)}
               aria-current={isActive ? "page" : undefined}
-              className={`${isMobile ? "h-full max-w-[13rem] shrink-0 border-r px-3" : "mb-1 w-full rounded px-2.5 py-2"} flex min-w-0 items-center gap-2 border-border-color text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis`}
+              className={`${isMobile ? "h-8 max-w-[12.5rem] shrink-0 rounded-md border border-transparent px-2.5 aria-current:border-border-color" : "mb-1 w-full rounded px-2.5 py-2"} flex min-w-0 items-center gap-2 border-border-color text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis`}
             >
               <FileText className={`h-3.5 w-3.5 shrink-0 ${isEntry ? "text-accent-blue" : "text-text-secondary"}`} />
               <span className="truncate font-mono">{fileId}</span>
             </button>
           );
         })}
-        {isMobile && (
-          <button
-            type="button"
-            onClick={handleAddProjectFile}
-            className="flex h-full w-10 shrink-0 items-center justify-center text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis"
-            aria-label="Add Ink file"
-            title="Add Ink file"
-          >
-            <FilePlus2 className="h-4 w-4" />
-          </button>
-        )}
+        {isMobile && projectNewMenu}
       </div>
     </aside>
   );
@@ -1216,6 +1277,7 @@ export default function Editor() {
         title={title}
         knots={knots}
         onNew={handleNew}
+        onNewFile={handleAddProjectFile}
         onOpen={handleOpenFromDisk}
         recentFiles={recentFiles}
         currentFileName={currentDocument.filename}

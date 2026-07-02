@@ -659,7 +659,10 @@ Implemented the narrow Phase 7 slice on top of the CodeMirror-only editor:
   plain `.ink` single-file flow.
 - Added a compact project file rail:
   - desktop: left sidebar inside the code pane
+  - desktop rail can collapse to a narrow icon strip and defaults collapsed
+    for single-file projects
   - phone: horizontal file strip above CodeMirror
+  - New controls offer `Ink file` first and `Blank project` second
   - add-file uses InkPad's existing dialog pattern instead of a native prompt
   - active file switching goes through CodeMirror's document replacement path
 - Live compile, Run, JSON export, and playable HTML export now pass the full
@@ -700,6 +703,10 @@ Notes:
 - The browser console log API retained old errors from the earlier native
   `window.prompt` implementation during the same automation session. The
   prompt was removed and the final state uses an in-app dialog.
+- Follow-up desktop UI work added after the initial checkpoint made the file
+  rail collapsible and retuned New actions. Mobile/tablet checks for that
+  follow-up were intentionally skipped on 2026-07-02 at user request and are
+  tracked below.
 - Rich file management remains out of scope for this checkpoint: rename,
   duplicate, delete, entry-file replacement, project-wide search, and graph
   view are still later work.
@@ -723,5 +730,8 @@ Notes:
   - Add rename, duplicate, delete, and entry-file replacement flows.
   - Add `.inkpad` import from disk once the file picker accepts project files.
   - Add project-level recovery/snapshot tests beyond serialized autosave.
+  - Validate the collapsible project rail and New menu on phone and tablet
+    layouts; check keyboard behavior, horizontal overflow, and accessible
+    labels before closing the UI/UX pass.
   - Keep project-wide search, graph view, and advanced file management out of
     the migration-critical path.

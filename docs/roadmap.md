@@ -87,7 +87,12 @@ This is the working implementation checklist. It favors small, testable slices a
 - [ ] Keep plain `.ink` import/export working as a single-file project workflow
 - [ ] Migrate existing local single-file saves safely
 - [ ] Add multi-file recovery and snapshot tests
-- [ ] UI/UX pass - make project drawer collapsible, hidden by default when only a single ink file is open, and offer elegant responsive design for tablet/mobile phone versions of layout (possibly move file manager to small icon or to hamburger main menu on phones?) 
+- [x] Make desktop project drawer collapsible and collapsed by default when only a single Ink file is open
+- [x] Update New controls to offer adding an Ink file or starting a blank project
+- [ ] Mobile/tablet project drawer UX pass and real-device checks:
+  - [ ] Decide whether phones should hide the file strip behind the top menu, a compact icon, or a drawer
+  - [ ] Verify add-file, switch-file, and blank-project flows on phone and tablet viewports
+  - [ ] Re-check keyboard survival, horizontal overflow, and accessible labels after the project drawer changes
 
 ## Phase 6: Persistence hardening
 

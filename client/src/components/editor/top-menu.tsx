@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Archive, Copy, PenTool, File, FolderOpen, Save, Play, Settings, Clock, Menu } from "lucide-react";
+import { Archive, Copy, PenTool, File, FilePlus2, FolderOpen, Save, Play, Settings, Clock, Menu } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportDialog } from "./story-export-dialog";
 import { PlayableHtmlExportDialog } from "./playable-html-export-dialog";
@@ -36,6 +36,7 @@ interface TopMenuProps {
   title: string;
   knots: string[];
   onNew: () => void;
+  onNewFile?: () => void;
   onOpen: () => void;
   recentFiles: StoredInkDocument[];
   currentFileName: string;
@@ -67,6 +68,7 @@ export function TopMenu({
   title,
   knots,
   onNew,
+  onNewFile,
   onOpen,
   recentFiles,
   currentFileName,
@@ -176,6 +178,47 @@ export function TopMenu({
     </DropdownMenuContent>
   );
 
+  const renderNewMenu = () => {
+    if (!onNewFile) {
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onNew}
+          className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
+        >
+          <File className="h-3.5 w-3.5" />
+          New
+        </Button>
+      );
+    }
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" />
+            New
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-52 bg-panel-bg border-border-color">
+          <DropdownMenuItem onClick={onNewFile} className="cursor-pointer">
+            <FilePlus2 className="h-4 w-4" />
+            Ink file
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onNew} className="cursor-pointer">
+            <File className="h-4 w-4" />
+            Blank project
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   return (
     <div
       data-testid="top-menu"
@@ -213,15 +256,7 @@ export function TopMenu({
         </div>
         
         <div className="hidden items-center gap-0.5 min-[1120px]:flex">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onNew}
-            className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-          >
-            <File className="h-3.5 w-3.5" />
-            New
-          </Button>
+          {renderNewMenu()}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -344,10 +379,18 @@ export function TopMenu({
 
             <div className="space-y-4">
               <div className="grid gap-2">
+                {onNewFile && (
+                  <SheetClose asChild>
+                    <Button variant="ghost" onClick={onNewFile} className="justify-start gap-2">
+                      <FilePlus2 className="h-4 w-4" />
+                      New Ink file
+                    </Button>
+                  </SheetClose>
+                )}
                 <SheetClose asChild>
                   <Button variant="ghost" onClick={onNew} className="justify-start gap-2">
                     <File className="h-4 w-4" />
-                    New
+                    New blank project
                   </Button>
                 </SheetClose>
                 <DropdownMenu>

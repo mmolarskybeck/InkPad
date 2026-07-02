@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual-file compiler requests using `{ entryFile, files }`
 - Ink `INCLUDE` compilation support through the worker’s in-memory file map
 - Minimal multi-file authoring with a project file rail, active-file switching, strict project-file `INCLUDE` resolution, file-routed Problems jumps, and full `.inkpad` project export
+- Collapsible desktop project file rail, collapsed by default for single-file stories, with a New menu for adding an Ink file or starting a blank project
 - Recovery-aware top-level error boundary
 - Automated project-model and multi-file compiler tests
 - Phone/desktop progressive hydration split with viewport-gated Monaco loading, phone Preview default, delayed phone prefetch, and branded mobile loading fallback
