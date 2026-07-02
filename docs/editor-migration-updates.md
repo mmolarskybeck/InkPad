@@ -456,6 +456,33 @@ InkPad's architecture.
   renders with `cm-inkBuiltin` and the expected theme color/font weight, while
   a prose mention of `RANDOM` remains unmarked.
 
+## 2026-07-02 - Checkpoint 9: Fold semantics validated
+
+### Implemented
+
+- Replaced the inline `Knot`/`Function`/`Stitch` fold callbacks in
+  `client/src/editor/codemirror/ink-lang/index.ts` with a shared
+  `foldSection` helper.
+- The helper keeps the existing Lezer node-boundary strategy but trims trailing
+  blank lines from the fold range, so spacer lines before the next knot/stitch
+  remain visible after folding.
+- Empty section headers now return no fold range.
+- Added `client/src/editor/codemirror/ink-folding.test.ts` to validate:
+  - knot folds run until the next knot, including nested stitch content
+  - stitch folds run until the next stitch/knot
+  - function folds run through the function body
+  - spacer blank lines are trimmed from all section fold ranges
+  - empty headers are not foldable
+- Documented the fold status in `docs/Editor Migration Plan.md`.
+
+### Verified
+
+- `npm test -- ink-folding.test.ts ink-language-evaluation.test.ts` passes.
+- `npm run check` passes.
+- `npm test` passes: 28 test files, 213 tests. It still prints the known
+  Monaco `marked.umd.js.map` sourcemap warning.
+- `npm run build` passes.
+
 ## Next Checkpoint
 
 Phase 3 remaining exit criteria:
@@ -464,9 +491,6 @@ Phase 3 remaining exit criteria:
   exists: `include-quoted-path.ink` is confirmed `"invalid"`; the
   quoted-vs-bare-path product decision itself is still open, see Open
   Decisions in the migration plan).
-- Fold semantics still need a targeted validation pass against the intended
-  Inky behavior, especially trimming trailing blank lines before the next
-  declaration.
 
 ## Later Checkpoints
 

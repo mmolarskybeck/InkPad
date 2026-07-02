@@ -653,6 +653,11 @@ Match Inky unless there is a clear reason not to:
 - stitch fold runs until the next knot or stitch (`={1,}`)
 - trailing blank lines are trimmed from the fold range so folding does not visually swallow empty space before the next declaration
 
+Migration status: implemented in the vendored CodeMirror language's
+`foldNodeProp` via a shared section-fold helper, and validated by
+`client/src/editor/codemirror/ink-folding.test.ts`. Empty section headers do
+not expose a fold range.
+
 ### Symbol scanner policy
 
 The language mode owns highlighting and folding only.

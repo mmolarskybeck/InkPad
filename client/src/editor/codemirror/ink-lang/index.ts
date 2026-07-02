@@ -1,15 +1,31 @@
 import { parser } from "./generated/parser"
 import { LRLanguage, LanguageSupport, foldNodeProp } from "@codemirror/language"
+import type { EditorState } from "@codemirror/state"
+import type { SyntaxNode } from "@lezer/common"
 import { styleTags, tags as t } from "@lezer/highlight"
+
+function foldSection(tree: SyntaxNode, state: EditorState) {
+        const from = state.doc.lineAt(tree.from).to
+        let to = state.doc.lineAt(Math.max(tree.from, tree.to - 1)).to
+
+        while (to > from) {
+                const line = state.doc.lineAt(to)
+                if (state.doc.sliceString(line.from, line.to).trim().length > 0) break
+                if (line.number <= 1) break
+                to = state.doc.line(line.number - 1).to
+        }
+
+        return to > from ? { from, to } : null
+}
 
 export const InkLanguage = LRLanguage.define(
         {
                 parser: parser.configure({
                         props: [
                                 foldNodeProp.add({
-                                        Knot: (tree, state) => ({ from: state.doc.lineAt(tree.from).to, to: state.doc.lineAt(tree.to - 1).to }),
-                                        Function: (tree, state) => ({ from: state.doc.lineAt(tree.from).to, to: state.doc.lineAt(tree.to - 1).to }),
-                                        Stitch: (tree, state) => ({ from: state.doc.lineAt(tree.from).to, to: state.doc.lineAt(tree.to - 1).to }),
+                                        Knot: foldSection,
+                                        Function: foldSection,
+                                        Stitch: foldSection,
                                 }),
                                 styleTags({
                                         // Comments
