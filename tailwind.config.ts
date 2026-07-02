@@ -7,7 +7,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans, Inter)", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        // liga/calt off keeps -> and === as literal characters (no ligature glyphs)
+        mono: [["JetBrains Mono", "monospace"], { fontFeatureSettings: "\"liga\" 0, \"calt\" 0" }],
       },
       borderRadius: {
         lg: "var(--radius)",

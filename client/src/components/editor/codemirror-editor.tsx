@@ -39,7 +39,7 @@ import {
   searchKeymap,
   searchPanelOpen,
 } from "@codemirror/search";
-import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
+import { lintKeymap, setDiagnostics } from "@codemirror/lint";
 import {
   Decoration,
   type DecorationSet,
@@ -177,6 +177,9 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
     },
     ".cm-scroller": {
       fontFamily: "\"JetBrains Mono\", \"Fira Code\", ui-monospace, SFMono-Regular, monospace",
+      // Keep -> and === as literal characters instead of ligature glyphs,
+      // matching the previous Monaco setup (fontLigatures: false).
+      fontVariantLigatures: "none",
       lineHeight: "1.55",
       overflow: "auto",
     },
@@ -245,11 +248,30 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
     ".cm-diagnostic-warning": {
       borderLeftColor: "var(--warning)",
     },
+    ".cm-diagnostic-info": {
+      borderLeftColor: "var(--accent-blue)",
+    },
+    // Monaco-style wavy underlines instead of the default gradient strips.
+    ".cm-lintRange": {
+      backgroundImage: "none",
+      textDecorationLine: "underline",
+      textDecorationStyle: "wavy",
+      textDecorationThickness: "1px",
+      textDecorationSkipInk: "none",
+      textUnderlineOffset: "3px",
+      paddingBottom: "0",
+    },
     ".cm-lintRange-error": {
-      backgroundImage: "linear-gradient(45deg, transparent 65%, var(--error) 80%, transparent 90%)",
+      textDecorationColor: "var(--error)",
     },
     ".cm-lintRange-warning": {
-      backgroundImage: "linear-gradient(45deg, transparent 65%, var(--warning) 80%, transparent 90%)",
+      textDecorationColor: "var(--warning)",
+    },
+    ".cm-lintRange-info": {
+      textDecorationColor: "var(--accent-blue)",
+    },
+    ".cm-lintRange-hint": {
+      textDecorationColor: "var(--text-secondary)",
     },
   }, { dark: isDark });
 }
@@ -388,7 +410,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     bracketMatching(),
     search({ top: isMobileLayout }),
     highlightSelectionMatches({ highlightWordAroundCursor: true }),
-    lintGutter(),
     flashLineField,
     EditorState.tabSize.of(2),
     indentUnit.of("  "),
