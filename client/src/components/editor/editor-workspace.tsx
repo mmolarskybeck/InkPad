@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import { AlertTriangle, ArrowLeft, BookMarked, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -651,7 +651,7 @@ export function EditorWorkspace({
               title="Snippets"
               className={`flex h-full shrink-0 items-center justify-center gap-1.5 rounded border border-border-color bg-panel-bg text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue aria-pressed:border-accent-blue aria-pressed:text-accent-blue ${isMobileKeyboardOpen ? "w-10" : "min-w-[6.5rem] px-3"}`}
             >
-              <BookMarked className="h-4 w-4" />
+              <ScrollText className="h-4 w-4" />
               {!isMobileKeyboardOpen && "Snippets"}
             </button>
           </div>
