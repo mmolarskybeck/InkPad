@@ -32,11 +32,15 @@ export interface Snapshot {
 }
 
 const LOCAL_FILE_STORAGE_SCHEMA_VERSION = 2;
+const LEGACY_ACTIVE_FILE_KEY = 'inkpad:active-file';
+const LEGACY_RECOVERY_DRAFT_KEY = 'inkpad:recovery-draft';
+const LEGACY_FILE_STORAGE_PREFIX = 'inkpad_';
 
 export class FileOperations {
   private static readonly STORAGE_PREFIX = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:file:`;
   private static readonly ACTIVE_FILE_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:active-file`;
   private static readonly RECOVERY_DRAFT_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:recovery-draft`;
+  private static readonly LEGACY_CLEANUP_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:legacy-cleanup-complete`;
   private static readonly SNAPSHOT_PREFIX = ':snap:';
   private static readonly MAX_SNAPSHOTS = 10;
 
@@ -45,6 +49,7 @@ export class FileOperations {
     try {
       localStorage.setItem(testKey, '1');
       localStorage.removeItem(testKey);
+      this.cleanupLegacyLocalSaves();
       return { available: true, reason: null };
     } catch (e) {
       if (e instanceof Error && e.name === 'QuotaExceededError') {
@@ -169,6 +174,7 @@ export class FileOperations {
   }
 
   static getActiveFileName(): string | null {
+    this.cleanupLegacyLocalSaves();
     return localStorage.getItem(this.ACTIVE_FILE_KEY);
   }
 
@@ -178,6 +184,7 @@ export class FileOperations {
   }
 
   static loadStartupFile(): StoredInkDocument | RecoveryDraft | null {
+    this.cleanupLegacyLocalSaves();
     const activeFileName = this.getActiveFileName();
     const activeFile = activeFileName ? this.loadFile(activeFileName) : null;
     const recoveryDraft = this.loadRecoveryDraft();
@@ -262,6 +269,7 @@ export class FileOperations {
   }
 
   static getAllFiles(): StoredInkDocument[] {
+    this.cleanupLegacyLocalSaves();
     const storedDocuments: StoredInkDocument[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -482,5 +490,64 @@ export class FileOperations {
     }
 
     return snapshots;
+  }
+
+  private static cleanupLegacyLocalSaves(): void {
+    if (localStorage.getItem(this.LEGACY_CLEANUP_KEY) === '1') {
+      return;
+    }
+
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      if (key === LEGACY_ACTIVE_FILE_KEY || key === LEGACY_RECOVERY_DRAFT_KEY) {
+        keysToRemove.push(key);
+        continue;
+      }
+
+      if (!key.startsWith(LEGACY_FILE_STORAGE_PREFIX)) {
+        continue;
+      }
+
+      const data = localStorage.getItem(key);
+      if (!data) continue;
+
+      try {
+        const parsed = JSON.parse(data) as Partial<StoredInkDocument & Snapshot>;
+        if (this.isLegacyStoredDocument(parsed) || this.isLegacySnapshot(parsed)) {
+          keysToRemove.push(key);
+        }
+      } catch {
+        // Leave unrelated inkpad_* preferences alone.
+      }
+    }
+
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+
+    try {
+      localStorage.setItem(this.LEGACY_CLEANUP_KEY, '1');
+    } catch {
+      // Cleanup is best-effort; storage availability checks handle quota issues.
+    }
+  }
+
+  private static isLegacyStoredDocument(value: Partial<StoredInkDocument & Snapshot>): boolean {
+    return (
+      typeof value.name === 'string'
+      && typeof value.content === 'string'
+      && typeof value.lastModified === 'number'
+    );
+  }
+
+  private static isLegacySnapshot(value: Partial<StoredInkDocument & Snapshot>): boolean {
+    return (
+      typeof value.timestamp === 'number'
+      && typeof value.content === 'string'
+      && typeof value.hash === 'string'
+    );
   }
 }

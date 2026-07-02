@@ -51,12 +51,18 @@ describe("FileOperations document lifecycle", () => {
     });
   });
 
-  it("ignores pre-CodeMirror local save keys after the storage namespace bump", () => {
+  it("removes pre-CodeMirror local save keys after the storage namespace bump", () => {
     localStorage.setItem("inkpad_story.ink", JSON.stringify({
       name: "story.ink",
       content: "old saved content",
       lastModified: 1,
     }));
+    localStorage.setItem("inkpad_story.ink:snap:1", JSON.stringify({
+      timestamp: 1,
+      content: "old snapshot content",
+      hash: "old-hash",
+    }));
+    localStorage.setItem("inkpad_analytics_enabled", "true");
     localStorage.setItem("inkpad:active-file", "story.ink");
     localStorage.setItem("inkpad:recovery-draft", JSON.stringify({
       name: "story.ink",
@@ -64,11 +70,17 @@ describe("FileOperations document lifecycle", () => {
       lastModified: 2,
     }));
 
+    expect(FileOperations.loadStartupFile()).toBeNull();
+
+    expect(localStorage.getItem("inkpad_story.ink")).toBeNull();
+    expect(localStorage.getItem("inkpad_story.ink:snap:1")).toBeNull();
+    expect(localStorage.getItem("inkpad:active-file")).toBeNull();
+    expect(localStorage.getItem("inkpad:recovery-draft")).toBeNull();
+    expect(localStorage.getItem("inkpad_analytics_enabled")).toBe("true");
     expect(FileOperations.loadFile("story.ink")).toBeNull();
     expect(FileOperations.getActiveFileName()).toBeNull();
     expect(FileOperations.loadRecoveryDraft()).toBeNull();
     expect(FileOperations.getAllFiles()).toEqual([]);
-    expect(FileOperations.loadStartupFile()).toBeNull();
   });
 
   it("renames a file and preserves its content", async () => {
