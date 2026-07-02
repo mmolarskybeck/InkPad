@@ -3,6 +3,10 @@ import {
   type InkProject,
   type InkProjectFile,
 } from "@/types/ink-project";
+import {
+  isNormalizedInkProjectPath,
+  normalizeInkProjectPath,
+} from "@/lib/ink-project-paths";
 import type { InkCompileInput } from "@/types/worker-messages";
 
 function createProjectId(): string {
@@ -24,13 +28,18 @@ export function createSingleFileProject({
   content: string;
   id?: string;
 }): InkProject {
+  const normalizedFileName = normalizeInkProjectPath(fileName);
+  if (!normalizedFileName) {
+    throw new Error("InkPad project file paths must be relative project paths.");
+  }
+
   return {
     schemaVersion: INK_PROJECT_SCHEMA_VERSION,
     id,
     name,
-    entryFile: fileName,
+    entryFile: normalizedFileName,
     files: {
-      [fileName]: { content },
+      [normalizedFileName]: { content },
     },
   };
 }
@@ -46,7 +55,7 @@ export function isInkProject(value: unknown): value is InkProject {
     || typeof candidate.name !== "string"
     || candidate.name.length === 0
     || typeof candidate.entryFile !== "string"
-    || candidate.entryFile.length === 0
+    || !isNormalizedInkProjectPath(candidate.entryFile)
     || !candidate.files
     || typeof candidate.files !== "object"
   ) {
@@ -60,7 +69,8 @@ export function isInkProject(value: unknown): value is InkProject {
     fileNames.length > 0
     && Object.prototype.hasOwnProperty.call(files, candidate.entryFile)
     && fileNames.every((fileName) => (
-      fileName.length > 0 && typeof files[fileName]?.content === "string"
+      isNormalizedInkProjectPath(fileName)
+      && typeof files[fileName]?.content === "string"
     ))
   );
 }

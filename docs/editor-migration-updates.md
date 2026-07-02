@@ -235,8 +235,8 @@ start the fallback `StreamLanguage` path using the same fixtures.
   pane moves between different layout trees around the mobile breakpoint. This
   can reset undo history on rotation/resizing and remains a Phase 4 mobile
   validation item.
-- Storage key/schema bumping for discarding pre-CodeMirror local saves is still
-  pending and is now tracked under Phase 5/6 follow-ups.
+- Storage key/schema bumping for discarding pre-CodeMirror local saves was
+  completed later in Checkpoint 11.
 
 ## 2026-07-02 - Checkpoint 6: Compiler diagnostic fixture snapshots
 
@@ -524,20 +524,50 @@ InkPad's architecture.
   Monaco `marked.umd.js.map` sourcemap warning.
 - `npm run build` passes.
 
+## 2026-07-02 - Checkpoint 11: Phase 5 multi-file-ready groundwork
+
+### Implemented
+
+- Bumped browser-local draft storage into a versioned namespace:
+  - files: `inkpad:v2:file:*`
+  - active file: `inkpad:v2:active-file`
+  - recovery draft: `inkpad:v2:recovery-draft`
+- Left pre-CodeMirror local saves intentionally invisible instead of migrating
+  them into the CodeMirror/project-shaped world.
+- Added normalized project path helpers in
+  `client/src/lib/ink-project-paths.ts`.
+- Project paths now normalize backslashes to POSIX `/`, collapse `.` and empty
+  segments, and reject:
+  - empty paths
+  - absolute POSIX paths
+  - Windows drive paths
+  - paths containing `..`
+  - NUL bytes
+- `createSingleFileProject()` normalizes the active filename before storing it
+  as both `entryFile` and the sole `files` key.
+- `isInkProject()` now only accepts already-normalized project-relative
+  `entryFile` and `files` keys.
+- Kept the product surface single-file. No multi-file UI was added.
+
+### Verified
+
+- `npm test -- file-operations.test.ts ink-project.test.ts ink-project-paths.test.ts` passes:
+  4 files, 20 tests.
+
 ## Next Checkpoint
 
-Phase 3 is closed for migration purposes. The next implementation checkpoint is
-Phase 5 multi-file-ready groundwork, which should happen before Monaco removal:
+Phase 3 and Phase 5 are closed for migration purposes. The next implementation
+checkpoint is Phase 6 Monaco removal:
 
-- Bump the local storage key/schema version before Monaco removal so stale
-  pre-CodeMirror saves are discarded predictably.
-- Add normalized POSIX project path helpers.
-- Reject absolute paths and `..`.
-- Keep explicit `entryFile`.
-- Keep the product surface single-file for this checkpoint.
+- Remove Monaco packages and setup files.
+- Remove Monarch tests, completion/code-action adapters, and stale
+  Monaco-specific CSS.
+- Consolidate transitional editor-handle aliases and remove raw editor access
+  if no longer needed.
+- Update README, architecture docs, notices, and bundle notes.
 
-After Phase 5, remove Monaco. After Monaco is gone, add minimal multi-file
-support before doing broader mobile/accessory polish or richer editor features.
+After Monaco is gone, add minimal multi-file support before doing broader
+mobile/accessory polish or richer editor features.
 The intended minimal multi-file slice is:
 
 - `.inkpad` project model with `files` map and explicit `entryFile`
@@ -558,12 +588,6 @@ The intended minimal multi-file slice is:
   - Confirm clipboard toolbar behavior on iOS Safari.
   - Decide whether phone/desktop breakpoint flips need undo-history
     preservation or whether remount-on-layout-change is acceptable.
-- Phase 5 multi-file-ready groundwork:
-  - Bump local storage key/schema version before Monaco removal so stale
-    pre-CodeMirror saves are discarded predictably.
-  - Normalize POSIX project paths.
-  - Reject absolute paths and `..`.
-  - Keep explicit `entryFile`.
 - Phase 6 Monaco removal:
   - Remove Monaco packages, setup files, Monarch tests, completion/code-action adapters, and stale CSS.
   - Consolidate transitional editor-handle aliases and remove raw editor access if no longer needed.

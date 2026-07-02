@@ -759,6 +759,12 @@ stable project paths, explicit entry file, predictable storage, and compiler
 inputs that already look like a project even while the product surface remains
 single-file.
 
+Migration status: implemented as Checkpoint 11. Browser-local draft storage now
+uses the `inkpad:v2:*` namespace so old pre-CodeMirror local saves are
+discarded predictably. `InkProject` creation and validation now require
+normalized project-relative paths and keep an explicit `entryFile`; the product
+surface remains single-file.
+
 ### Path hygiene
 
 Treat paths as a security and data-integrity boundary, even in a client-only app.
@@ -767,14 +773,17 @@ Rules:
 
 - Store project files by normalized POSIX-style relative path.
 - Normalize backslashes to `/`.
+- Collapse empty and `.` path segments.
 - Reject absolute paths:
   - `/Users/...`
   - `/home/...`
   - `C:\...`
   - `file://...`
 - Reject paths containing `..`.
-- Decide case sensitivity explicitly and document it.
-- Reject or rename-with-warning duplicate normalized paths.
+- Preserve case; duplicate normalized paths are impossible in the current
+  `files` map because the normalized path is the object key. When ZIP import or
+  richer file management lands, collisions discovered during normalization
+  should be rejected or renamed with a warning.
 - Keep `entryFile` explicit.
 - Resolve `INCLUDE` only against `project.files`.
 - Never fetch remote includes.
@@ -1025,7 +1034,7 @@ Settle these as implementation reveals the real constraints:
 >
 > **Phase 4:** Ship mobile accessory insertion: `->`, `*`, `+`, `~`, `{ }`, Knot, Choice, More. Insertion must preserve focus/keyboard where possible, use transactions, select first snippet placeholder, guard against double insertion, and distinguish tap from scroll.
 >
-> **Phase 5:** Add multi-file-ready groundwork only. Normalize POSIX-relative paths, reject absolute paths and `..`, document case sensitivity, handle duplicate normalized paths, keep explicit `entryFile`, and resolve INCLUDE only against `project.files`. Do not build full multi-file UI.
+> **Phase 5:** Implemented as groundwork only. POSIX-relative paths are normalized, absolute paths and `..` are rejected, case is preserved, duplicate normalized paths collapse to the `files` map key, and `entryFile` remains explicit. Do not build full multi-file UI until after Monaco removal.
 >
 > **Phase 6:** Remove Monaco dependencies, setup/theme files, Monarch registration, marker/completion adapters, and CSS hacks. Update README, acknowledgments, THIRD_PARTY_NOTICES, screenshots/docs, and bundle analysis. Run tests, typecheck, build, fixture snapshots, desktop/mobile/iPad/accessibility acceptance checks. Keep the current deployed Monaco build untouched until all checks pass.
 >

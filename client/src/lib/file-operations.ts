@@ -31,10 +31,12 @@ export interface Snapshot {
   hash: string;
 }
 
+const LOCAL_FILE_STORAGE_SCHEMA_VERSION = 2;
+
 export class FileOperations {
-  private static readonly STORAGE_PREFIX = 'inkpad_';
-  private static readonly ACTIVE_FILE_KEY = 'inkpad:active-file';
-  private static readonly RECOVERY_DRAFT_KEY = 'inkpad:recovery-draft';
+  private static readonly STORAGE_PREFIX = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:file:`;
+  private static readonly ACTIVE_FILE_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:active-file`;
+  private static readonly RECOVERY_DRAFT_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:recovery-draft`;
   private static readonly SNAPSHOT_PREFIX = ':snap:';
   private static readonly MAX_SNAPSHOTS = 10;
 

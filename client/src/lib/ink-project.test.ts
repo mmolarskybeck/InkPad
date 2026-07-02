@@ -27,6 +27,29 @@ describe("InkProject", () => {
     expect(isInkProject(project)).toBe(true);
   });
 
+  it("normalizes single-file project paths when creating a project", () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "chapters\\start.ink",
+      content: "Hello",
+    });
+
+    expect(project.entryFile).toBe("chapters/start.ink");
+    expect(project.files).toEqual({
+      "chapters/start.ink": { content: "Hello" },
+    });
+  });
+
+  it("rejects unsafe single-file project paths when creating a project", () => {
+    expect(() => createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "../story.ink",
+      content: "Hello",
+    })).toThrow("relative project paths");
+  });
+
   it("rejects projects whose entry file is missing", () => {
     expect(isInkProject({
       schemaVersion: 1,
@@ -35,6 +58,29 @@ describe("InkProject", () => {
       entryFile: "main.ink",
       files: {
         "chapter.ink": { content: "Hello" },
+      },
+    })).toBe(false);
+  });
+
+  it("rejects projects with non-normalized or unsafe paths", () => {
+    expect(isInkProject({
+      schemaVersion: 1,
+      id: "project-1",
+      name: "Story",
+      entryFile: "./story.ink",
+      files: {
+        "./story.ink": { content: "Hello" },
+      },
+    })).toBe(false);
+
+    expect(isInkProject({
+      schemaVersion: 1,
+      id: "project-1",
+      name: "Story",
+      entryFile: "story.ink",
+      files: {
+        "story.ink": { content: "Hello" },
+        "../secrets.ink": { content: "Nope" },
       },
     })).toBe(false);
   });

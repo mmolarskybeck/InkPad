@@ -51,6 +51,26 @@ describe("FileOperations document lifecycle", () => {
     });
   });
 
+  it("ignores pre-CodeMirror local save keys after the storage namespace bump", () => {
+    localStorage.setItem("inkpad_story.ink", JSON.stringify({
+      name: "story.ink",
+      content: "old saved content",
+      lastModified: 1,
+    }));
+    localStorage.setItem("inkpad:active-file", "story.ink");
+    localStorage.setItem("inkpad:recovery-draft", JSON.stringify({
+      name: "story.ink",
+      content: "old recovery content",
+      lastModified: 2,
+    }));
+
+    expect(FileOperations.loadFile("story.ink")).toBeNull();
+    expect(FileOperations.getActiveFileName()).toBeNull();
+    expect(FileOperations.loadRecoveryDraft()).toBeNull();
+    expect(FileOperations.getAllFiles()).toEqual([]);
+    expect(FileOperations.loadStartupFile()).toBeNull();
+  });
+
   it("renames a file and preserves its content", async () => {
     await FileOperations.saveFile("old.ink", "content");
 
