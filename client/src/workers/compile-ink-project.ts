@@ -34,7 +34,7 @@ export function compileInkProject(
         } else {
           type = "error";
         }
-        collectedErrors.push({ message, type });
+        collectedErrors.push(normalizeInkCompilerMessage(message, type));
       },
       new ink.JsonFileHandler(files),
     );
@@ -75,4 +75,31 @@ export function compileInkProject(
           }],
     };
   }
+}
+
+function normalizeInkCompilerMessage(
+  message: string,
+  type: InkCompilerMessage["type"],
+): InkCompilerMessage {
+  let fileId: string | undefined;
+  let line: number | undefined;
+  let cleanMessage = message;
+
+  const lineMatch = message.match(/\bline\s+(\d+):/i);
+  if (lineMatch) {
+    line = Number(lineMatch[1]);
+    fileId = message.match(/'([^']+)'\s+line\s+\d+:/i)?.[1];
+
+    cleanMessage = message
+      .replace(/^(?:ERROR|WARNING):\s*(?:'[^']+'\s+)?line\s+\d+:\s*/i, "")
+      .replace(/^(TODO|FIXME):\s*(?:'[^']+'\s+)?line\s+\d+:\s*/i, "$1: ")
+      .trimStart();
+  }
+
+  return {
+    message: cleanMessage,
+    type,
+    ...(fileId ? { fileId } : {}),
+    ...(line ? { line } : {}),
+  };
 }

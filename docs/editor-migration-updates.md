@@ -238,10 +238,48 @@ start the fallback `StreamLanguage` path using the same fixtures.
 - Storage key/schema bumping for discarding pre-CodeMirror local saves is still
   pending and is now tracked under Phase 5/6 follow-ups.
 
+## 2026-07-02 - Checkpoint 6: Compiler diagnostic fixture snapshots
+
+### Implemented
+
+- Added fixture-backed snapshots for raw inkjs compiler diagnostics in
+  `client/src/workers/compile-ink-project.test.ts`.
+- Added compiler diagnostic fixtures under
+  `client/src/workers/__fixtures__/inkjs-diagnostics/` for:
+  - missing divert targets in the entry file
+  - TODO author messages on successful compilation
+  - missing INCLUDE files
+  - errors emitted from an included file
+- Normalized worker-side inkjs messages so `InkCompilerMessage` now carries
+  parsed `fileId` and `line` when inkjs includes them in the message text.
+- Kept compiler messages clean at the worker boundary by stripping redundant
+  `ERROR:`/`WARNING:` file-line prefixes while preserving the user-facing
+  `TODO:` label for author notes.
+
+### Findings
+
+- Pinned inkjs emits `TODO:` as an author/info diagnostic. The fixture includes
+  `FIXME:` intentionally, but this pinned version treats it as ordinary story
+  content rather than an author diagnostic.
+- Missing INCLUDE files still arrive from inkjs without file/line metadata:
+  `Cannot locate chapters/missing.ink. Are you trying a relative import ? This
+  is not yet implemented.`
+- Included-file compiler errors preserve the included path, e.g.
+  `chapters/broken.ink`, which keeps future multi-file Problems routing
+  testable.
+
+### Verified
+
+- `npm run check` passes.
+- `npm test -- compile-ink-project.test.ts ink-language-evaluation.test.ts diagnostics.test.ts` passes.
+- `npm test` passes: 25 test files, 196 tests.
+- `npm run build` passes.
+- `npm test` still prints the known Monaco `marked.umd.js.map` sourcemap
+  warning.
+
 ## Next Checkpoint
 
-Phase 3 language-mode work, plus the remaining Phase 2 compiler-diagnostic
-fixtures:
+Phase 3 language-mode work:
 
 - Expand fixture corpus for Ink highlighting/folding/parsing.
 - Pull relevant fixtures from `ink-tmlanguage/tests/cases/`.
@@ -252,7 +290,6 @@ fixtures:
 ## Later Checkpoints
 
 - Phase 2 diagnostic model hardening:
-  - Add compiler-diagnostic fixture snapshots.
   - Finish multi-file Problems-click behavior when the multi-file UI exists.
   - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
     InkPad-authored lint rules are added.
