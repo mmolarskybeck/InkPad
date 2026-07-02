@@ -280,6 +280,29 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
   }, { dark: isDark });
 }
 
+function hasSearchPanelDom(view: EditorView) {
+  return Boolean(view.dom.querySelector(".cm-ink-search"));
+}
+
+function isSearchPanelActuallyOpen(view: EditorView) {
+  return searchPanelOpen(view.state) && hasSearchPanelDom(view);
+}
+
+function openSearchPanelSafely(view: EditorView) {
+  if (searchPanelOpen(view.state) && !hasSearchPanelDom(view)) {
+    closeSearchPanel(view);
+  }
+
+  return openSearchPanel(view);
+}
+
+function reconcileSearchPanelDom(view: EditorView) {
+  if (!searchPanelOpen(view.state) || hasSearchPanelDom(view)) return;
+
+  closeSearchPanel(view);
+  openSearchPanel(view);
+}
+
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(({
   value,
   onChange,
@@ -304,11 +327,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const onChangeRef = useRef(onChange);
   const onControlStateChangeRef = useRef(onControlStateChange);
   const errorsRef = useRef(errors);
-  const lastControlStateRef = useRef<CodeMirrorEditorControlState>({
-    canUndo: false,
-    canRedo: false,
-    isFindVisible: false,
-  });
+  const lastControlStateRef = useRef<CodeMirrorEditorControlState | null>(null);
   const themeCompartmentRef = useRef(new Compartment());
   const wrappingCompartmentRef = useRef(new Compartment());
   const editableCompartmentRef = useRef(new Compartment());
@@ -343,9 +362,12 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const lastControlState = lastControlStateRef.current;
 
     if (
-      lastControlState.canUndo === nextControlState.canUndo
-      && lastControlState.canRedo === nextControlState.canRedo
-      && lastControlState.isFindVisible === nextControlState.isFindVisible
+      lastControlState
+      && (
+        lastControlState.canUndo === nextControlState.canUndo
+        && lastControlState.canRedo === nextControlState.canRedo
+        && lastControlState.isFindVisible === nextControlState.isFindVisible
+      )
     ) {
       return;
     }
@@ -388,7 +410,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       canUndo: undoDepth(view.state) > 0,
       canRedo: redoDepth(view.state) > 0,
     };
-    const nextFindVisible = searchPanelOpen(view.state);
+    const nextFindVisible = isSearchPanelActuallyOpen(view);
 
     historyStateRef.current = nextState;
     findVisibleRef.current = nextFindVisible;
@@ -412,7 +434,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     rectangularSelection(),
     indentOnInput(),
     bracketMatching(),
-    inkSearch({ top: isMobileLayout }),
+    inkSearch({ top: true }),
     highlightSelectionMatches({ minSelectionLength: 3 }),
     inkIdentifierOccurrences,
     flashLineField,
@@ -444,7 +466,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         scheduleChangeEmit();
       }
     }),
-  ], [effectiveTheme, fileName, fontSize, isMobileLayout, scheduleChangeEmit, updateControlState, wordWrap]);
+  ], [effectiveTheme, fileName, fontSize, scheduleChangeEmit, updateControlState, wordWrap]);
 
   const createState = useCallback((doc: string, selection?: { from: number; to?: number }) => (
     EditorState.create({
@@ -693,7 +715,12 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     flushChanges: emitChangeNow,
     focus: focusEditor,
     layout: () => {
-      viewRef.current?.requestMeasure();
+      const view = viewRef.current;
+      if (!view) return;
+
+      reconcileSearchPanelDom(view);
+      view.requestMeasure();
+      updateControlState(view);
     },
     replaceDocument,
     replaceRange,
@@ -722,8 +749,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     jumpToOffset,
     insertTextAtCursor,
     jumpToLine,
-    openFind: () => runCommand(openSearchPanel),
-    openReplace: () => runCommand(openSearchPanel),
+    openFind: () => runCommand(openSearchPanelSafely),
+    openReplace: () => runCommand(openSearchPanelSafely),
     closeFind: () => runCommand(closeSearchPanel),
     replaceValue: (nextValue: string) => replaceDocument(nextValue, { history: "preserve" }),
     selectPreviousWord: () => runCommand(selectGroupBackward),

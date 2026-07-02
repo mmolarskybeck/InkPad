@@ -186,8 +186,8 @@ function IconAction({ title, onClick, children }: {
   );
 }
 
-const fieldClass = "flex h-8 min-w-[150px] flex-1 items-center gap-0.5 rounded-md border border-border-color bg-editor-bg pl-2 pr-1 focus-within:border-accent-blue focus-within:ring-2 focus-within:ring-accent-blue/25";
-const inputClass = "h-full min-w-0 flex-1 bg-transparent text-[13px] text-text-emphasis outline-none placeholder:text-text-secondary [@media(pointer:coarse)]:text-[16px]";
+const fieldClass = "inkpad-search-field";
+const inputClass = "inkpad-search-input";
 
 function SearchPanelView({ controller }: { controller: SearchPanelController }) {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -214,7 +214,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
     <TooltipProvider delayDuration={500}>
       <div
         role="search"
-        className="flex flex-wrap items-center gap-x-1.5 gap-y-1 border-y border-border-color bg-panel-bg px-2 py-1.5 font-sans"
+        className="inkpad-search-panel"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
@@ -229,12 +229,12 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
           aria-label="Toggle replace"
           aria-expanded={replaceOpen}
           onClick={() => setReplaceOpen((open) => !open)}
-          className="h-7 w-7 shrink-0 text-text-secondary hover:text-text-emphasis"
+          className="inkpad-search-disclosure h-7 w-7 shrink-0 text-text-secondary hover:text-text-emphasis"
         >
           <ChevronRight className={cn("transition-transform duration-150", replaceOpen && "rotate-90")} />
         </Button>
 
-        <div className={fieldClass}>
+        <div className={cn(fieldClass, "inkpad-search-find-field")}>
           <input
             ref={(element) => {
               findInputRef.current = element;
@@ -273,7 +273,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
           />
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <div className="inkpad-search-actions">
           {snapshot.countLabel && (
             <span
               aria-live="polite"
@@ -310,8 +310,8 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
         </div>
 
         {replaceOpen && (
-          <div className="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 pl-[34px]">
-            <div className={fieldClass}>
+          <div className="inkpad-search-replace-row">
+            <div className={cn(fieldClass, "inkpad-search-replace-field")}>
               <input
                 ref={replaceInputRef}
                 className={inputClass}
@@ -327,13 +327,13 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
                 }}
               />
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="inkpad-search-replace-actions">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => replaceNext(view)}
-                className="h-7 border-border-color bg-transparent px-2 text-xs text-text-primary hover:bg-accent hover:text-text-emphasis"
+                className="inkpad-search-text-button h-7 border-border-color bg-transparent px-2 text-xs text-text-primary hover:bg-accent hover:text-text-emphasis"
               >
                 replace
               </Button>
@@ -342,7 +342,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
                 variant="outline"
                 size="sm"
                 onClick={() => replaceAll(view)}
-                className="h-7 border-border-color bg-transparent px-2 text-xs text-text-primary hover:bg-accent hover:text-text-emphasis"
+                className="inkpad-search-text-button h-7 border-border-color bg-transparent px-2 text-xs text-text-primary hover:bg-accent hover:text-text-emphasis"
               >
                 replace all
               </Button>

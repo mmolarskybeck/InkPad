@@ -126,6 +126,7 @@ export function EditorWorkspace({
   const editorPanelRef = useRef<ImperativePanelHandle>(null);
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
   const pointerActivationHandledRef = useRef(false);
+  const restoreFindAfterFocusRef = useRef(false);
   const snippetTapGestureRef = useRef<{
     pointerId: number;
     startX: number;
@@ -148,10 +149,11 @@ export function EditorWorkspace({
   }, [onPanelLayoutChanged, setFocusedPanel]);
 
   const handleFocusPanelChange = useCallback((panel: Exclude<FocusedPanel, null>) => {
+    restoreFindAfterFocusRef.current = panel === "code" && editorControlState.isFindVisible;
     setFocusedPanel(panel);
     setMobileTab(panel);
     onPanelLayoutChanged(panel === "code" ? "editor_focus" : "preview_focus");
-  }, [onPanelLayoutChanged, setFocusedPanel, setMobileTab]);
+  }, [editorControlState.isFindVisible, onPanelLayoutChanged, setFocusedPanel, setMobileTab]);
 
   const handleMobilePrimaryTabChange = useCallback((value: string) => {
     const nextTab = value as MobileTab;
@@ -358,7 +360,13 @@ export function EditorWorkspace({
   // Trigger editor layout whenever the code tab becomes visible (mobile or desktop focus mode).
   useEffect(() => {
     if (mobileTab !== "code") return;
-    const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
+    const timer = window.setTimeout(() => {
+      editorRef.current?.layout();
+      if (restoreFindAfterFocusRef.current) {
+        restoreFindAfterFocusRef.current = false;
+        editorRef.current?.openFind();
+      }
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [editorRef, mobileDrawer, mobileTab, focusedPanel]);
 
