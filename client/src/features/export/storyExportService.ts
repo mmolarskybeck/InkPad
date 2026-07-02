@@ -2,8 +2,6 @@ import { getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import type { InkCompileResult } from "@/lib/ink-compiler";
 import type { InkCompileInput } from "@/types/worker-messages";
 import { downloadBlob, downloadTextFile } from "@/features/files/fileDownload";
-import { buildStoryHtml } from "./htmlTemplate";
-import { createStoryZip } from "./zipExport";
 import {
   parseGlobalTags,
   resolveMetadata,
@@ -72,6 +70,10 @@ export async function exportCompiledJson(
 
 export async function exportStoryHtml(options: StoryExportOptions): Promise<void> {
   const result = await compileForExport(options);
+  const [{ buildStoryHtml }, { createStoryZip }] = await Promise.all([
+    import("./htmlTemplate"),
+    import("./zipExport"),
+  ]);
   const resolvedStoryMetadata = resolveMetadata(
     parseGlobalTags(result.runtimeStory?.globalTags),
     {

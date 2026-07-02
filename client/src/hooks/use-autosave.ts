@@ -1,10 +1,10 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
-import debounce from 'lodash/debounce';
 import {
   AutosaveLeaderCoordinator,
   createAutosaveTabId,
   type AutosaveChannel,
 } from '@/lib/autosave-leader';
+import { debounce } from "@/lib/debounce";
 import { simpleHash } from "@/lib/string-hash";
 
 export type SaveState = "dirty" | "saving" | "saved" | "error" | "disabled";

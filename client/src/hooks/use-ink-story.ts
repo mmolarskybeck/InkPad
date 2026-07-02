@@ -23,7 +23,7 @@ import type {
   StoryRuntimeState,
   StoryTranscriptEntry,
 } from '@/types/story-runtime';
-import debounce from 'lodash/debounce';
+import { debounce } from '@/lib/debounce';
 
 interface InkVariable {
   name: string;

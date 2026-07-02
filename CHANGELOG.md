@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified autosave by removing unused throttle machinery
 - Centralized non-cryptographic content hashing
 - Replaced blocking export error alerts with the existing toast system
+- Reduced startup bundle pressure by lazy-loading story export services,
+  splitting Vite vendor chunks by dependency family, keeping ZIP export code
+  lazy, and replacing lodash debounce with a local helper
 - Updated architecture and roadmap documentation around local-first project snapshots and eventual multi-file support
 - Optimized mobile `Code` tab by replacing `forceMount` with intent-based prefetching
 - Made mobile viewport detection synchronous and aligned to `max-width: 768px`

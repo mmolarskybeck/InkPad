@@ -1,10 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  exportCompiledJson,
-  exportInkSource,
-  exportStoryHtml,
-  type CompileInkSource,
-} from "./storyExportService";
+import type { CompileInkSource } from "./storyExportService";
 import type { HtmlExportOptions } from "./html-export-options";
 import type { InkCompileInput } from "@/types/worker-messages";
 import { trackExportClicked } from "@/lib/analytics";
@@ -30,13 +25,17 @@ export function useStoryExport({
 }: UseStoryExportOptions) {
   const [isExporting, setIsExporting] = useState(false);
 
-  const exportInk = useCallback(() => {
+  const exportInk = useCallback(async () => {
     const source = getSource();
     trackExportClicked({ format: "ink", storyText: source });
+    setIsExporting(true);
     try {
+      const { exportInkSource } = await import("./storyExportService");
       exportInkSource({ source, filename });
     } catch (error) {
       onError?.("Failed to export Ink", error);
+    } finally {
+      setIsExporting(false);
     }
   }, [filename, getSource, onError]);
 
@@ -45,6 +44,7 @@ export function useStoryExport({
     trackExportClicked({ format: "json", storyText: source });
     setIsExporting(true);
     try {
+      const { exportCompiledJson } = await import("./storyExportService");
       await exportCompiledJson({
         source: getCompileInput?.() ?? source,
         title,
@@ -63,6 +63,7 @@ export function useStoryExport({
     trackExportClicked({ format: "html", storyText: source });
     setIsExporting(true);
     try {
+      const { exportStoryHtml } = await import("./storyExportService");
       await exportStoryHtml({
         source: getCompileInput?.() ?? source,
         title,

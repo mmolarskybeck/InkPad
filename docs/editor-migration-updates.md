@@ -735,3 +735,39 @@ Notes:
     labels before closing the UI/UX pass.
   - Keep project-wide search, graph view, and advanced file management out of
     the migration-critical path.
+
+## 2026-07-02 - Checkpoint 14: Bundle chunk cleanup
+
+Followed up on the production build's oversized `vendor` warning:
+
+- Lazy-loaded `storyExportService` from `useStoryExport`, so `.ink`, JSON, and
+  playable HTML export code is fetched when an export is requested instead of
+  during app startup.
+- Split Vite manual chunks into named dependency groups:
+  - `zip-vendor` for `jszip`
+  - `download-vendor` for `file-saver`
+  - `ui-vendor` for Radix / Vaul primitives
+  - `layout-vendor` for `react-resizable-panels`
+  - `analytics` for Vercel Analytics
+- Moved HTML template and ZIP creation imports into the playable HTML export
+  path so plain `.ink` and JSON export do not fetch ZIP code.
+- Replaced the runtime `lodash/debounce` dependency with a tiny local helper
+  used by live compile and autosave scheduling.
+- Removed `lodash` and `@types/lodash` from package metadata.
+
+Verification:
+
+- `npm run check`
+- `npm test` (28 files, 219 tests)
+- `npm run build`
+
+Build result:
+
+- The Vite large-chunk warning is gone.
+- The former `vendor` chunk was reduced from about `693 kB` minified / `223 kB`
+  gzip to about `441 kB` minified / `145 kB` gzip.
+- Export-only dependencies now land in lazy chunks:
+  - `download-vendor`: about `3 kB` minified / `1.3 kB` gzip
+  - `storyExportService`: about `2.3 kB` minified / `1 kB` gzip
+  - `zip-vendor`: about `97 kB` minified / `30 kB` gzip, only needed for
+    playable HTML ZIP export
