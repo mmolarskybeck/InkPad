@@ -57,6 +57,7 @@ import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
+import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
@@ -212,6 +213,16 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
     },
     ".cm-cursor": {
       borderLeftColor: "var(--accent-blue)",
+    },
+    // Matches of an explicit selection: a whisper next to the real selection (34%).
+    ".cm-selectionMatch": {
+      backgroundColor: "color-mix(in srgb, var(--accent-blue) 14%, transparent)",
+    },
+    // Occurrences of the identifier under the cursor (knots, variables, diverts).
+    ".cm-inkIdentifierMatch": {
+      backgroundColor: "color-mix(in srgb, var(--accent-blue) 14%, transparent)",
+      outline: "1px solid color-mix(in srgb, var(--accent-blue) 32%, transparent)",
+      borderRadius: "2px",
     },
     ".cm-foldPlaceholder": {
       backgroundColor: "var(--panel-bg)",
@@ -418,7 +429,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     indentOnInput(),
     bracketMatching(),
     search({ top: isMobileLayout }),
-    highlightSelectionMatches({ highlightWordAroundCursor: true }),
+    highlightSelectionMatches({ minSelectionLength: 3 }),
+    inkIdentifierOccurrences,
     flashLineField,
     EditorState.tabSize.of(2),
     indentUnit.of("  "),
