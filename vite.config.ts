@@ -35,14 +35,11 @@ export default defineConfig({
     build: {
       outDir: path.resolve(__dirname, "dist"),
       emptyOutDir: true,
-      // Monaco's editor core is intentionally large; warn only if it grows beyond the current shape.
-      chunkSizeWarningLimit: 3500,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes("vite/preload-helper")) return "vendor";
             if (id.includes("node_modules")) {
-              if (id.includes("/monaco-editor/")) return "monaco";
               if (id.includes("/inkjs/")) return "inkjs";
               if (id.includes("/@vercel/speed-insights/")) return "speed-insights";
               if (id.includes("/lucide-react/")) return "lucide";

@@ -18,7 +18,7 @@ Start with the included sample story, write your own, or import an existing `.in
 
 ## Features
 
-- **ink code editor** — Write ink in a Monaco-powered editor with custom syntax highlighting.
+- **ink code editor** — Write ink in a CodeMirror 6 editor with custom Ink syntax highlighting and folding.
 - **Real-time compilation** — Check your story for errors as you write.
 - **Interactive preview** — Play through your story directly in the browser.
 - **Transcript and scene preview modes** — Keep a playthrough history visible or focus on the current passage.
@@ -75,7 +75,7 @@ Learn more:
 ## How InkPad works
 
 - **Frontend:** React, TypeScript, Vite
-- **Editor:** Monaco Editor (Ink-only core for a lightweight bundle)
+- **Editor:** CodeMirror 6, with a vendored/patched Ink language grammar
 - **ink compiler/runtime:** inkjs
 - **Styling:** Tailwind CSS, Radix UI, and shadcn/ui
 - **Backend:** None for the current version
@@ -112,7 +112,8 @@ InkPad builds on the Ink ecosystem and other open-source tools.
 
 - [Inkle Studios](https://www.inklestudios.com/) for creating ink and Inky
 - [inkjs](https://github.com/y-lohse/inkjs) for Ink compilation/runtime support in JavaScript
-- [Monaco Editor](https://microsoft.github.io/monaco-editor/) for the browser-based code editor
+- [CodeMirror 6](https://codemirror.net/) for the browser-based code editor
+- [@mavnn/codemirror-lang-ink](https://github.com/mavnn/codemirror-lang-ink) as the basis for InkPad's vendored Ink language grammar
 - [Tailwind CSS](https://tailwindcss.com/docs/installation/using-vite) for styling
 - [Radix UI](https://www.radix-ui.com/) and [shadcn/ui](https://ui.shadcn.com/) for accessible interface primitives
 - [Lucide](https://lucide.dev/) for icons

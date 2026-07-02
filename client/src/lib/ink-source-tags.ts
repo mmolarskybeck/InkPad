@@ -113,7 +113,8 @@ export function parseTagsFromSource(source: string): ParsedGlobalTags {
  * Returns the 1-indexed line number of the first top-level tag with the given
  * field name, or null if not found.
  *
- * Use this to implement "Show in file" navigation in Monaco.
+ * Use this to implement "Show in file" navigation, e.g. via the editor
+ * handle's `jumpToLine`/`revealLine`.
  */
 export function findTopLevelTagLine(
   source: string,

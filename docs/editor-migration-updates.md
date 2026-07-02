@@ -565,27 +565,102 @@ InkPad's architecture.
 - `npm test -- file-operations.test.ts ink-project.test.ts ink-project-paths.test.ts`
   passes.
 
+## 2026-07-02 - Checkpoint 12: Phase 6 Monaco removal
+
+### Implemented
+
+- Removed `monaco-editor` and `@monaco-editor/react` from `package.json` and
+  reinstalled (`package-lock.json` updated); `npm install` dropped 4 packages.
+- Deleted `client/src/components/editor/monaco-editor.tsx`,
+  `client/src/monaco-setup.ts`, `client/src/monaco-codicons.css`, and the
+  Monaco Monarch tokenizer (`client/src/utils/ink-monarch.ts` and its test).
+- Deleted `client/src/inkLanguage/inkCodeActions.ts` (the Monaco
+  `CodeActionProvider` adapter for the missing-start-divert quick fix). The
+  underlying editor-agnostic logic it wrapped —
+  `client/src/inkLanguage/buildSymbolTable.ts` and
+  `client/src/inkLanguage/inkDiagnostics.ts` — was already wired directly into
+  `client/src/pages/editor.tsx` independent of Monaco and is untouched.
+- Split `client/src/features/snippets/ink-completion-provider.ts`: kept the
+  pure, independently-tested `getSnippetCompletions` matching logic (see
+  Phase 3 completions roadmap item); removed `registerInkSnippetCompletions`
+  and its Monaco-only `CompletionItemProvider`/command-registration glue,
+  which had no callers outside the deleted Monaco setup path.
+- Removed the Monaco `monaco-editor/esm/vs/editor/edcore.main` module
+  declaration from `client/src/vite-env.d.ts`.
+- Removed all Monaco-specific CSS (`.monaco-editor`, `.find-widget`,
+  mobile find-widget overrides, iPad keyboard-toggle hiding, textarea-cover
+  rules) from `client/src/index.css`; kept the still-needed
+  `.cm-editor textarea { font-size: 16px !important; }` iOS zoom-prevention
+  rule.
+- Removed the Monaco `manualChunks` bucket and the
+  `chunkSizeWarningLimit: 3500` override (justified only by Monaco's size) from
+  `vite.config.ts`. The `vendor` chunk (~693kB) now surfaces the default 500kB
+  Rollup warning; left as honest signal rather than re-inflating the limit.
+- Removed the dead `getEditor(): EditorView | undefined` escape hatch from
+  `CodeMirrorEditorHandle`. Its only two live callers
+  (`editor-workspace.tsx`'s Problems-chip and Snippets-drawer toggles) used it
+  solely for `.contentDOM.blur()` to dismiss the mobile keyboard; added a
+  proper `blur(): void` handle method and updated both call sites, keeping
+  the migration plan's rule that no call site reaches into raw view internals.
+- Updated stale Monaco references in comments/docstrings that described
+  future or current behavior (not historical log entries): `ink-snippets.ts`'s
+  `desktopSnippet` doc comment (now describes the TextMate/`@codemirror/autocomplete`-compatible
+  tab-stop format), `ink-source-tags.ts`'s `findTopLevelTagLine` doc comment
+  (now points at the editor handle's `jumpToLine`/`revealLine`).
+- Updated `README.md` (features list, "How InkPad works", acknowledgments) and
+  `THIRD_PARTY_NOTICES.md` (removed the Monaco Editor section) to describe
+  CodeMirror 6 as the editor.
+- Updated `docs/devnotes.md`: replaced the "Monaco editor invariants" section
+  with "CodeMirror editor invariants" grounded in the actual
+  `codemirror-editor.tsx` implementation (compartments, `replaceDocument`
+  history/diagnostics options, StrictMode cleanup); corrected the storage-key
+  table to the `inkpad:v2:*` namespace and documented
+  `cleanupLegacyLocalSaves()`.
+- Fixed the one still-open (`[ ]`) roadmap item in `docs/roadmap.md` that
+  referenced Monaco; left the historical `[x]` "high-contrast application and
+  Monaco theme" entry as an accurate point-in-time record.
+- Appended a dated `CHANGELOG.md` "Removed" entry rather than editing its
+  historical Monaco-era entries.
+- Left `docs/structural-assistance-spec.md` (the authoritative, not-yet-built
+  Phase 3 completions/quick-fix/go-to-definition design) unchanged. It is
+  written throughout against Monaco's `IMarkerData`/`CompletionItemProvider`/
+  model APIs and needs a real retarget to `@codemirror/lint`/
+  `@codemirror/autocomplete` before Phase 3 implementation starts; flagged as
+  separate follow-up work rather than folded into this removal pass.
+
+### Verified
+
+- `npm run check` passes.
+- `npm test` passes: 28 test files, 218 tests (down from 226; the removed
+  `ink-monarch.test.ts` accounted for the difference). The long-standing
+  Monaco `marked.umd.js.map` sourcemap warning is gone from test output.
+- `npm run build` passes; no `monaco` chunk in `dist/assets`, and
+  `grep -ril monaco dist/assets` finds nothing.
+- Browser smoke test on the running dev server (desktop and mobile 375×812
+  viewports): app loads with zero console errors, CodeMirror renders full Ink
+  syntax highlighting/folding/mobile accessory bar on the Code tab, and
+  `document.querySelector('.monaco-editor')` / `[class*="monaco"]` are both
+  null anywhere in the DOM.
+- Found and filed as follow-up (not fixed here, pre-existing and unrelated to
+  this removal): clicking the Problems or Snippets drawer toggle does not
+  actually blur the editor / dismiss the mobile keyboard, despite the intent
+  documented in `editor-workspace.tsx`'s comments. Confirmed via A/B testing
+  that this predates the `getEditor()` → `blur()` handle refactor (the
+  underlying `contentDOM.blur()` call is unchanged); `contentDOM.blur()` works
+  correctly in isolation, so something in the click → drawer-open flow is
+  interfering.
+
 ## Next Checkpoint
 
-Phase 3 and Phase 5 are closed for migration purposes. The next implementation
-checkpoint is Phase 6 Monaco removal:
-
-- Remove Monaco packages and setup files.
-- Remove Monarch tests, completion/code-action adapters, and stale
-  Monaco-specific CSS.
-- Consolidate transitional editor-handle aliases and remove raw editor access
-  if no longer needed.
-- Update README, architecture docs, notices, and bundle notes.
-
-After Monaco is gone, add minimal multi-file support before doing broader
-mobile/accessory polish or richer editor features.
-The intended minimal multi-file slice is:
+Phases 3, 5, and 6 are closed for migration purposes. The next implementation
+checkpoint is Phase 7 minimal multi-file support:
 
 - `.inkpad` project model with `files` map and explicit `entryFile`
 - file list/sidebar and active file switching
 - `INCLUDE` resolution against `project.files`
 - Problems clicks switch files before jumping to the diagnostic line
 - explicit export labels for current file vs full project
+- no project-wide search, graph view, or elaborate file-management UI yet
 
 ## Later Checkpoints
 
@@ -601,10 +676,8 @@ The intended minimal multi-file slice is:
   - Confirm clipboard toolbar behavior on iOS Safari.
   - Decide whether phone/desktop breakpoint flips need undo-history
     preservation or whether remount-on-layout-change is acceptable.
-- Phase 6 Monaco removal:
-  - Remove Monaco packages, setup files, Monarch tests, completion/code-action adapters, and stale CSS.
-  - Consolidate transitional editor-handle aliases and remove raw editor access if no longer needed.
-  - Update README, architecture docs, notices, and bundle notes.
+  - Fix the Problems/Snippets drawer-open keyboard-dismiss regression noted
+    above.
 - Phase 7 minimal multi-file support:
   - Add project file list/sidebar.
   - Switch active files through the CodeMirror document-replacement API.

@@ -50,7 +50,7 @@ This is the working implementation checklist. It favors small, testable slices a
 
 - [ ] Define a derived `InkSymbolIndex`
 - [ ] Index knots, stitches, variables, lists, functions, and their source locations
-- [ ] Make the index readable by Monaco without coupling it to React render state
+- [ ] Make the index readable by the CodeMirror editor (e.g. a `@codemirror/autocomplete` source) without coupling it to React render state
 - [ ] Register an Ink completion provider
 - [ ] Add divert completion for known knots and stitches
 - [ ] Add variable/list completion in relevant contexts

@@ -94,10 +94,10 @@ export type ReplaceDocumentOptions = {
 };
 
 export interface CodeMirrorEditorHandle {
-  getEditor: () => EditorView | undefined;
   getValue: () => string;
   flushChanges: () => void;
   focus: () => void;
+  blur: () => void;
   layout: () => void;
   replaceDocument: (value: string, options: ReplaceDocumentOptions) => void;
   replaceRange: (from: number, to: number, insert: string, userEvent?: string) => void;
@@ -636,10 +636,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   }, [updateControlState]);
 
   useImperativeHandle(ref, () => ({
-    getEditor: () => viewRef.current,
     getValue: () => viewRef.current?.state.doc.toString() || "",
     flushChanges: emitChangeNow,
     focus: focusEditor,
+    blur: () => viewRef.current?.contentDOM.blur(),
     layout: () => {
       const view = viewRef.current;
       if (!view) return;

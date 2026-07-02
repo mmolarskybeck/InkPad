@@ -259,7 +259,7 @@ export function EditorWorkspace({
   // Deliberately dismisses the keyboard: reviewing problems is a read task,
   // and the drawer needs the vertical space the keyboard is occupying.
   const handleProblemsChipClick = useCallback(() => {
-    editorRef.current?.getEditor()?.contentDOM.blur();
+    editorRef.current?.blur();
     handleMobileDrawerToggle("problems");
   }, [editorRef, handleMobileDrawerToggle]);
 
@@ -324,7 +324,7 @@ export function EditorWorkspace({
   const toggleSnippetsDrawer = useCallback(() => {
     setMobileDrawer((drawer) => {
       if (drawer === "snippets") return null;
-      editorRef.current?.getEditor()?.contentDOM.blur();
+      editorRef.current?.blur();
       return "snippets";
     });
   }, [editorRef, setMobileDrawer]);

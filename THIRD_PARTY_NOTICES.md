@@ -21,16 +21,6 @@ InkPad uses `inkjs` for ink compilation and runtime support in JavaScript.
 * Repository: https://github.com/y-lohse/inkjs
 * License: MIT License
 
-## Monaco Editor
-
-InkPad uses Monaco Editor for browser-based code editing. InkPad is migrating
-its editor to CodeMirror 6 (see `docs/Editor Migration Plan.md`); Monaco
-remains in the dependency tree until that migration's Monaco-removal
-checkpoint is complete.
-
-* Repository: https://github.com/microsoft/monaco-editor
-* License: MIT License
-
 ## CodeMirror 6
 
 InkPad's editor is built on CodeMirror 6.

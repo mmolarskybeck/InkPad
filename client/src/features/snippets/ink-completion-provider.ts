@@ -1,18 +1,18 @@
-// Desktop Monaco completion provider backed by the shared snippet library.
+// Editor-agnostic snippet-completion matching backed by the shared snippet
+// library.
 //
 // See docs/completions-and-snippets-spec.md §3a. Ink is mostly prose, so
 // triggering is deliberately conservative: a snippet is only offered when the
-// current line is a single word (the thing being typed) and nothing else. The
-// decision lives in the pure `getSnippetCompletions` function so it can be
-// unit-tested without a Monaco model.
+// current line is a single word (the thing being typed) and nothing else.
+// This pure function is unit-tested without any editor model; a
+// `@codemirror/autocomplete` source can be built on top of it when
+// completion work starts (see docs/Editor Migration Plan.md Phase 3).
 
-import type * as MonacoNs from "monaco-editor";
 import { INK_SNIPPETS, type InkSnippet } from "./ink-snippets";
-import { trackSnippetInserted, type SnippetType } from "@/lib/analytics";
 
 export interface SnippetCompletion {
   snippet: InkSnippet;
-  /** The alias that matched the typed word — used as Monaco filterText. */
+  /** The alias that matched the typed word — used as completion filterText. */
   matchedAlias: string;
   /** 1-based columns of the word to replace. */
   replace: { startColumn: number; endColumn: number };
@@ -56,78 +56,4 @@ export function getSnippetCompletions(
     }
   }
   return completions;
-}
-
-/** Symbol characters that should invoke the provider even with auto-suggest off. */
-const TRIGGER_CHARACTERS = [">", "=", "*", "+", "/", "~"];
-const TRACK_SNIPPET_INSERTED_COMMAND = "inkpad.trackSnippetInserted";
-
-function getAnalyticsSnippetType(snippet: InkSnippet): SnippetType {
-  if (snippet.id === "var") return "variable";
-  if (snippet.id === "sticky-choice") return "choice";
-  if (
-    snippet.id === "knot" ||
-    snippet.id === "stitch" ||
-    snippet.id === "choice" ||
-    snippet.id === "conditional" ||
-    snippet.id === "list" ||
-    snippet.id === "function" ||
-    snippet.id === "divert"
-  ) {
-    return snippet.id;
-  }
-
-  return "unknown";
-}
-
-export function registerInkSnippetCompletions(
-  monaco: typeof MonacoNs,
-  languageId: string,
-): MonacoNs.IDisposable {
-  const commandDisposable = monaco.editor.registerCommand(
-    TRACK_SNIPPET_INSERTED_COMMAND,
-    (_accessor, snippetType: SnippetType) => {
-      trackSnippetInserted(snippetType);
-    },
-  );
-
-  const completionDisposable = monaco.languages.registerCompletionItemProvider(languageId, {
-    triggerCharacters: TRIGGER_CHARACTERS,
-    provideCompletionItems(model, position) {
-      const lineContent = model.getLineContent(position.lineNumber);
-      const completions = getSnippetCompletions(lineContent, position.column);
-
-      const suggestions = completions.map(({ snippet, matchedAlias, replace }) => ({
-        label: snippet.label,
-        kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: snippet.desktopSnippet,
-        insertTextRules:
-          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        range: new monaco.Range(
-          position.lineNumber,
-          replace.startColumn,
-          position.lineNumber,
-          replace.endColumn,
-        ),
-        detail: `Ink snippet · ${snippet.category}`,
-        documentation: snippet.description,
-        filterText: matchedAlias,
-        sortText: snippet.id,
-        command: {
-          id: TRACK_SNIPPET_INSERTED_COMMAND,
-          title: "Track InkPad snippet insertion",
-          arguments: [getAnalyticsSnippetType(snippet)],
-        },
-      }));
-
-      return { suggestions };
-    },
-  });
-
-  return {
-    dispose() {
-      completionDisposable.dispose();
-      commandDisposable.dispose();
-    },
-  };
 }

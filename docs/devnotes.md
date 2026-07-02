@@ -2,13 +2,15 @@
 
 These notes cover implementation details that are easy to break and too specific for the architecture overview.
 
-## Monaco editor invariants
+## CodeMirror editor invariants
 
-### Let Monaco handle editor keyboard input
+See `docs/Editor Migration Plan.md` for the full lifecycle rules this section assumes. `CodeMirrorEditor` (`client/src/components/editor/codemirror-editor.tsx`) owns exactly one long-lived `EditorView` per mount; nothing else should read or set `view.state.doc` directly.
 
-Do not add capture handlers to the Monaco container to implement selection, deletion, undo, or other native editor behavior. Monaco owns its command chain and keybindings.
+### Let CodeMirror handle editor keyboard input
 
-Application-level shortcuts are registered on `window` and should be narrowly scoped. If a new shortcut overlaps a Monaco command, test the editor behavior directly.
+Do not add capture handlers to the editor container to implement selection, deletion, undo, or other native editor behavior. CodeMirror owns its command chain via `keymap.of([...])` in `buildExtensions()`.
+
+Application-level shortcuts are registered on `window` and should be narrowly scoped. If a new shortcut overlaps a CodeMirror keymap entry (default/history/search/fold/lint), test the editor behavior directly.
 
 Editor regression checklist:
 
@@ -17,35 +19,32 @@ Editor regression checklist:
 - [ ] Delete and Backspace remove multiline selections
 - [ ] Undo and redo remain available
 - [ ] Find/replace opens and closes correctly
-- [ ] New/open actions replace the model without restoring stale text
-- [ ] No duplicate Monaco instance or context-attribute errors
+- [ ] New/open actions replace the document without restoring stale text
+- [ ] No duplicate `EditorView` or leaked instance on remount
 
 ### StrictMode and DOM cleanup
 
-`MonacoEditor` guards asynchronous initialization with `initializingRef` and disposes the editor during cleanup. It also removes Monaco DOM artifacts from its container.
+The mount effect in `codemirror-editor.tsx` creates exactly one `EditorView` and returns a cleanup function that flushes pending changes (`emitChangeNow`), clears timers, calls `view.destroy()`, and clears the container's `innerHTML`.
 
-Treat this cleanup as failure-sensitive. Changes should be tested under React StrictMode, including mount/unmount and mobile/desktop layout changes.
+Treat this cleanup as failure-sensitive. Changes should be tested under React StrictMode, including mount/unmount and mobile/desktop layout changes. The migration plan's known open risk here: a phone/desktop breakpoint flip can still remount the editor because the pane moves between different layout trees, which resets undo history on rotation/resize.
 
 ### Live preference updates
 
-Do not recreate Monaco when editor font size or word wrap changes. `MonacoEditor` receives primitive preference props and applies them to the existing instance with:
+Do not recreate the `EditorView` when editor font size, word wrap, or theme changes. Runtime preferences are wired through `Compartment`s (`themeCompartmentRef`, `wrappingCompartmentRef`, `editableCompartmentRef`, `contentAttributesCompartmentRef`, `languageCompartmentRef`) and applied with `view.dispatch({ effects: compartment.reconfigure(...) })`.
 
-```ts
-editor.updateOptions({
-  fontSize,
-  wordWrap: wordWrap ? "on" : "off",
-});
-```
-
-Theme changes select one of the registered Ink Monaco themes. Add a corresponding application token set and Monaco theme together when introducing another theme.
+Add a corresponding application token set and `EditorView.theme(...)` variant together when introducing another theme; see `createThemeExtension`.
 
 ### Source ownership
 
-Application document/project state is the canonical portable state. Monaco is the editing surface.
+Application document/project state is the canonical portable state. CodeMirror is the editing surface.
 
-Because Monaco emits changes through a short debounce, immediate commands use `getCurrentSource()`/`editorRef.current.getValue()` or the latest source ref for freshness. That is an escape hatch for timing, not a declaration that the widget is the domain model.
+Because CodeMirror emits changes through a short debounce (`scheduleChangeEmit`, 120ms), immediate commands use `getCurrentSource()`/`editorRef.current.getValue()` or the latest source ref for freshness. That is an escape hatch for timing, not a declaration that the widget is the domain model.
 
 There should be only one editor-to-React debounce. Do not add another delay in `useEditorSourceBuffer`.
+
+### Document replacement
+
+Full-document replacement always goes through `replaceDocument(value, options)`, never a raw `changes: { from: 0, to: doc.length, insert }` at a call site. `options.history: "reset"` is for file switch/import/reset; `"preserve"` is for same-document external updates (e.g. settings-panel metadata writes). Ordinary typing and toolbar/snippet insertion use `insertTextAtCursor`/`replaceRange`, never `replaceDocument`.
 
 ## Compilation
 
@@ -125,17 +124,19 @@ InkPad currently has no backend. Persistence is browser-local and still document
 
 | Record | Key shape | Purpose |
 | --- | --- | --- |
-| Main file | `inkpad_<filename>` | Primary saved content |
-| Recovery draft | `inkpad:recovery-draft` | Best-effort crash/tab-close recovery |
-| Snapshot | `inkpad_<filename>:snap:<timestamp>` | Previous saved version, maximum 10 per file |
-| Active file | `inkpad:active-file` | Startup selection |
+| Main file | `inkpad:v2:file:<filename>` | Primary saved content |
+| Recovery draft | `inkpad:v2:recovery-draft` | Best-effort crash/tab-close recovery |
+| Snapshot | `inkpad:v2:file:<filename>:snap:<timestamp>` | Previous saved version, maximum 10 per file |
+| Active file | `inkpad:v2:active-file` | Startup selection |
 | User preferences | `inkpad:preferences` | Versioned global theme, font-size, and word-wrap preferences |
 
 Main-file and recovery-draft records may include story-specific `settings` containing author and preview mode. Rename, duplicate, recovery, and save-as flows must preserve them.
 
+The `v2` namespace exists because the CodeMirror migration bumped `LOCAL_FILE_STORAGE_SCHEMA_VERSION` in `client/src/lib/file-operations.ts` to discard pre-CodeMirror saves predictably. `FileOperations.cleanupLegacyLocalSaves()` runs a one-time sweep of the old unprefixed `inkpad_*` / `inkpad:active-file` / `inkpad:recovery-draft` keys on the relevant read paths, without touching unrelated `inkpad:*` preference keys.
+
 ### Timing
 
-- Monaco emits source changes after its editor debounce.
+- CodeMirror emits source changes after its editor debounce.
 - Recovery draft writes are scheduled shortly after the application receives a change.
 - Autosave writes the main record after its own save debounce.
 - Periodic checkpoints save dirty content.
@@ -199,4 +200,4 @@ npm run check
 npm run build
 ```
 
-For changes involving Monaco, storage lifecycle events, or browser-only APIs, also perform an interactive browser smoke test.
+For changes involving the CodeMirror editor, storage lifecycle events, or browser-only APIs, also perform an interactive browser smoke test.

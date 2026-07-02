@@ -32,7 +32,7 @@ export interface InkSnippet {
   context: SnippetContext;
   /** Desktop autocomplete trigger words/symbols. */
   aliases: string[];
-  /** Monaco insert text with `${n:default}` tab stops. */
+  /** TextMate-style insert text with `${n:default}` tab stops, compatible with `@codemirror/autocomplete`'s `snippet()`. */
   desktopSnippet: string;
   /** Plain insert text with `[placeholder]` markers the user types over. */
   mobileInsert: string;
