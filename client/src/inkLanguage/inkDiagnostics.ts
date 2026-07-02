@@ -9,6 +9,7 @@ export interface InkPadDiagnostic {
   code: typeof MISSING_STARTING_DIVERT_CODE;
   severity: InkPadDiagnosticSeverity;
   source: typeof INKPAD_DIAGNOSTIC_SOURCE;
+  fileId: string;
   message: string;
   target: string;
   range: SymbolRange;
@@ -26,6 +27,7 @@ export function getMissingStartDiagnostic(
     code: MISSING_STARTING_DIVERT_CODE,
     severity: "hint",
     source: INKPAD_DIAGNOSTIC_SOURCE,
+    fileId: symbolTable.fileId,
     message: `No opening content found. Start the story at \`${firstPlayableSymbol.path}\`?`,
     target: firstPlayableSymbol.path,
     range: {

@@ -1,9 +1,10 @@
-=== function calculate_bonus(score, ref total) ===
-~ total = total + score
-~ return total
+VAR total = 0
+
+=== function calculate_bonus(score, ref running_total) ===
+~ running_total = running_total + score
+~ return running_total
 
 === start ===
-VAR total = 0
 ~ total = calculate_bonus(2, total)
+Total: {total}
 -> END
-

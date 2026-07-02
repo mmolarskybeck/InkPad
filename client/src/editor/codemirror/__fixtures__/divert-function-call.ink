@@ -1,4 +1,8 @@
 VAR score = 1
-* Call -> calculate(score + 1) # computed
+* Call # computed
+  -> calculate(score + 1)
 -> END
 
+=== calculate(value) ===
+Calculated {value}.
+-> END

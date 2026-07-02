@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock3, Info, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Copy, Info, Loader2, XCircle } from "lucide-react";
 import type { CompileStatus } from "@/hooks/use-ink-story";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import {
@@ -26,6 +26,11 @@ export function ErrorPanel({
   const warningCount = errors.filter(e => getEditorDiagnosticSeverity(e) === 'warning').length;
   const statusConfig = getCompileStatusConfig(compileStatus);
   const StatusIcon = statusConfig.icon;
+  const handleCopyMessage = (event: React.MouseEvent<HTMLButtonElement>, error: EditorDiagnostic) => {
+    event.stopPropagation();
+    const location = `line ${getEditorDiagnosticLine(error)}${getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ""}`;
+    void navigator.clipboard?.writeText(`${location} - ${error.message}`);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -90,6 +95,15 @@ export function ErrorPanel({
                     <span>{error.message}</span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={(event) => handleCopyMessage(event, error)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-panel-bg hover:text-text-emphasis"
+                  aria-label="Copy problem message"
+                  title="Copy problem message"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))
           )}

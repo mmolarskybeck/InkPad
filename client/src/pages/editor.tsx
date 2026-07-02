@@ -703,9 +703,13 @@ export default function Editor() {
     return missingStartDiagnostic ? [missingStartDiagnostic] : [];
   }, [currentDocument.filename, currentDocument.source]);
   const editorDiagnostics = useMemo<EditorDiagnostic[]>(() => ([
-    ...errors.map((error) => ({ ...error, source: "inkjs" as const })),
+    ...errors.map((error) => ({
+      ...error,
+      source: "inkjs" as const,
+      fileId: error.fileId && error.fileId !== "story.ink" ? error.fileId : currentDocument.filename,
+    })),
     ...inkpadDiagnostics,
-  ]), [errors, inkpadDiagnostics]);
+  ]), [currentDocument.filename, errors, inkpadDiagnostics]);
   const errorCount = errors.filter(e => e.type === "error").length;
   const warningCount = errors.filter(e => e.type === "warning").length;
   const isPreviewStale = Boolean(runtimeState && lastRunSource !== null && currentDocument.source !== lastRunSource);
@@ -729,7 +733,8 @@ export default function Editor() {
       onChange={handleSourceChange}
       onControlStateChange={setEditorControlState}
       errors={editorDiagnostics}
-      documentId={currentDocument.id ?? currentDocument.filename}
+      fileId={currentDocument.filename}
+      documentId={currentDocument.id}
       fileName={currentDocument.filename}
       isMobileLayout={isMobile}
       showHeader={!isMobile && focusedPanel === null}

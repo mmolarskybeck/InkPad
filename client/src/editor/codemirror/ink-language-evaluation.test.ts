@@ -6,6 +6,7 @@ import { EditorState } from "@codemirror/state";
 import { ensureSyntaxTree, foldable } from "@codemirror/language";
 import { highlightTree, tagHighlighter, tags } from "@lezer/highlight";
 import { InkLanguageSupport } from "@mavnn/codemirror-lang-ink";
+import { compileInkProject } from "@/workers/compile-ink-project";
 
 const fixturesDir = path.resolve(process.cwd(), "client/src/editor/codemirror/__fixtures__");
 
@@ -34,6 +35,30 @@ const inkEvaluationHighlighter = tagHighlighter([
 type HighlightSpan = {
   text: string;
   classes: string;
+};
+
+type FixtureCompileStatus = "valid" | "invalid";
+
+const expectedFixtureCompileStatus: Record<string, FixtureCompileStatus> = {
+  "basic-knot.ink": "valid",
+  "built-in-functions.ink": "valid",
+  "cjk-hangul-identifiers.ink": "valid",
+  "divert-function-call.ink": "valid",
+  "divert-parameterized.ink": "valid",
+  "divert-three-part-path.ink": "valid",
+  "divert-tunnel.ink": "valid",
+  "emoji-offsets.ink": "valid",
+  "escape-sequences.ink": "valid",
+  "external-declaration.ink": "valid",
+  "function-knot.ink": "valid",
+  "global-dictionary-tag.ink": "valid",
+  "glue.ink": "valid",
+  "include-quoted-path.ink": "invalid",
+  "include-subfolder-path.ink": "valid",
+  "nested-conditional.ink": "valid",
+  "sequence.ink": "valid",
+  "stitch.ink": "valid",
+  "todo-author-warning.ink": "valid",
 };
 
 function readFixture(name: string) {
@@ -65,6 +90,49 @@ function getFoldableLines(state: EditorState) {
   return lines;
 }
 
+function countErrorNodes(treeString: string) {
+  return treeString.match(/⚠/g)?.length ?? 0;
+}
+
+function getErrorNodeContexts(treeString: string) {
+  const contexts: string[] = [];
+  let index = treeString.indexOf("⚠");
+
+  while (index !== -1) {
+    contexts.push(treeString.slice(Math.max(0, index - 35), index + 36));
+    index = treeString.indexOf("⚠", index + 1);
+  }
+
+  return contexts;
+}
+
+function createCompileFiles(name: string, source: string) {
+  const files: Record<string, string> = {
+    [name]: source,
+  };
+
+  if (name === "include-quoted-path.ink" || name === "include-subfolder-path.ink") {
+    files["chapters/start.ink"] = "=== start ===\nIncluded chapter.\n-> END";
+  }
+
+  if (name === "include-subfolder-path.ink") {
+    files["shared/common.ink"] = "VAR shared_count = 0";
+  }
+
+  return files;
+}
+
+function getFixtureCompileStatus(name: string, source: string): FixtureCompileStatus {
+  const response = compileInkProject({
+    type: "compile",
+    requestId: `fixture-${name}`,
+    entryFile: name,
+    files: createCompileFiles(name, source),
+  });
+
+  return response.type === "compile-success" ? "valid" : "invalid";
+}
+
 function collectHighlightSpans(source: string): HighlightSpan[] {
   const state = createInkState(source);
   const tree = ensureSyntaxTree(state, state.doc.length, 1000);
@@ -94,36 +162,43 @@ describe("@mavnn/codemirror-lang-ink evaluation", () => {
       .sort();
 
     const report = fixtureNames.map((name) => {
-      const state = createInkState(readFixture(name));
+      const source = readFixture(name);
+      const state = createInkState(source);
       const treeString = getTreeString(state);
 
       return {
         name,
-        hasErrorNodes: treeString.includes("⚠"),
+        inkjsStatus: getFixtureCompileStatus(name, source),
+        errorNodeCount: countErrorNodes(treeString),
+        errorNodeContexts: getErrorNodeContexts(treeString),
         foldableLines: getFoldableLines(state),
       };
     });
 
+    expect(Object.keys(expectedFixtureCompileStatus).sort()).toEqual(fixtureNames);
+    expect(Object.fromEntries(report.map((item) => [item.name, item.inkjsStatus]))).toEqual(
+      expectedFixtureCompileStatus,
+    );
     expect(report).toEqual([
-      { name: "basic-knot.ink", hasErrorNodes: true, foldableLines: [1] },
-      { name: "built-in-functions.ink", hasErrorNodes: true, foldableLines: [] },
-      { name: "cjk-hangul-identifiers.ink", hasErrorNodes: true, foldableLines: [] },
-      { name: "divert-function-call.ink", hasErrorNodes: true, foldableLines: [] },
-      { name: "divert-parameterized.ink", hasErrorNodes: true, foldableLines: [1, 4] },
-      { name: "divert-three-part-path.ink", hasErrorNodes: true, foldableLines: [] },
-      { name: "divert-tunnel.ink", hasErrorNodes: true, foldableLines: [1, 6] },
-      { name: "emoji-offsets.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "escape-sequences.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "external-declaration.ink", hasErrorNodes: true, foldableLines: [4] },
-      { name: "function-knot.ink", hasErrorNodes: true, foldableLines: [1, 5] },
-      { name: "global-dictionary-tag.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "glue.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "include-quoted-path.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "include-subfolder-path.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "nested-conditional.ink", hasErrorNodes: false, foldableLines: [] },
-      { name: "sequence.ink", hasErrorNodes: true, foldableLines: [] },
-      { name: "stitch.ink", hasErrorNodes: true, foldableLines: [1, 2] },
-      { name: "todo-author-warning.ink", hasErrorNodes: false, foldableLines: [] },
+      { name: "basic-knot.ink", inkjsStatus: "valid", errorNodeCount: 1, errorNodeContexts: ["t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1] },
+      { name: "built-in-functions.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["Comparison(ExpressionSubtract(Bool(⚠),⚠),Name))),VariableAssignment(Tem", "parison(ExpressionSubtract(Bool(⚠),⚠),Name))),VariableAssignment(Temp,N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [4] },
+      { name: "cjk-hangul-identifiers.ink", inkjsStatus: "valid", errorNodeCount: 4, errorNodeContexts: ["eDeclaration(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentL", "tion(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,Cont", "n(Name,Int),ContentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,Content", "ntentLine(⚠),Knot(⚠),⚠,ContentLine(⚠),ContentLine,ContentLine(Divert(Di"], foldableLines: [] },
+      { name: "divert-function-call.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine,⚠,RepeatingChoice(Prew", "DivertTarget(Path))),⚠,ContentLine,⚠,RepeatingChoice(PreweaveChoiceCont", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [6] },
+      { name: "divert-parameterized.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine),⚠,Knot(KnotName,KnotA", "ivertTarget(Path))),⚠,ContentLine),⚠,Knot(KnotName,KnotArguments(Name,N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1, 4] },
+      { name: "divert-three-part-path.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(DivertArrow,DivertTarget(Path))),⚠,ContentLine,ContentLine(Divert(Div", "t(DivertArrow,DivertTarget(END)))),⚠),⚠)", "ivertArrow,DivertTarget(END)))),⚠),⚠)"], foldableLines: [4, 5] },
+      { name: "divert-tunnel.ink", inkjsStatus: "valid", errorNodeCount: 2, errorNodeContexts: ["t(DivertArrow,DivertTarget(END)))),⚠,Knot(KnotName,ContentLine,ContentL", "ContentLine(Divert(TunnelReturn))),⚠)"], foldableLines: [1, 6] },
+      { name: "emoji-offsets.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "escape-sequences.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "external-declaration.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["t(KnotName,VariableAssignment(Name,⚠),⚠,ContentLine,ContentLine(Divert(", "notName,VariableAssignment(Name,⚠),⚠,ContentLine,ContentLine(Divert(Div", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [4] },
+      { name: "function-knot.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["e)),VariableAssignment(Return,Name,⚠)),⚠,Knot(KnotName,VariableAssignme", "VariableAssignment(Return,Name,⚠)),⚠,Knot(KnotName,VariableAssignment(N", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [3, 7] },
+      { name: "global-dictionary-tag.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "glue.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "include-quoted-path.ink", inkjsStatus: "invalid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "include-subfolder-path.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "nested-conditional.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
+      { name: "sequence.ink", inkjsStatus: "valid", errorNodeCount: 3, errorNodeContexts: ["eContent)),ContentLine(Conditional(⚠),⚠(Pipe),InlineSequence(⚠,Sequence", "ntent)),ContentLine(Conditional(⚠),⚠(Pipe),InlineSequence(⚠,SequenceCon", "ditional(⚠),⚠(Pipe),InlineSequence(⚠,SequenceContent,Pipe,SequenceConte"], foldableLines: [] },
+      { name: "stitch.ink", inkjsStatus: "valid", errorNodeCount: 2, errorNodeContexts: [",DivertTarget(Path)))),LineComment(⚠),ContentLine,ContentLine(Divert(Di", "t(DivertArrow,DivertTarget(END)))),⚠)"], foldableLines: [1, 2] },
+      { name: "todo-author-warning.ink", inkjsStatus: "valid", errorNodeCount: 0, errorNodeContexts: [], foldableLines: [] },
     ]);
   });
 

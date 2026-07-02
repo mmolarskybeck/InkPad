@@ -38,12 +38,7 @@ import {
   searchKeymap,
   searchPanelOpen,
 } from "@codemirror/search";
-import {
-  type Diagnostic,
-  lintGutter,
-  lintKeymap,
-  setDiagnostics,
-} from "@codemirror/lint";
+import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
 import {
   Decoration,
   type DecorationSet,
@@ -60,15 +55,16 @@ import {
 import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
+import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
-import { getEditorDiagnosticSeverity } from "@/types/editor-diagnostic";
 
 export interface CodeMirrorEditorProps {
   value: string;
   onChange: (value: string) => void;
   onControlStateChange?: (state: CodeMirrorEditorControlState) => void;
   errors: EditorDiagnostic[];
+  fileId: string;
   documentId: string;
   fileName: string;
   isMobileLayout?: boolean;
@@ -94,6 +90,7 @@ export interface CodeMirrorEditorInsertOptions {
 export type ReplaceDocumentOptions = {
   history: "reset" | "preserve";
   selection?: { from: number; to?: number };
+  diagnostics?: "reapply" | "clear";
 };
 
 export interface CodeMirrorEditorHandle {
@@ -254,45 +251,12 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
   }, { dark: isDark });
 }
 
-function getDiagnosticLine(diagnostic: EditorDiagnostic) {
-  return "range" in diagnostic ? diagnostic.range.startLineNumber : diagnostic.line;
-}
-
-function getDiagnosticStartColumn(diagnostic: EditorDiagnostic) {
-  return "range" in diagnostic ? diagnostic.range.startColumn : diagnostic.column ?? 1;
-}
-
-function getDiagnosticEndColumn(diagnostic: EditorDiagnostic) {
-  if ("range" in diagnostic) return diagnostic.range.endColumn;
-  if (diagnostic.column) return diagnostic.column + 10;
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function toCodeMirrorDiagnostics(state: EditorState, diagnostics: EditorDiagnostic[]): Diagnostic[] {
-  return diagnostics.map((diagnostic) => {
-    const lineNumber = getDiagnosticLine(diagnostic);
-    const startColumn = getDiagnosticStartColumn(diagnostic);
-    const endColumn = getDiagnosticEndColumn(diagnostic);
-    const from = lineNumberToOffset(state.doc, lineNumber, startColumn);
-    const line = state.doc.line(Math.min(Math.max(lineNumber, 1), state.doc.lines));
-    const to = Math.max(from, Math.min(lineNumberToOffset(state.doc, lineNumber, endColumn), line.to));
-    const severity = getEditorDiagnosticSeverity(diagnostic);
-
-    return {
-      from,
-      to: to === from ? Math.min(from + 1, state.doc.length) : to,
-      severity: severity === "hint" ? "hint" : severity,
-      message: diagnostic.message,
-      source: diagnostic.source,
-    };
-  });
-}
-
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(({
   value,
   onChange,
   onControlStateChange,
   errors,
+  fileId,
   documentId,
   fileName,
   isMobileLayout = false,
@@ -478,7 +442,12 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     syncingRef.current = true;
     if (options.history === "reset") {
       view.setState(createState(nextValue, options.selection));
-      view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errorsRef.current)));
+      view.dispatch(setDiagnostics(
+        view.state,
+        options.diagnostics === "clear"
+          ? []
+          : toCodeMirrorDiagnostics(view.state, errorsRef.current, { activeFileId: fileId }),
+      ));
     } else {
       const selection = options.selection
         ? EditorSelection.range(
@@ -500,7 +469,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     setTimeout(() => {
       syncingRef.current = false;
     }, 0);
-  }, [createState, updateControlState]);
+  }, [createState, fileId, updateControlState]);
 
   const insertTextAtCursor = useCallback((insert: string | CodeMirrorEditorInsertOptions) => {
     const view = viewRef.current;
@@ -828,6 +797,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const selection = view.state.selection.main;
     replaceDocument(value, {
       history: didSwitchDocument ? "reset" : "preserve",
+      diagnostics: didSwitchDocument ? "clear" : "reapply",
       selection: didSwitchDocument
         ? undefined
         : {
@@ -842,8 +812,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const view = viewRef.current;
     if (!view) return;
 
-    view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errors)));
-  }, [errors]);
+    view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errors, { activeFileId: fileId })));
+  }, [errors, fileId]);
 
   return (
     <div className="flex h-full flex-col">

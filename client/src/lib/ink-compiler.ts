@@ -14,6 +14,7 @@ import type {
 ////////////////////////////////////////////////////////////////////////////////
 
 export interface InkCompilerError {
+  fileId?: string;
   line: number;
   column?: number;
   message: string;
@@ -121,6 +122,7 @@ export async function compileInkScript(
       requestId,
       runtimeStory: null,
       errors: [{
+        fileId: input.entryFile,
         line: 1,
         message: `Entry file "${input.entryFile}" was not found in this project.`,
         type: "error",
@@ -134,6 +136,7 @@ export async function compileInkScript(
       requestId,
       runtimeStory: null,
       errors: [{
+        fileId: input.entryFile,
         line: 1,
         message: `Story is ${formatBytes(sourceSizeBytes)}. InkPad compiles stories up to ${formatBytes(MAX_COMPILE_SOURCE_BYTES)}.`,
         type: "error",
@@ -199,6 +202,7 @@ export function createSingleFileCompileInput(
 function parseInkError(error: Error): InkCompilerError {
   const msg = error.message ?? "Compilation failed";
 
+  let fileId: string | undefined;
   let line = 1;
   let cleanMessage = msg;
 
@@ -206,6 +210,7 @@ function parseInkError(error: Error): InkCompilerError {
   const lineMatch = msg.match(/\bline\s+(\d+):/i);
   if (lineMatch) {
     line = Number(lineMatch[1]);
+    fileId = msg.match(/'([^']+)'\s+line\s+\d+:/i)?.[1];
 
     cleanMessage = msg
       // ERROR/WARNING: strip the entire prefix including file + line
@@ -223,6 +228,7 @@ function parseInkError(error: Error): InkCompilerError {
   }
 
   return {
+    fileId,
     line,
     column: undefined,
     message: cleanMessage,
@@ -244,6 +250,7 @@ function normalizeCompilerMessage(message?: InkCompilerMessage): InkCompilerErro
   return {
     line: message.line ?? parsed.line,
     column: message.column ?? parsed.column,
+    fileId: message.fileId ?? parsed.fileId,
     message: parsed.message, // Use the cleaned message
     type: message.type || parsed.type,
   };

@@ -113,6 +113,12 @@ cases:
 - TODO/FIXME author warnings are parsed as plain content, not author-warning
   tokens
 
+Checkpoint 5 tightened this evidence by compiling every fixture with the repo's
+pinned inkjs before treating CodeMirror parser errors as candidate gaps. Most
+fixtures are now expected to compile successfully under inkjs; the quoted
+INCLUDE fixture is explicitly recorded as invalid because pinned inkjs rejects
+quoted relative include paths.
+
 ### Decision
 
 Do not wire `@mavnn/codemirror-lang-ink` into the active editor yet. The next
@@ -143,16 +149,99 @@ start the fallback `StreamLanguage` path using the same fixtures.
 
 ### Review Follow-Ups Not Yet Done
 
-- Move the CodeMirror diagnostic adapter out of the React component and cover it
-  with fixture tests when the Phase 2 `fileId` diagnostic model lands.
 - Decide whether to remove or hide raw `getEditor()` access from the public
   editor handle during the Monaco-removal checkpoint.
 - Validate pointerdown-based mobile insertion and clipboard paste behavior on a
   real iPhone/iPad before signing off on Phase 4.
 
+## 2026-07-02 - Checkpoint 4: Diagnostic adapter hardening
+
+### Implemented
+
+- Moved CodeMirror lint diagnostic conversion out of
+  `client/src/components/editor/codemirror-editor.tsx` and into
+  `client/src/editor/codemirror/diagnostics.ts`.
+- Added active-file filtering for CodeMirror lint markers via explicit
+  `fileId`, while leaving the Problems panel able to render the full diagnostic
+  list.
+- Added `fileId` to InkPad-authored diagnostics and to the editor-facing
+  compiler diagnostic union. Compiler messages now preserve a parsed file id
+  when inkjs includes one in the message text.
+- Kept current single-file compiler messages visible by normalizing the
+  compiler helper's internal `story.ink` id to the active document filename at
+  the editor page boundary.
+- Added `client/src/editor/codemirror/diagnostics.test.ts` to cover active-file
+  filtering, UTF-16 line/column conversion with CJK/emoji text, and hint
+  severity preservation.
+- Added icon-only copy buttons to Problems rows so diagnostic messages can be
+  copied without depending on editor selection.
+
+### Verified
+
+- `npm run check` passes.
+- `npm test` passes: 25 test files, 195 tests.
+- `npm run build` passes.
+- `npm test` still prints the known Monaco `marked.umd.js.map` sourcemap
+  warning.
+
+### Remaining Follow-Ups
+
+- Add compiler-diagnostic fixture snapshots from real `.ink` programs for the
+  Phase 2 diagnostic fixture policy.
+- When multi-file editing lands, make Problems clicks switch to the diagnostic's
+  `fileId` before revealing the range.
+- Continue to keep CodeMirror lint scoped to the active file only.
+
+## 2026-07-02 - Checkpoint 5: Language evaluation evidence cleanup
+
+### Implemented
+
+- Fixed invalid language-evaluation fixtures so grammar gaps are not inflated
+  by Ink source that inkjs also rejects:
+  - `built-in-functions.ink` now uses legal top-level `VAR`/`LIST`
+    declarations and runtime built-in calls inside `start`.
+  - `function-knot.ink` no longer collides a `ref` parameter name with the
+    global `VAR total`.
+  - `divert-three-part-path.ink` now defines a real three-part target through a
+    labelled gather.
+  - `divert-function-call.ink` now keeps the choice tag on the choice text and
+    places the parameterized divert in the choice body.
+- Added an inkjs compile-status gate to
+  `client/src/editor/codemirror/ink-language-evaluation.test.ts`.
+- Replaced boolean-only parser error reporting with error-node counts and
+  parser-context snippets, so partial grammar improvements and regressions are
+  visible in test diffs.
+- Kept the "do not wire `@mavnn/codemirror-lang-ink` into the active editor
+  yet" decision. Valid fixtures such as CJK/Hangul identifiers, parameterized
+  diverts, tunnel returns, sequences, EXTERNAL calls, and function/ref forms
+  still produce Lezer error nodes.
+- Fixed document-switch lint behavior so `replaceDocument(..., { history:
+  "reset" })` clears old diagnostics on true document switches while still
+  reapplying diagnostics for same-document resets.
+- Made `InkDocument.id` required and removed the editor call-site fallback to
+  filename identity.
+
+### Verified
+
+- `npm run check` passes.
+- `npm test` passes: 25 test files, 195 tests.
+- `npm run build` passes.
+- `npm test` still prints the known Monaco `marked.umd.js.map` sourcemap
+  warning.
+
+### Notes
+
+- Phone-to-desktop layout flips can still remount the editor because the editor
+  pane moves between different layout trees around the mobile breakpoint. This
+  can reset undo history on rotation/resizing and remains a Phase 4 mobile
+  validation item.
+- Storage key/schema bumping for discarding pre-CodeMirror local saves is still
+  pending and is now tracked under Phase 5/6 follow-ups.
+
 ## Next Checkpoint
 
-Phase 3 language-mode work:
+Phase 3 language-mode work, plus the remaining Phase 2 compiler-diagnostic
+fixtures:
 
 - Expand fixture corpus for Ink highlighting/folding/parsing.
 - Pull relevant fixtures from `ink-tmlanguage/tests/cases/`.
@@ -163,15 +252,19 @@ Phase 3 language-mode work:
 ## Later Checkpoints
 
 - Phase 2 diagnostic model hardening:
-  - Add `fileId` to editor diagnostics.
-  - Separate `inkjs` and InkPad-authored diagnostics more explicitly.
-  - Add diagnostic adapter tests.
-  - Move CodeMirror lint-range conversion out of the editor component.
+  - Add compiler-diagnostic fixture snapshots.
+  - Finish multi-file Problems-click behavior when the multi-file UI exists.
+  - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
+    InkPad-authored lint rules are added.
 - Phase 4 mobile authoring:
   - Verify accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad.
   - Confirm pointerdown insertion does not conflict with scroll gestures in drawers.
   - Confirm clipboard toolbar behavior on iOS Safari.
+  - Decide whether phone/desktop breakpoint flips need undo-history
+    preservation or whether remount-on-layout-change is acceptable.
 - Phase 5 multi-file-ready groundwork:
+  - Bump local storage key/schema version before Monaco removal so stale
+    pre-CodeMirror saves are discarded predictably.
   - Normalize POSIX project paths.
   - Reject absolute paths and `..`.
   - Keep explicit `entryFile`.
