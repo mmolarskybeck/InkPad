@@ -35,7 +35,6 @@ import {
   closeSearchPanel,
   highlightSelectionMatches,
   openSearchPanel,
-  search,
   searchKeymap,
   searchPanelOpen,
 } from "@codemirror/search";
@@ -58,6 +57,7 @@ import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
+import { inkSearch } from "@/editor/codemirror/search-panel";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
@@ -229,29 +229,13 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
       borderColor: "var(--border-color)",
       color: "var(--text-secondary)",
     },
-    ".cm-search": {
-      backgroundColor: "var(--panel-bg)",
-      borderTop: "1px solid var(--border-color)",
-      borderBottom: "1px solid var(--border-color)",
-      color: "var(--text-primary)",
-      padding: "6px",
+    ".cm-searchMatch": {
+      backgroundColor: "color-mix(in srgb, var(--warning) 28%, transparent)",
+      borderRadius: "2px",
     },
-    ".cm-search input": {
-      backgroundColor: "var(--editor-bg)",
-      border: "1px solid var(--border-color)",
-      borderRadius: "4px",
-      color: "var(--text-emphasis)",
-      fontSize: "16px",
-      padding: "3px 6px",
-    },
-    ".cm-search button": {
-      backgroundColor: "var(--accent)",
-      border: "1px solid var(--border-color)",
-      borderRadius: "4px",
-      color: "var(--text-emphasis)",
-      fontSize: "12px",
-      marginLeft: "4px",
-      padding: "2px 7px",
+    ".cm-searchMatch-selected": {
+      backgroundColor: "color-mix(in srgb, var(--warning) 48%, transparent)",
+      outline: "1px solid var(--warning)",
     },
     ".cm-panels": {
       backgroundColor: "var(--panel-bg)",
@@ -428,7 +412,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     rectangularSelection(),
     indentOnInput(),
     bracketMatching(),
-    search({ top: isMobileLayout }),
+    inkSearch({ top: isMobileLayout }),
     highlightSelectionMatches({ minSelectionLength: 3 }),
     inkIdentifierOccurrences,
     flashLineField,

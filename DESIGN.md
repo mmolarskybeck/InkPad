@@ -43,10 +43,17 @@ typography:
     fontWeight: 500
     lineHeight: 1.2
     letterSpacing: "0.05em"
+  code:
+    fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.55
+    fontVariantLigatures: "none"
 rounded:
   lg: "8px"
   md: "6px"
   sm: "4px"
+  xs: "2px"
 spacing:
   xs: "4px"
   sm: "8px"
