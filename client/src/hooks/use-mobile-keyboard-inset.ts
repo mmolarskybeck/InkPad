@@ -21,18 +21,14 @@ export function useMobileKeyboardInset(isMobile: boolean, onChange?: () => void)
     }
 
     const viewport = window.visualViewport;
-    let frame = 0;
 
     const updateInset = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const next = Math.max(
-          0,
-          Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
-        );
-        setInset(next > 24 ? next : 0);
-        onChangeRef.current?.();
-      });
+      const next = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
+      );
+      setInset(next > 24 ? next : 0);
+      onChangeRef.current?.();
     };
 
     updateInset();
@@ -41,7 +37,6 @@ export function useMobileKeyboardInset(isMobile: boolean, onChange?: () => void)
     window.addEventListener("orientationchange", updateInset);
 
     return () => {
-      window.cancelAnimationFrame(frame);
       viewport.removeEventListener("resize", updateInset);
       viewport.removeEventListener("scroll", updateInset);
       window.removeEventListener("orientationchange", updateInset);

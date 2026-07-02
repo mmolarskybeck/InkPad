@@ -232,6 +232,46 @@ export function EditorWorkspace({
     insertAtCursor(insert, closeDrawer);
   }, [insertAtCursor, markPointerActivationHandled]);
 
+  // Accessory-bar commands (undo/redo/find while the keyboard is open) run on
+  // pointerdown with preventDefault so focus never leaves the editor and the
+  // iOS keyboard stays up.
+  const handleAccessoryCommandPointerDown = useCallback((
+    event: React.PointerEvent<HTMLElement>,
+    command: () => void,
+  ) => {
+    event.preventDefault();
+    markPointerActivationHandled();
+    command();
+  }, [markPointerActivationHandled]);
+
+  const handleAccessoryCommandClick = useCallback((
+    event: React.MouseEvent<HTMLElement>,
+    command: () => void,
+  ) => {
+    if (pointerActivationHandledRef.current) {
+      event.preventDefault();
+      return;
+    }
+    command();
+  }, []);
+
+  const handleAccessoryCommandKeyDown = useCallback((
+    event: React.KeyboardEvent<HTMLElement>,
+    command: () => void,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    markPointerActivationHandled();
+    command();
+  }, [markPointerActivationHandled]);
+
+  // Deliberately dismisses the keyboard: reviewing problems is a read task,
+  // and the drawer needs the vertical space the keyboard is occupying.
+  const handleProblemsChipClick = useCallback(() => {
+    editorRef.current?.getEditor()?.contentDOM.blur();
+    handleMobileDrawerToggle("problems");
+  }, [editorRef, handleMobileDrawerToggle]);
+
   const handleSnippetPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse") return;
 
@@ -319,6 +359,9 @@ export function EditorWorkspace({
   // The drawer is portalled outside `<main>` though, so it still needs an
   // explicit offset to sit above the keyboard.
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile, () => editorRef.current?.layout());
+  // While typing, chrome collapses to a single accessory row: tabs and the
+  // Problems/Variables bar hide, and undo/redo/find fold into the insert bar.
+  const isMobileKeyboardOpen = isMobile && mobileKeyboardInset > 0;
 
   const mobileDrawerStyle: CSSProperties | undefined = mobileKeyboardInset > 0
     ? {
@@ -348,6 +391,12 @@ export function EditorWorkspace({
     const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
     return () => window.clearTimeout(timer);
   }, [editorRef, isMobileSearchMode, setMobileDrawer]);
+
+  // Re-measure after the chrome rows mount/unmount around the keyboard.
+  useEffect(() => {
+    const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
+    return () => window.clearTimeout(timer);
+  }, [editorRef, isMobileKeyboardOpen]);
 
   // Desktop and tablet keep the inspector dock independent from primary-pane focus.
   if (!isMobile) {
@@ -492,7 +541,7 @@ export function EditorWorkspace({
         onValueChange={handleMobilePrimaryTabChange}
         className="flex min-h-0 flex-1 flex-col"
       >
-        {!isMobileSearchMode && (
+        {!isMobileSearchMode && !isMobileKeyboardOpen && (
           <TabsList className="flex h-10 w-full shrink-0 rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
             <TabsTrigger
               value="code"
@@ -516,36 +565,93 @@ export function EditorWorkspace({
       </Tabs>
 
       {mobileTab === "code" && !isMobileSearchMode && (
-        <div className="relative z-40 flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-t border-border-color bg-editor-bg px-1 py-1">
-          {MOBILE_SYNTAX_INSERTS.map((item) => (
+        <div className="relative z-40 flex h-11 shrink-0 items-stretch gap-1 border-t border-border-color bg-editor-bg px-1 py-1">
+          {isMobileKeyboardOpen && (
+            <div className="flex shrink-0 items-stretch gap-1 border-r border-border-color pr-1">
+              <button
+                type="button"
+                onPointerDown={(event) => handleAccessoryCommandPointerDown(event, () => editorRef.current?.undo())}
+                onClick={(event) => handleAccessoryCommandClick(event, () => editorRef.current?.undo())}
+                onKeyDown={(event) => handleAccessoryCommandKeyDown(event, () => editorRef.current?.undo())}
+                disabled={!editorControlState.canUndo}
+                className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:opacity-30"
+                aria-label="Undo"
+                title="Undo"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onPointerDown={(event) => handleAccessoryCommandPointerDown(event, () => editorRef.current?.redo())}
+                onClick={(event) => handleAccessoryCommandClick(event, () => editorRef.current?.redo())}
+                onKeyDown={(event) => handleAccessoryCommandKeyDown(event, () => editorRef.current?.redo())}
+                disabled={!editorControlState.canRedo}
+                className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:opacity-30"
+                aria-label="Redo"
+                title="Redo"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onPointerDown={(event) => handleAccessoryCommandPointerDown(event, onToggleFind)}
+                onClick={(event) => handleAccessoryCommandClick(event, onToggleFind)}
+                onKeyDown={(event) => handleAccessoryCommandKeyDown(event, onToggleFind)}
+                className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                aria-label="Find and replace"
+                title="Find and replace"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
+            {MOBILE_SYNTAX_INSERTS.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onPointerDown={(event) => handleInsertPointerDown(event, item.insert)}
+                onClick={(event) => handleInsertClick(event, item.insert)}
+                onKeyDown={(event) => handleInsertKeyDown(event, item.insert)}
+                className="flex h-full min-w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg px-2 font-mono text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                aria-label={`Insert ${item.label}`}
+                title={`Insert ${item.label}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex shrink-0 items-stretch gap-1 border-l border-border-color pl-1">
+            {isMobileKeyboardOpen && problemCount > 0 && (
+              <button
+                type="button"
+                onClick={handleProblemsChipClick}
+                className="flex h-full min-w-10 shrink-0 items-center justify-center gap-1 rounded border border-error/40 bg-panel-bg px-2 text-[0.8125rem] font-medium tabular-nums text-error transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                aria-label={`Open problems, ${problemCount} found`}
+                title={`${problemCount} problems`}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {problemCount}
+              </button>
+            )}
             <button
-              key={item.label}
               type="button"
-              onPointerDown={(event) => handleInsertPointerDown(event, item.insert)}
-              onClick={(event) => handleInsertClick(event, item.insert)}
-              onKeyDown={(event) => handleInsertKeyDown(event, item.insert)}
-              className="flex h-full min-w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg px-2 font-mono text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label={`Insert ${item.label}`}
-              title={`Insert ${item.label}`}
+              onPointerDown={handleSnippetsTogglePointerDown}
+              onClick={handleSnippetsToggleClick}
+              onKeyDown={handleSnippetsToggleKeyDown}
+              aria-pressed={mobileDrawer === "snippets"}
+              aria-label="Snippets"
+              title="Snippets"
+              className={`flex h-full shrink-0 items-center justify-center gap-1.5 rounded border border-border-color bg-panel-bg text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue aria-pressed:border-accent-blue aria-pressed:text-accent-blue ${isMobileKeyboardOpen ? "w-10" : "min-w-[6.5rem] px-3"}`}
             >
-              {item.label}
+              <Braces className="h-4 w-4" />
+              {!isMobileKeyboardOpen && "Snippets"}
             </button>
-          ))}
-          <button
-            type="button"
-            onPointerDown={handleSnippetsTogglePointerDown}
-            onClick={handleSnippetsToggleClick}
-            onKeyDown={handleSnippetsToggleKeyDown}
-            aria-pressed={mobileDrawer === "snippets"}
-            className="ml-auto flex h-full min-w-[6.5rem] shrink-0 items-center justify-center gap-1.5 rounded border border-border-color bg-panel-bg px-3 text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue aria-pressed:border-accent-blue aria-pressed:text-accent-blue"
-          >
-            <Braces className="h-4 w-4" />
-            Snippets
-          </button>
+          </div>
         </div>
       )}
 
-      {!isMobileSearchMode && (
+      {!isMobileSearchMode && !isMobileKeyboardOpen && (
         <div
           className="relative z-40 flex h-12 shrink-0 border-t border-border-color bg-panel-bg"
         >
