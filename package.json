@@ -34,6 +34,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@lezer/highlight": "1.2.3",
+    "@mavnn/codemirror-lang-ink": "0.9.27",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-dialog": "^1.1.7",

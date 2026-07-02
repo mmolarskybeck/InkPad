@@ -60,15 +60,72 @@ Running log for the Monaco to CodeMirror 6 migration on `codex/monaco-to-codemir
 - The active editor does not yet have Ink syntax highlighting/folding parity. That is the next major migration checkpoint.
 - Mobile behavior still needs real-device testing per the migration plan.
 
+## 2026-07-02 - Checkpoint 2: Ink language candidate evaluated
+
+### Implemented
+
+- Added exact-pinned `@mavnn/codemirror-lang-ink@0.9.27`.
+- Added the first CodeMirror Ink fixture corpus in
+  `client/src/editor/codemirror/__fixtures__/`.
+- Added `client/src/editor/codemirror/ink-language-evaluation.test.ts`.
+
+### Docs Consulted
+
+- CodeMirror language-package docs:
+  <https://codemirror.net/examples/lang-package/>
+- CodeMirror reference for `LanguageSupport`, `ensureSyntaxTree`,
+  `syntaxTree`, `foldable`, `HighlightStyle`, and `syntaxHighlighting`:
+  <https://codemirror.net/docs/ref/>
+- `@mavnn/codemirror-lang-ink` README and package metadata:
+  <https://github.com/mavnn/codemirror-lang-ink>
+- Inkle's official writing guide for fixture shape:
+  <https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md>
+
+### Evaluation Result
+
+`@mavnn/codemirror-lang-ink` is useful but not ready to wire into the editor
+as-is.
+
+It produces helpful highlight tags for cleanly parsed basics:
+
+- knot headings and names
+- ordinary content
+- choices and bracketed choice text
+- inline tags
+- diverts to `END`
+- comments and block comments
+- list declarations
+- conditionals
+- glue
+- include statements in some forms
+
+The fixture test currently records Lezer error nodes for important InkPad
+cases:
+
+- CJK/Hangul identifiers and non-ASCII knot names
+- function return/function-call paths
+- several parameterized divert forms
+- tunnel diverts
+- sequence variants
+- some stitch/fold boundaries
+- built-in function expressions
+- EXTERNAL declarations and calls
+- TODO/FIXME author warnings are parsed as plain content, not author-warning
+  tokens
+
+### Decision
+
+Do not wire `@mavnn/codemirror-lang-ink` into the active editor yet. The next
+step is to either patch/vendor this Lezer grammar against the fixture corpus or
+start the fallback `StreamLanguage` path using the same fixtures.
+
 ## Next Checkpoint
 
 Phase 3 language-mode work:
 
-- Create fixture corpus for Ink highlighting/folding/parsing.
+- Expand fixture corpus for Ink highlighting/folding/parsing.
 - Pull relevant fixtures from `ink-tmlanguage/tests/cases/`.
-- Add InkPad-specific fixtures for diverts, tunnel diverts, parameterized targets, dictionary tags, CJK/Hangul/emoji offsets, TODO/author warnings, built-ins, INCLUDE paths, escapes, and EXTERNAL behavior.
-- Evaluate `@mavnn/codemirror-lang-ink` first.
-- Decide whether to keep, patch/vendor/fork, or fall back to a `StreamLanguage` tokenizer.
+- Decide whether to patch/vendor/fork `@mavnn/codemirror-lang-ink` or fall back to a `StreamLanguage` tokenizer.
 - Add InkPad `HighlightStyle`.
 - Validate fold ranges.
 
