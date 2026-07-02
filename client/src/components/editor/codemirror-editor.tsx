@@ -69,6 +69,7 @@ export interface CodeMirrorEditorProps {
   onChange: (value: string) => void;
   onControlStateChange?: (state: CodeMirrorEditorControlState) => void;
   errors: EditorDiagnostic[];
+  documentId: string;
   fileName: string;
   isMobileLayout?: boolean;
   showHeader?: boolean;
@@ -87,6 +88,7 @@ export interface CodeMirrorEditorInsertOptions {
   text: string;
   cursorOffset?: number;
   selectRange?: { startOffset: number; endOffset: number };
+  userEvent?: string;
 }
 
 export type ReplaceDocumentOptions = {
@@ -101,6 +103,7 @@ export interface CodeMirrorEditorHandle {
   focus: () => void;
   layout: () => void;
   replaceDocument: (value: string, options: ReplaceDocumentOptions) => void;
+  replaceRange: (from: number, to: number, insert: string, userEvent?: string) => void;
   insertText: (text: string) => void;
   replaceSelection: (text: string) => void;
   getSelection: () => { from: number; to: number };
@@ -290,6 +293,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   onChange,
   onControlStateChange,
   errors,
+  documentId,
   fileName,
   isMobileLayout = false,
   showHeader = true,
@@ -303,9 +307,15 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncingRef = useRef(false);
   const lastEmittedValueRef = useRef(value);
-  const lastSyncedFileNameRef = useRef(fileName);
+  const lastSyncedDocumentIdRef = useRef(documentId);
   const onChangeRef = useRef(onChange);
   const onControlStateChangeRef = useRef(onControlStateChange);
+  const errorsRef = useRef(errors);
+  const lastControlStateRef = useRef<CodeMirrorEditorControlState>({
+    canUndo: false,
+    canRedo: false,
+    isFindVisible: false,
+  });
   const themeCompartmentRef = useRef(new Compartment());
   const wrappingCompartmentRef = useRef(new Compartment());
   const editableCompartmentRef = useRef(new Compartment());
@@ -327,11 +337,27 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     onControlStateChangeRef.current = onControlStateChange;
   }, [onControlStateChange]);
 
+  useEffect(() => {
+    errorsRef.current = errors;
+  }, [errors]);
+
   const emitControlState = useCallback((nextHistoryState = historyStateRef.current) => {
-    onControlStateChangeRef.current?.({
+    const nextControlState = {
       ...nextHistoryState,
       isFindVisible: findVisibleRef.current,
-    });
+    };
+    const lastControlState = lastControlStateRef.current;
+
+    if (
+      lastControlState.canUndo === nextControlState.canUndo
+      && lastControlState.canRedo === nextControlState.canRedo
+      && lastControlState.isFindVisible === nextControlState.isFindVisible
+    ) {
+      return;
+    }
+
+    lastControlStateRef.current = nextControlState;
+    onControlStateChangeRef.current?.(nextControlState);
   }, []);
 
   const clearChangeEmitTimer = useCallback(() => {
@@ -452,6 +478,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     syncingRef.current = true;
     if (options.history === "reset") {
       view.setState(createState(nextValue, options.selection));
+      view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errorsRef.current)));
     } else {
       const selection = options.selection
         ? EditorSelection.range(
@@ -464,6 +491,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         changes: { from: 0, to: view.state.doc.length, insert: nextValue },
         selection,
         annotations: isolateHistory.of("full"),
+        userEvent: "input.replace",
       });
     }
 
@@ -499,8 +527,29 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       selection,
       scrollIntoView: true,
       annotations: isolateHistory.of("full"),
+      userEvent: options.userEvent ?? "input.insert",
     });
     view.focus();
+    emitChangeNow();
+  }, [emitChangeNow]);
+
+  const replaceRange = useCallback((
+    from: number,
+    to: number,
+    insert: string,
+    userEvent = "input.replace",
+  ) => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const safeFrom = Math.min(Math.max(from, 0), view.state.doc.length);
+    const safeTo = Math.min(Math.max(to, safeFrom), view.state.doc.length);
+
+    view.dispatch({
+      changes: { from: safeFrom, to: safeTo, insert },
+      annotations: isolateHistory.of("full"),
+      userEvent,
+    });
     emitChangeNow();
   }, [emitChangeNow]);
 
@@ -576,6 +625,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: "" },
         annotations: isolateHistory.of("full"),
+        userEvent: "delete.cut",
       });
       view.focus();
       emitChangeNow();
@@ -589,7 +639,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     void (async () => {
       const text = await readTextFromClipboard();
       if (text) {
-        insertTextAtCursor({ text });
+        insertTextAtCursor({ text, userEvent: "input.paste" });
       } else {
         view.focus();
       }
@@ -645,6 +695,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       viewRef.current?.requestMeasure();
     },
     replaceDocument,
+    replaceRange,
     insertText: (text: string) => insertTextAtCursor({ text }),
     replaceSelection: (text: string) => insertTextAtCursor({ text }),
     getSelection: () => {
@@ -693,6 +744,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     jumpToLine,
     jumpToOffset,
     pasteFromClipboard,
+    replaceRange,
     replaceDocument,
     runCommand,
   ]);
@@ -709,6 +761,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     if (!isMobileLayout) view.focus();
 
     return () => {
+      emitChangeNow();
       clearChangeEmitTimer();
       if (flashTimerRef.current) {
         clearTimeout(flashTimerRef.current);
@@ -761,11 +814,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     });
 
     const currentValue = view.state.doc.toString();
-    const didSwitchDocument = fileName !== lastSyncedFileNameRef.current;
+    const didSwitchDocument = documentId !== lastSyncedDocumentIdRef.current;
     const isEchoFromLocalEdit = value === lastEmittedValueRef.current;
 
-    if (currentValue === value) {
-      lastSyncedFileNameRef.current = fileName;
+    if (!didSwitchDocument && currentValue === value) {
+      lastSyncedDocumentIdRef.current = documentId;
       return;
     }
 
@@ -782,8 +835,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             to: selection.to,
           },
     });
-    lastSyncedFileNameRef.current = fileName;
-  }, [fileName, replaceDocument, value]);
+    lastSyncedDocumentIdRef.current = documentId;
+  }, [documentId, fileName, replaceDocument, value]);
 
   useEffect(() => {
     const view = viewRef.current;

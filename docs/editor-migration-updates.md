@@ -119,6 +119,37 @@ Do not wire `@mavnn/codemirror-lang-ink` into the active editor yet. The next
 step is to either patch/vendor this Lezer grammar against the fixture corpus or
 start the fallback `StreamLanguage` path using the same fixtures.
 
+## 2026-07-02 - Checkpoint 3: Editor lifecycle review fixes
+
+### Implemented
+
+- Fixed pending-edit loss on editor unmount by flushing debounced CodeMirror
+  changes before destroying the `EditorView`.
+- Changed the phone Code tab to mount lazily after first activation and then
+  stay mounted while hidden. This preserves undo history, selection, cursor,
+  scroll position, and editor compartments across Code ↔ Preview switches.
+- Added explicit document identity for startup, import, open, save-as/rename,
+  and new-document flows. CodeMirror now resets document state from
+  `documentId`, not from filename/focus heuristics alone.
+- Changed settings-panel metadata tag writes to apply a targeted single-range
+  CodeMirror transaction instead of whole-document replacement, with a source
+  state fallback when the editor has not mounted yet.
+- Suppressed duplicate `onControlStateChange` emissions so cursor/selection
+  movement does not force unnecessary `EditorPage` state updates.
+- Reapplied CodeMirror lint diagnostics immediately after `replaceDocument`
+  resets the editor state.
+- Added `userEvent` annotations to programmatic replace, insert, paste, and cut
+  transactions.
+
+### Review Follow-Ups Not Yet Done
+
+- Move the CodeMirror diagnostic adapter out of the React component and cover it
+  with fixture tests when the Phase 2 `fileId` diagnostic model lands.
+- Decide whether to remove or hide raw `getEditor()` access from the public
+  editor handle during the Monaco-removal checkpoint.
+- Validate pointerdown-based mobile insertion and clipboard paste behavior on a
+  real iPhone/iPad before signing off on Phase 4.
+
 ## Next Checkpoint
 
 Phase 3 language-mode work:
@@ -135,12 +166,16 @@ Phase 3 language-mode work:
   - Add `fileId` to editor diagnostics.
   - Separate `inkjs` and InkPad-authored diagnostics more explicitly.
   - Add diagnostic adapter tests.
+  - Move CodeMirror lint-range conversion out of the editor component.
 - Phase 4 mobile authoring:
   - Verify accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad.
+  - Confirm pointerdown insertion does not conflict with scroll gestures in drawers.
+  - Confirm clipboard toolbar behavior on iOS Safari.
 - Phase 5 multi-file-ready groundwork:
   - Normalize POSIX project paths.
   - Reject absolute paths and `..`.
   - Keep explicit `entryFile`.
 - Phase 6 Monaco removal:
   - Remove Monaco packages, setup files, Monarch tests, completion/code-action adapters, and stale CSS.
+  - Consolidate transitional editor-handle aliases and remove raw editor access if no longer needed.
   - Update README, architecture docs, notices, and bundle notes.

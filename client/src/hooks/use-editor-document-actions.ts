@@ -14,6 +14,7 @@ import {
   trackProjectSavedLocal,
 } from "@/lib/analytics";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
+import { createInkDocumentId } from "@/lib/ink-document-id";
 import type { InkDocument } from "@/types/ink-document";
 
 export interface PendingDocumentAction {
@@ -153,6 +154,7 @@ export function useEditorDocumentActions({
     setRecoveredAt(null);
     setIsRecoveryBannerDismissed(false);
     setCurrentDocument({
+      id: createInkDocumentId(),
       filename,
       title: settings?.title ?? getDisplayTitleFromFilename(filename),
       source,
@@ -180,6 +182,7 @@ export function useEditorDocumentActions({
     resetBufferedSource(source);
     FileOperations.saveRecoveryDraft(filename, source);
     setCurrentDocument({
+      id: createInkDocumentId(),
       filename,
       title: getDisplayTitleFromFilename(filename),
       source,
@@ -197,6 +200,7 @@ export function useEditorDocumentActions({
     setRecoveredAt(null);
     setIsRecoveryBannerDismissed(false);
     setCurrentDocument({
+      id: createInkDocumentId(),
       filename: "untitled.ink",
       title: "Untitled",
       source: "",

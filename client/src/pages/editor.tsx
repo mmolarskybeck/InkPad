@@ -39,6 +39,7 @@ import { usePreferences } from "@/components/preferences-provider";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename } from "@/lib/filename-utils";
+import { createInkDocumentId } from "@/lib/ink-document-id";
 import { useStoryExport } from "@/features/export/useStoryExport";
 import { AlertTriangle, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
@@ -92,6 +93,31 @@ function prefetchCodeMirrorEditor() {
   void loadCodeMirrorEditor().catch(() => {
     // A failed prefetch should not block opening the editor tab later.
   });
+}
+
+function getSingleTextChange(current: string, next: string) {
+  let from = 0;
+  const shortestLength = Math.min(current.length, next.length);
+  while (from < shortestLength && current[from] === next[from]) {
+    from += 1;
+  }
+
+  let currentEnd = current.length;
+  let nextEnd = next.length;
+  while (
+    currentEnd > from
+    && nextEnd > from
+    && current[currentEnd - 1] === next[nextEnd - 1]
+  ) {
+    currentEnd -= 1;
+    nextEnd -= 1;
+  }
+
+  return {
+    from,
+    to: currentEnd,
+    insert: next.slice(from, nextEnd),
+  };
 }
 
 if (typeof window !== "undefined" && !isPhoneViewport()) {
@@ -152,8 +178,15 @@ function CodeEditorPane(props: CodeMirrorEditorProps & {
     showHeader = true,
     ...editorProps
   } = props;
+  const [shouldMountEditor, setShouldMountEditor] = useState(() => !isPhone || isVisible);
 
-  if (isPhone && !isVisible) {
+  useEffect(() => {
+    if (!shouldMountEditor && (!isPhone || isVisible)) {
+      setShouldMountEditor(true);
+    }
+  }, [isPhone, isVisible, shouldMountEditor]);
+
+  if (!shouldMountEditor) {
     return null;
   }
 
@@ -184,6 +217,7 @@ function getStartupState(): StartupState {
       const isRecoveryDraft = !('lastSavedAt' in startupFile);
       return {
         document: {
+          id: createInkDocumentId(),
           filename: startupFile.name,
           title: startupFile.settings?.title ?? getDisplayTitleFromFilename(startupFile.name),
           source: startupFile.content,
@@ -203,6 +237,7 @@ function getStartupState(): StartupState {
 
   return {
     document: {
+      id: createInkDocumentId(),
       filename: "story.ink",
       title: "Story",
       source: SAMPLE_STORY,
@@ -599,8 +634,15 @@ export default function Editor() {
       ? removeTopLevelTag(current, field)
       : setTopLevelTag(current, field, value);
     if (newSource === current) return;
-    editorRef.current?.replaceValue(newSource, "inkpad-settings");
-  }, [currentDocument.source]);
+    const change = getSingleTextChange(current, newSource);
+
+    if (editorRef.current) {
+      editorRef.current.replaceRange(change.from, change.to, change.insert, "input.metadata");
+      return;
+    }
+
+    handleSourceChange(newSource);
+  }, [currentDocument.source, handleSourceChange]);
 
   const handleSetFileTheme = useCallback((theme: HtmlExportTheme) => {
     handleWriteTag("theme", theme);
@@ -687,6 +729,7 @@ export default function Editor() {
       onChange={handleSourceChange}
       onControlStateChange={setEditorControlState}
       errors={editorDiagnostics}
+      documentId={currentDocument.id ?? currentDocument.filename}
       fileName={currentDocument.filename}
       isMobileLayout={isMobile}
       showHeader={!isMobile && focusedPanel === null}
