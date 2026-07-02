@@ -51,7 +51,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
-    "inkjs": "^2.3.2",
+    "inkjs": "2.3.2",
     "jszip": "^3.10.1",
     "lodash": "^4.18.1",
     "lucide-react": "^0.453.0",
