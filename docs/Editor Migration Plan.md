@@ -241,6 +241,8 @@ This applies to:
 - CodeMirror language packages
 - any pre-1.0 Ink language package
 - any vendored/forked grammar snapshot
+- `inkjs`, because diagnostic snapshots, built-in highlighting, and INCLUDE
+  behavior are verified against exact compiler/runtime behavior
 
 ### Migration freeze
 
@@ -762,8 +764,8 @@ single-file.
 Migration status: implemented as Checkpoint 11. Browser-local draft storage now
 uses the `inkpad:v2:*` namespace so old pre-CodeMirror local saves are
 discarded predictably. `InkProject` creation and validation now require
-normalized project-relative paths and keep an explicit `entryFile`; the product
-surface remains single-file.
+NFC-normalized project-relative paths, reject case-insensitive path collisions,
+and keep an explicit `entryFile`; the product surface remains single-file.
 
 ### Path hygiene
 
@@ -772,6 +774,7 @@ Treat paths as a security and data-integrity boundary, even in a client-only app
 Rules:
 
 - Store project files by normalized POSIX-style relative path.
+- Normalize Unicode to NFC.
 - Normalize backslashes to `/`.
 - Collapse empty and `.` path segments.
 - Reject absolute paths:
@@ -780,10 +783,12 @@ Rules:
   - `C:\...`
   - `file://...`
 - Reject paths containing `..`.
-- Preserve case; duplicate normalized paths are impossible in the current
-  `files` map because the normalized path is the object key. When ZIP import or
-  richer file management lands, collisions discovered during normalization
-  should be rejected or renamed with a warning.
+- Preserve case for storage and lookup.
+- Resolve `INCLUDE` with exact case-sensitive path matches only.
+- Reject duplicate normalized paths at the import/create/rename boundary.
+- Reject paths that collide after case folding, such as `Story.ink` and
+  `story.ink`, because those projects break when exported to common
+  case-insensitive-preserving desktop filesystems.
 - Keep `entryFile` explicit.
 - Resolve `INCLUDE` only against `project.files`.
 - Never fetch remote includes.
@@ -1034,7 +1039,7 @@ Settle these as implementation reveals the real constraints:
 >
 > **Phase 4:** Ship mobile accessory insertion: `->`, `*`, `+`, `~`, `{ }`, Knot, Choice, More. Insertion must preserve focus/keyboard where possible, use transactions, select first snippet placeholder, guard against double insertion, and distinguish tap from scroll.
 >
-> **Phase 5:** Implemented as groundwork only. POSIX-relative paths are normalized, absolute paths and `..` are rejected, case is preserved, duplicate normalized paths collapse to the `files` map key, and `entryFile` remains explicit. Do not build full multi-file UI until after Monaco removal.
+> **Phase 5:** Implemented as groundwork only. POSIX-relative paths are NFC-normalized, absolute paths and `..` are rejected, case is preserved for exact lookup, duplicate normalized paths are rejected, case-insensitive path collisions are rejected, and `entryFile` remains explicit. Do not build full multi-file UI until after Monaco removal.
 >
 > **Phase 6:** Remove Monaco dependencies, setup/theme files, Monarch registration, marker/completion adapters, and CSS hacks. Update README, acknowledgments, THIRD_PARTY_NOTICES, screenshots/docs, and bundle analysis. Run tests, typecheck, build, fixture snapshots, desktop/mobile/iPad/accessibility acceptance checks. Keep the current deployed Monaco build untouched until all checks pass.
 >

@@ -534,25 +534,36 @@ InkPad's architecture.
   - recovery draft: `inkpad:v2:recovery-draft`
 - Left pre-CodeMirror local saves intentionally invisible instead of migrating
   them into the CodeMirror/project-shaped world.
+- Added a one-time v2 cleanup sweep for old pre-CodeMirror local save keys and
+  snapshots, while leaving unrelated `inkpad_*` preferences alone.
 - Added normalized project path helpers in
   `client/src/lib/ink-project-paths.ts`.
-- Project paths now normalize backslashes to POSIX `/`, collapse `.` and empty
-  segments, and reject:
+- Project paths now normalize Unicode to NFC, normalize backslashes to POSIX
+  `/`, collapse `.` and empty segments, and reject:
   - empty paths
   - absolute POSIX paths
   - Windows drive paths
+  - URI-style paths such as `file://...` or `https://...`
   - paths containing `..`
   - NUL bytes
+- Project lookup remains case-sensitive, including future `INCLUDE` resolution,
+  but project validation rejects paths that collide case-insensitively.
+- Duplicate normalized paths are rejected at the boundary rather than renamed.
 - `createSingleFileProject()` normalizes the active filename before storing it
   as both `entryFile` and the sole `files` key.
 - `isInkProject()` now only accepts already-normalized project-relative
   `entryFile` and `files` keys.
+- Exact-pinned `inkjs` to `2.3.2` because diagnostic snapshots, INCLUDE policy,
+  and built-in highlighting are verified against that version.
 - Kept the product surface single-file. No multi-file UI was added.
 
 ### Verified
 
-- `npm test -- file-operations.test.ts ink-project.test.ts ink-project-paths.test.ts` passes:
-  4 files, 20 tests.
+- iPhone smoke pass reported by Marina on July 2, 2026: current CodeMirror
+  editing, accessory/snippet interactions, and layout behavior work okay on
+  iPhone. More extensive mobile and iPad testing remains later.
+- `npm test -- file-operations.test.ts ink-project.test.ts ink-project-paths.test.ts`
+  passes.
 
 ## Next Checkpoint
 
@@ -583,7 +594,9 @@ The intended minimal multi-file slice is:
   - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
     InkPad-authored lint rules are added.
 - Phase 4 mobile authoring:
-  - Verify accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad.
+  - Broaden real-device validation beyond the initial iPhone smoke pass,
+    especially iPad behavior.
+  - Re-check accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad before final sign-off.
   - Confirm pointerdown insertion does not conflict with scroll gestures in drawers.
   - Confirm clipboard toolbar behavior on iOS Safari.
   - Decide whether phone/desktop breakpoint flips need undo-history
