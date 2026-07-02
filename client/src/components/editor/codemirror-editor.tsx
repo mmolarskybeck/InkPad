@@ -57,7 +57,7 @@ import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
-import { inkSearch } from "@/editor/codemirror/search-panel";
+import { inkSearch } from "@/components/editor/codemirror-search-panel";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
@@ -177,7 +177,7 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
       fontSize: `${fontSize}px`,
     },
     ".cm-scroller": {
-      fontFamily: "\"JetBrains Mono\", \"Fira Code\", ui-monospace, SFMono-Regular, monospace",
+      fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace",
       // Keep -> and === as literal characters instead of ligature glyphs,
       // matching the previous Monaco setup (fontLigatures: false).
       fontVariantLigatures: "none",
