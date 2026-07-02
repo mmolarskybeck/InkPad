@@ -8,13 +8,19 @@ import type {
 export function compileInkProject(
   request: CompilerCompileRequest,
 ): CompilerResponse {
-  const { requestId, entryFile, files } = request;
+  const { requestId, entryFile, files, unresolvedIncludePolicy = "strict" } = request;
   const collectedErrors: InkCompilerMessage[] = [];
 
   try {
-    const source = files[entryFile];
+    let source = files[entryFile];
     if (typeof source !== "string") {
       throw new Error(`Entry file "${entryFile}" was not found in this project.`);
+    }
+
+    if (unresolvedIncludePolicy === "ignore") {
+      const prepared = ignoreUnresolvedIncludes(source, entryFile, files);
+      source = prepared.source;
+      collectedErrors.push(...prepared.messages);
     }
 
     const options = new ink.CompilerOptions(
@@ -75,6 +81,37 @@ export function compileInkProject(
           }],
     };
   }
+}
+
+function ignoreUnresolvedIncludes(
+  source: string,
+  entryFile: string,
+  files: Record<string, string>,
+): { source: string; messages: InkCompilerMessage[] } {
+  const messages: InkCompilerMessage[] = [];
+
+  const preparedSource = source.replace(/^([ \t]*INCLUDE\b[^\r\n]*)(\r?\n|$)/gm, (match, includeLine: string, lineEnding: string, offset: number) => {
+    const includePath = includeLine.trim().replace(/^INCLUDE\s+/i, "").trim();
+
+    if (Object.prototype.hasOwnProperty.call(files, includePath)) {
+      return match;
+    }
+
+    messages.push({
+      fileId: entryFile,
+      line: source.slice(0, offset).split("\n").length,
+      message: `INCLUDE ${includePath} is recognized but ignored until multi-file support is available.`,
+      type: "info",
+    });
+
+    // Preserve line numbers for downstream inkjs diagnostics.
+    return lineEnding;
+  });
+
+  return {
+    source: preparedSource,
+    messages,
+  };
 }
 
 function normalizeInkCompilerMessage(

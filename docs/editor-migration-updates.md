@@ -483,14 +483,57 @@ InkPad's architecture.
   Monaco `marked.umd.js.map` sourcemap warning.
 - `npm run build` passes.
 
+## 2026-07-02 - Checkpoint 10: INCLUDE policy settled for single-file editor
+
+### Product Decision
+
+- `INCLUDE` is valid Ink syntax in InkPad now.
+- The current single-file editor does not require included files to exist yet.
+- Unresolved include directives are ignored for single-file preview/export and
+  surfaced as non-blocking info diagnostics.
+- When the compiler receives a real virtual file map containing the include
+  target, inkjs resolution still runs. This preserves the path to future
+  multi-file support.
+- InkPad's documented path convention is bare normalized project-relative
+  paths, e.g. `INCLUDE chapters/start.ink`. Pinned inkjs rejects quoted
+  relative paths under strict compilation, so the quoted-path fixture remains a
+  defensive invalid fixture.
+
+### Implemented
+
+- Added `unresolvedIncludePolicy?: "strict" | "ignore"` to the worker compile
+  contract.
+- `createSingleFileCompileInput()` now requests `ignore` so the current editor
+  can compile source containing unresolved future include directives.
+- `compileInkProject()` blanks unresolved entry-file `INCLUDE` lines before
+  calling inkjs when the policy is `ignore`, preserving line numbers for later
+  diagnostics.
+- Ignored includes produce `info` diagnostics with the entry `fileId` and
+  source line.
+- Strict compilation remains the default for project-shaped inputs.
+- Added worker tests for ignored unresolved includes and for resolved virtual
+  includes under the ignore policy.
+- Updated `docs/Editor Migration Plan.md` with the settled policy.
+
+### Verified
+
+- `npm test -- compile-ink-project.test.ts ink-language-evaluation.test.ts`
+  passes.
+- `npm run check` passes.
+- `npm test` passes: 28 test files, 215 tests. It still prints the known
+  Monaco `marked.umd.js.map` sourcemap warning.
+- `npm run build` passes.
+
 ## Next Checkpoint
 
-Phase 3 remaining exit criteria:
+Phase 3 is closed for migration purposes. The next implementation checkpoint is
+Phase 5 multi-file-ready groundwork:
 
-- INCLUDE quoting/resolution decision tested against inkjs (fixture already
-  exists: `include-quoted-path.ink` is confirmed `"invalid"`; the
-  quoted-vs-bare-path product decision itself is still open, see Open
-  Decisions in the migration plan).
+- Bump the local storage key/schema version before Monaco removal so stale
+  pre-CodeMirror saves are discarded predictably.
+- Add normalized POSIX project path helpers.
+- Reject absolute paths and `..`.
+- Keep explicit `entryFile`.
 
 ## Later Checkpoints
 

@@ -18,6 +18,7 @@ export interface InkCompilerMessage {
 export interface InkCompileInput {
   entryFile: string;
   files: Record<string, string>;
+  unresolvedIncludePolicy?: "strict" | "ignore";
 }
 
 export interface CompilerCompileRequest {
@@ -25,6 +26,7 @@ export interface CompilerCompileRequest {
   requestId: string;
   entryFile: string;
   files: Record<string, string>;
+  unresolvedIncludePolicy?: "strict" | "ignore";
 }
 
 export type CompilerRequest = CompilerCompileRequest;

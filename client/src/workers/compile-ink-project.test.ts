@@ -42,6 +42,56 @@ describe("compileInkProject", () => {
     expect(story.Continue().trim()).toBe("Included works.");
   });
 
+  it("can ignore unresolved INCLUDE directives for the current single-file editor", () => {
+    const response = compileInkProject({
+      type: "compile",
+      requestId: "single-file-include",
+      entryFile: "story.ink",
+      unresolvedIncludePolicy: "ignore",
+      files: {
+        "story.ink": [
+          "INCLUDE chapters/opening.ink",
+          "This still compiles.",
+          "-> END",
+        ].join("\n"),
+      },
+    });
+
+    expect(response.type).toBe("compile-success");
+    if (response.type !== "compile-success") return;
+
+    expect(response.warnings).toEqual([
+      {
+        fileId: "story.ink",
+        line: 1,
+        message: "INCLUDE chapters/opening.ink is recognized but ignored until multi-file support is available.",
+        type: "info",
+      },
+    ]);
+    const story = new Story(response.storyJson);
+    expect(story.Continue().trim()).toBe("This still compiles.");
+  });
+
+  it("preserves real INCLUDE resolution when the included file exists", () => {
+    const response = compileInkProject({
+      type: "compile",
+      requestId: "resolved-include",
+      entryFile: "main.ink",
+      unresolvedIncludePolicy: "ignore",
+      files: {
+        "main.ink": "INCLUDE chapter.ink\n-> chapter",
+        "chapter.ink": "=== chapter ===\nIncluded still works.\n-> END",
+      },
+    });
+
+    expect(response.type).toBe("compile-success");
+    if (response.type !== "compile-success") return;
+
+    expect(response.warnings).toEqual([]);
+    const story = new Story(response.storyJson);
+    expect(story.Continue().trim()).toBe("Included still works.");
+  });
+
   it("returns a useful error when the entry file is missing", () => {
     const response = compileInkProject({
       type: "compile",

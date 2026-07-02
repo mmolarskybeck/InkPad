@@ -88,8 +88,22 @@ For InkPad's project model, decide path resolution explicitly:
 - Resolve `INCLUDE` only against `project.files`.
 - Do not touch a real filesystem.
 - Do not fetch remote includes.
-- For v1, prefer resolving include paths against the normalized project-root path map. If inkjs expects a different base, adapt at the compiler-adapter boundary and fixture-test it.
+- For the current single-file editor, treat `INCLUDE` as valid Ink syntax but
+  do not require the included file to exist yet. Unresolved `INCLUDE` lines are
+  ignored at the compiler boundary with a non-blocking info diagnostic so
+  authors can write future multi-file source without breaking preview/export.
+- When a virtual project file map already contains the include target, keep
+  resolving it through inkjs. This preserves the future multi-file behavior and
+  keeps worker fixture coverage meaningful.
+- When multi-file UI lands, resolve include paths against the normalized
+  project-root path map. If inkjs expects a different base, adapt at the
+  compiler-adapter boundary and fixture-test it.
 - Keep quoted-path fixtures as defensive tests even if bare unquoted paths become the documented convention.
+
+Pinned inkjs accepts bare virtual paths such as `INCLUDE chapters/start.ink`
+when the file map contains `chapters/start.ink`, and rejects quoted relative
+paths in strict compilation. InkPad's documented convention should be bare
+normalized project-relative paths.
 
 ---
 ## Governing architecture

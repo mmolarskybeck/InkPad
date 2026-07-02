@@ -98,6 +98,7 @@ async function compileInkViaWorker(
       requestId,
       entryFile: input.entryFile,
       files: input.files,
+      unresolvedIncludePolicy: input.unresolvedIncludePolicy,
     });
   });
 }
@@ -182,6 +183,7 @@ export function createSingleFileCompileInput(
     files: {
       [fileName]: source,
     },
+    unresolvedIncludePolicy: "ignore",
   };
 }
 
