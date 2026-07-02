@@ -753,6 +753,12 @@ Phase 4 exit:
 
 Do not build the full multi-file UI during this migration. Do build the data boundaries that would be painful to retrofit later.
 
+This phase should happen before Monaco removal. It is intentionally not the
+multi-file UI; it is the foundation that makes the later multi-file UI boring:
+stable project paths, explicit entry file, predictable storage, and compiler
+inputs that already look like a project even while the product surface remains
+single-file.
+
 ### Path hygiene
 
 Treat paths as a security and data-integrity boundary, even in a client-only app.
@@ -876,6 +882,31 @@ Then update:
 Rollback strategy: keep the currently deployed Monaco build untouched until the CodeMirror branch passes the full definition of done. No production dual-editor mode is needed.
 
 ---
+## Phase 7 - Minimal multi-file support
+
+Add minimal multi-file support after Phase 5 groundwork and Phase 6 Monaco
+removal, before broader mobile/accessory polish and richer editor features.
+Do not wait until every migration-adjacent refinement is complete: multi-file
+support affects Problems routing, export labels, storage, path validation,
+compiler inputs, and mobile layout, so those constraints should be discovered
+before final UX polish.
+
+Keep the first version narrow:
+
+- `.inkpad` project model with `files` map and explicit `entryFile`
+- file list/sidebar
+- active file switching through the existing CodeMirror document-replacement API
+- `INCLUDE` resolves only against `project.files`
+- Problems clicks switch to the diagnostic's `fileId` before revealing the line
+- export labels distinguish current file from full project
+- no project-wide search, graph view, or elaborate file-management UI yet
+
+The current single-file `INCLUDE` ignore policy is a bridge only. It lets
+authors write future multi-file source without breaking preview/export, but the
+real behavior should be enabled as soon as the app has one editor stack and a
+clean project model.
+
+---
 ## Definition of done
 
 The migration is not done when the app compiles. It is done when authoring feels stable and calmer than Monaco.
@@ -956,10 +987,10 @@ Accessibility is part of done, not deferred polish.
 Settle these as implementation reveals the real constraints:
 
 - ~~**mavnn local patches vs fork vs vendored grammar**: decide after fixtures run.~~ Resolved 2026-07-02 (Checkpoint 7): vendored and patched. See `client/src/editor/codemirror/ink-lang/README.md` for the patch list and reasoning, and `docs/editor-migration-updates.md` for the fixture evidence behind the decision.
-- **Built-in function highlighting mechanism**: grammar node vs separate decoration extension.
-- **Canonical built-in set**: verify against Ink spec/inkjs, not Ace autocomplete or InkPad Monarch guesses.
-- **INCLUDE quote handling**: verify against inkjs.
-- **INCLUDE resolution base**: project-root path map by default; fixture-test whatever adapter behavior inkjs needs.
+- ~~**Built-in function highlighting mechanism**: grammar node vs separate decoration extension.~~ Resolved 2026-07-02 (Checkpoint 8): separate CodeMirror decoration extension.
+- ~~**Canonical built-in set**: verify against Ink spec/inkjs, not Ace autocomplete or InkPad Monarch guesses.~~ Resolved 2026-07-02 (Checkpoint 8): verified against pinned inkjs.
+- ~~**INCLUDE quote handling**: verify against inkjs.~~ Resolved 2026-07-02 (Checkpoint 10): bare normalized project-relative paths are the documented convention; quoted relative paths remain a defensive invalid fixture under strict compilation.
+- ~~**INCLUDE resolution base**: project-root path map by default; fixture-test whatever adapter behavior inkjs needs.~~ Resolved 2026-07-02 (Checkpoint 10): current single-file unresolved includes are ignored with info diagnostics; future multi-file resolution is against `project.files`.
 - **Case sensitivity for project paths**: choose and document before ZIP/`.inkpad` import ships.
 - **Duplicate normalized paths**: reject vs rename-with-warning.
 - **Undo history across file switches**: reset for v1 unless per-file `EditorState` is deliberately implemented.

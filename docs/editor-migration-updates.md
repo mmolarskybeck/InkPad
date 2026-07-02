@@ -527,13 +527,24 @@ InkPad's architecture.
 ## Next Checkpoint
 
 Phase 3 is closed for migration purposes. The next implementation checkpoint is
-Phase 5 multi-file-ready groundwork:
+Phase 5 multi-file-ready groundwork, which should happen before Monaco removal:
 
 - Bump the local storage key/schema version before Monaco removal so stale
   pre-CodeMirror saves are discarded predictably.
 - Add normalized POSIX project path helpers.
 - Reject absolute paths and `..`.
 - Keep explicit `entryFile`.
+- Keep the product surface single-file for this checkpoint.
+
+After Phase 5, remove Monaco. After Monaco is gone, add minimal multi-file
+support before doing broader mobile/accessory polish or richer editor features.
+The intended minimal multi-file slice is:
+
+- `.inkpad` project model with `files` map and explicit `entryFile`
+- file list/sidebar and active file switching
+- `INCLUDE` resolution against `project.files`
+- Problems clicks switch files before jumping to the diagnostic line
+- explicit export labels for current file vs full project
 
 ## Later Checkpoints
 
@@ -557,3 +568,10 @@ Phase 5 multi-file-ready groundwork:
   - Remove Monaco packages, setup files, Monarch tests, completion/code-action adapters, and stale CSS.
   - Consolidate transitional editor-handle aliases and remove raw editor access if no longer needed.
   - Update README, architecture docs, notices, and bundle notes.
+- Phase 7 minimal multi-file support:
+  - Add project file list/sidebar.
+  - Switch active files through the CodeMirror document-replacement API.
+  - Resolve `INCLUDE` against `project.files`.
+  - Route Problems clicks by `fileId`.
+  - Keep project-wide search, graph view, and advanced file management out of
+    the first multi-file slice.
