@@ -10,7 +10,7 @@ import {
 interface ErrorPanelProps {
   errors: EditorDiagnostic[];
   compileStatus: CompileStatus;
-  onErrorClick: (line: number) => void;
+  onErrorClick: (error: EditorDiagnostic) => void;
   showHeader?: boolean;
   showCompactStatus?: boolean;
 }
@@ -28,7 +28,8 @@ export function ErrorPanel({
   const StatusIcon = statusConfig.icon;
   const handleCopyMessage = (event: React.MouseEvent<HTMLButtonElement>, error: EditorDiagnostic) => {
     event.stopPropagation();
-    const location = `line ${getEditorDiagnosticLine(error)}${getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ""}`;
+    const fileLabel = error.fileId ? `${error.fileId} ` : "";
+    const location = `${fileLabel}line ${getEditorDiagnosticLine(error)}${getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ""}`;
     void navigator.clipboard?.writeText(`${location} - ${error.message}`);
   };
 
@@ -76,7 +77,7 @@ export function ErrorPanel({
             errors.map((error, index) => (
               <div
                 key={index}
-                onClick={() => onErrorClick(getEditorDiagnosticLine(error))}
+                onClick={() => onErrorClick(error)}
                 className="flex items-start space-x-3 p-2 hover:bg-accent rounded cursor-pointer transition-colors"
               >
                 {getEditorDiagnosticSeverity(error) === "warning" ? (
@@ -91,6 +92,14 @@ export function ErrorPanel({
                     <span className="text-[0.8125rem] text-text-secondary">
                       line {getEditorDiagnosticLine(error)}{getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ''}
                     </span>
+                    {error.fileId && (
+                      <>
+                        {" "}
+                        <span className="text-[0.8125rem] text-text-secondary">
+                          {error.fileId}
+                        </span>
+                      </>
+                    )}
                     {' - '}
                     <span>{error.message}</span>
                   </div>

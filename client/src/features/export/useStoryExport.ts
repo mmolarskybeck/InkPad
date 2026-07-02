@@ -6,10 +6,12 @@ import {
   type CompileInkSource,
 } from "./storyExportService";
 import type { HtmlExportOptions } from "./html-export-options";
+import type { InkCompileInput } from "@/types/worker-messages";
 import { trackExportClicked } from "@/lib/analytics";
 
 interface UseStoryExportOptions {
   getSource: () => string;
+  getCompileInput?: () => InkCompileInput;
   title: string;
   author: string;
   filename: string;
@@ -19,6 +21,7 @@ interface UseStoryExportOptions {
 
 export function useStoryExport({
   getSource,
+  getCompileInput,
   title,
   author,
   filename,
@@ -43,7 +46,7 @@ export function useStoryExport({
     setIsExporting(true);
     try {
       await exportCompiledJson({
-        source,
+        source: getCompileInput?.() ?? source,
         title,
         filename,
         compileStory,
@@ -53,7 +56,7 @@ export function useStoryExport({
     } finally {
       setIsExporting(false);
     }
-  }, [compileStory, filename, getSource, onError, title]);
+  }, [compileStory, filename, getCompileInput, getSource, onError, title]);
 
   const exportHtml = useCallback(async (htmlOptions: HtmlExportOptions) => {
     const source = getSource();
@@ -61,7 +64,7 @@ export function useStoryExport({
     setIsExporting(true);
     try {
       await exportStoryHtml({
-        source,
+        source: getCompileInput?.() ?? source,
         title,
         author,
         htmlOptions,
@@ -73,7 +76,7 @@ export function useStoryExport({
     } finally {
       setIsExporting(false);
     }
-  }, [author, compileStory, filename, getSource, onError, title]);
+  }, [author, compileStory, filename, getCompileInput, getSource, onError, title]);
 
   return {
     exportInk,

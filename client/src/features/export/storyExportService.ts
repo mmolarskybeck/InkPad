@@ -1,5 +1,6 @@
 import { getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import type { InkCompileResult } from "@/lib/ink-compiler";
+import type { InkCompileInput } from "@/types/worker-messages";
 import { downloadBlob, downloadTextFile } from "@/features/files/fileDownload";
 import { buildStoryHtml } from "./htmlTemplate";
 import { createStoryZip } from "./zipExport";
@@ -12,10 +13,10 @@ import {
   type HtmlExportOptions,
 } from "./html-export-options";
 
-export type CompileInkSource = (inkSource: string) => Promise<InkCompileResult | null>;
+export type CompileInkSource = (inkSource: string | InkCompileInput) => Promise<InkCompileResult | null>;
 
 interface StoryExportOptions {
-  source: string;
+  source: string | InkCompileInput;
   title: string;
   author?: string;
   htmlOptions?: HtmlExportOptions;
@@ -47,6 +48,10 @@ export function exportInkSource({
   source,
   filename,
 }: Pick<StoryExportOptions, "source" | "filename">): void {
+  if (typeof source !== "string") {
+    throw new Error("Use project export for multi-file InkPad projects.");
+  }
+
   downloadTextFile(
     source,
     replaceFilenameExtension(filename ?? "story.ink", ".ink"),

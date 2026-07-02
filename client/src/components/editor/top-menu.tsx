@@ -50,6 +50,7 @@ interface TopMenuProps {
   onRun: () => void;
   onOpenSettings: () => void;
   onExportInk: () => void | Promise<void>;
+  onExportProject?: () => void | Promise<void>;
   onExportJson: () => void | Promise<void>;
   resolvedTheme: ThemeName;
   resolvedFromSystem: boolean;
@@ -57,6 +58,7 @@ interface TopMenuProps {
   onSetFileTheme: (theme: HtmlExportTheme) => void;
   onStoryTypefaceChange: (font: HtmlExportFont) => void;
   isExporting?: boolean;
+  hasMultipleFiles?: boolean;
   onNavigateToKnot?: (knotName: string) => void;
   saveState?: "dirty" | "saving" | "saved" | "error" | "disabled";
 }
@@ -79,6 +81,7 @@ export function TopMenu({
   onRun,
   onOpenSettings,
   onExportInk,
+  onExportProject,
   onExportJson,
   resolvedTheme,
   resolvedFromSystem,
@@ -86,6 +89,7 @@ export function TopMenu({
   onSetFileTheme,
   onStoryTypefaceChange,
   isExporting = false,
+  hasMultipleFiles = false,
   onNavigateToKnot,
   saveState = "saved"
 }: TopMenuProps) {
@@ -257,8 +261,10 @@ export function TopMenu({
           
           <StoryExportDialog
             onExportInk={onExportInk}
+            onExportProject={onExportProject}
             onExportJson={onExportJson}
             onConfigureHtml={() => setIsHtmlExportOpen(true)}
+            hasMultipleFiles={hasMultipleFiles}
             isExporting={isExporting}
           />
 
@@ -380,9 +386,16 @@ export function TopMenu({
                 <div className="grid gap-2">
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onExportInk} disabled={isExporting} className="justify-start">
-                      Ink file
+                      Current .ink file
                     </Button>
                   </SheetClose>
+                  {hasMultipleFiles && onExportProject && (
+                    <SheetClose asChild>
+                      <Button variant="ghost" onClick={onExportProject} disabled={isExporting} className="justify-start">
+                        Full .inkpad project
+                      </Button>
+                    </SheetClose>
+                  )}
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onExportJson} disabled={isExporting} className="justify-start">
                       JSON

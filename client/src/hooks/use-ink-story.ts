@@ -7,6 +7,7 @@ import {
   type InkCompileResult,
   type InkCompilerError,
 } from '@/lib/ink-compiler';
+import type { InkCompileInput } from '@/types/worker-messages';
 import { extractInkVariables, extractListDefs, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
 import { normalizeStoryJson } from '@/lib/json-utils';
 import { decodeHtmlCharacterReferences } from '@/lib/ink-text';
@@ -36,6 +37,7 @@ interface ChoiceSnapshot {
 }
 
 type RuntimeIssue = InkCompilerError;
+type CompileSource = string | InkCompileInput;
 
 const INK_RUNTIME_ERROR_TYPE = 2;
 
@@ -62,6 +64,11 @@ function prefixRuntimeIssues(prefix: string, issues: RuntimeIssue[]): RuntimeIss
     ...issue,
     message: `${prefix}: ${issue.message}`,
   }));
+}
+
+function getEntrySource(sourceOrInput: CompileSource): string {
+  if (typeof sourceOrInput === "string") return sourceOrInput;
+  return sourceOrInput.files[sourceOrInput.entryFile] ?? "";
 }
 
 export type CompileStatus = 'idle' | 'queued' | 'compiling' | 'success' | 'warning' | 'error';
@@ -241,7 +248,7 @@ export function useInkStory() {
   }, [updateVariablesFromCompiledJson]);
 
   const debouncedLiveCompile = useMemo(
-    () => debounce(async (inkSource: string, requestId: string) => {
+    () => debounce(async (inkSource: CompileSource, requestId: string) => {
       if (requestId !== latestCompileRequestId.current) return;
 
       setIsCompiling(true);
@@ -254,7 +261,7 @@ export function useInkStory() {
         return;
       }
 
-      applyCompileResult(result, inkSource);
+      applyCompileResult(result, getEntrySource(inkSource));
       setIsCompiling(false);
     }, 500),
     [applyCompileResult]
@@ -266,14 +273,14 @@ export function useInkStory() {
     };
   }, [debouncedLiveCompile]);
 
-  const compileLive = useCallback((inkSource: string) => {
+  const compileLive = useCallback((inkSource: CompileSource) => {
     const requestId = createCompilerRequestId();
     latestCompileRequestId.current = requestId;
     setCompileStatus('queued');
     debouncedLiveCompile(inkSource, requestId);
   }, [debouncedLiveCompile]);
 
-  const compileNow = useCallback(async (inkSource: string) => {
+  const compileNow = useCallback(async (inkSource: CompileSource) => {
     debouncedLiveCompile.cancel();
     const requestId = createCompilerRequestId();
     latestCompileRequestId.current = requestId;
@@ -288,7 +295,7 @@ export function useInkStory() {
       return null;
     }
 
-    applyCompileResult(result, inkSource);
+    applyCompileResult(result, getEntrySource(inkSource));
     setIsCompiling(false);
     return result;
   }, [applyCompileResult, debouncedLiveCompile]);

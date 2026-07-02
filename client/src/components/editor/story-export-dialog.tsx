@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, FileText, Braces, MonitorPlay } from "lucide-react";
+import { Download, FileArchive, FileText, Braces, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,15 +12,19 @@ import {
 
 interface StoryExportDialogProps {
   onExportInk: () => void | Promise<void>;
+  onExportProject?: () => void | Promise<void>;
   onExportJson: () => void | Promise<void>;
   onConfigureHtml: () => void;
+  hasMultipleFiles?: boolean;
   isExporting?: boolean;
 }
 
 export function StoryExportDialog({
   onExportInk,
+  onExportProject,
   onExportJson,
   onConfigureHtml,
+  hasMultipleFiles = false,
   isExporting = false,
 }: StoryExportDialogProps) {
   const [open, setOpen] = useState(false);
@@ -64,9 +68,26 @@ export function StoryExportDialog({
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="text-[0.9375rem] font-semibold text-text-emphasis">Ink source</span>
-              <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">Editable .ink file</span>
+              <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">Current file as editable .ink</span>
             </div>
           </Button>
+
+          {hasMultipleFiles && onExportProject && (
+            <Button
+              onClick={() => void runExport(onExportProject)}
+              disabled={isExporting}
+              variant="outline"
+              className="h-auto w-full min-w-0 justify-start whitespace-normal border-border-color bg-editor-bg p-3 text-left hover:border-accent-blue hover:bg-accent"
+            >
+              <div className="mr-3 rounded-md bg-accent-blue/10 p-2">
+                <FileArchive className="h-5 w-5 text-accent-blue" />
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-[0.9375rem] font-semibold text-text-emphasis">InkPad project</span>
+                <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">Full multi-file .inkpad project</span>
+              </div>
+            </Button>
+          )}
 
           <Button
             onClick={() => void runExport(onExportJson)}

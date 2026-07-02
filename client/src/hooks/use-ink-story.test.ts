@@ -248,4 +248,30 @@ Start
     }));
     expect(result.current.compileStatus).toBe("warning");
   });
+
+  it("passes multi-file project compile input through without flattening it", async () => {
+    const story = compile("# title: Project\nOpening\n-> END");
+    vi.mocked(compileInkScript).mockResolvedValue({
+      requestId: "request-id",
+      runtimeStory: story,
+      compiledJson: story.ToJson(),
+      errors: [],
+      knots: [],
+    });
+    const { result } = renderHook(() => useInkStory());
+    const input = {
+      entryFile: "main.ink",
+      files: {
+        "main.ink": "# title: Project\nINCLUDE chapter.ink\nOpening\n-> END",
+        "chapter.ink": "=== chapter ===\nIncluded\n-> END",
+      },
+    };
+
+    await act(async () => {
+      await result.current.compileNow(input);
+    });
+
+    expect(compileInkScript).toHaveBeenCalledWith(input, "request-id");
+    expect(result.current.parsedGlobalTags.metadata.title).toBe("Project");
+  });
 });

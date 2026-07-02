@@ -13,6 +13,7 @@ import { VariableInspector } from "@/components/editor/variable-inspector";
 import { FileActionDialog } from "@/components/editor/file-action-dialog";
 import { LocalSavesDialog } from "@/components/editor/local-saves-dialog";
 import { SettingsSheet } from "@/components/editor/settings-sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   EditorWorkspace,
   type FocusedPanel,
@@ -39,12 +40,14 @@ import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 import { usePreferences } from "@/components/preferences-provider";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
-import { getDisplayTitleFromFilename } from "@/lib/filename-utils";
+import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, FilePlus2, FileText, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
+import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
+import type { InkCompileInput } from "@/types/worker-messages";
 import type { PreviewMode } from "@/types/story-runtime";
 import {
   resolveMetadata,
@@ -69,6 +72,16 @@ import {
 import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
 import { getMissingStartDiagnostic } from "@/inkLanguage/inkDiagnostics";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
+import { getEditorDiagnosticLine } from "@/types/editor-diagnostic";
+import {
+  createSingleFileProject,
+  parseInkProject,
+  projectToCompileInput,
+} from "@/lib/ink-project";
+import {
+  hasCaseInsensitiveInkProjectPathCollision,
+  normalizeInkProjectPath,
+} from "@/lib/ink-project-paths";
 
 const LazyCodeMirrorEditor = lazy(() =>
   loadCodeMirrorEditor().then((module) => ({
@@ -127,7 +140,66 @@ if (typeof window !== "undefined" && !isPhoneViewport()) {
 
 interface StartupState {
   document: InkDocument;
+  project: InkProject;
+  activeFileId: string;
   recoveredAt: number | null;
+}
+
+function createProjectFromDocument(document: InkDocument): InkProject {
+  return createSingleFileProject({
+    id: document.id,
+    name: document.title ?? getDisplayTitleFromFilename(document.filename),
+    fileName: document.filename,
+    content: document.source,
+  });
+}
+
+function tryParseStoredProject(content: string): InkProject | null {
+  try {
+    return parseInkProject(content);
+  } catch {
+    return null;
+  }
+}
+
+function getProjectFileSource(project: InkProject, fileId: string): string {
+  return project.files[fileId]?.content ?? "";
+}
+
+function withProjectFileSource(project: InkProject, fileId: string, source: string): InkProject {
+  return {
+    ...project,
+    files: {
+      ...project.files,
+      [fileId]: { content: source },
+    },
+  };
+}
+
+function getProjectCompileInput(project: InkProject): InkCompileInput {
+  return projectToCompileInput(project);
+}
+
+function getProjectFingerprint(project: InkProject): string {
+  return JSON.stringify({
+    entryFile: project.entryFile,
+    files: Object.keys(project.files)
+      .sort()
+      .map((fileId) => [fileId, project.files[fileId].content]),
+  });
+}
+
+function getProjectExportName(project: InkProject): string {
+  const baseName = (project.name || project.entryFile.replace(/\.ink$/i, "")).trim();
+  return getFilename(baseName.replace(/\.inkpad$/i, ""), ".inkpad");
+}
+
+function getSortedProjectFileIds(project: InkProject): string[] {
+  return Object.keys(project.files).sort((a, b) => {
+    if (a === project.entryFile) return -1;
+    if (b === project.entryFile) return 1;
+    return a.localeCompare(b);
+  });
 }
 
 function EditorPaneSkeleton({
@@ -216,19 +288,46 @@ function getStartupState(): StartupState {
     const startupFile = FileOperations.loadStartupFile();
     if (startupFile) {
       const isRecoveryDraft = !('lastSavedAt' in startupFile);
+      const storedProject = tryParseStoredProject(startupFile.content);
+      if (storedProject) {
+        const activeFileId = storedProject.entryFile;
+        const activeSource = getProjectFileSource(storedProject, activeFileId);
+        return {
+          document: {
+            id: storedProject.id,
+            filename: activeFileId,
+            title: startupFile.settings?.title ?? storedProject.name,
+            source: activeSource,
+            author: startupFile.settings?.author,
+            htmlExport: startupFile.settings?.htmlExport,
+            storyTypeface: startupFile.settings?.storyTypeface ?? startupFile.settings?.htmlExport?.font,
+            previewMode: startupFile.settings?.previewMode ?? "transcript",
+            updatedAt: startupFile.lastModified,
+            lastSavedAt: isRecoveryDraft ? undefined : startupFile.lastSavedAt,
+          },
+          project: storedProject,
+          activeFileId,
+          recoveredAt: isRecoveryDraft ? startupFile.lastModified : null,
+        };
+      }
+
+      const document = {
+        id: createInkDocumentId(),
+        filename: startupFile.name,
+        title: startupFile.settings?.title ?? getDisplayTitleFromFilename(startupFile.name),
+        source: startupFile.content,
+        author: startupFile.settings?.author,
+        htmlExport: startupFile.settings?.htmlExport,
+        storyTypeface: startupFile.settings?.storyTypeface ?? startupFile.settings?.htmlExport?.font,
+        previewMode: startupFile.settings?.previewMode ?? "transcript",
+        updatedAt: startupFile.lastModified,
+        lastSavedAt: isRecoveryDraft ? undefined : startupFile.lastSavedAt,
+      } satisfies InkDocument;
+
       return {
-        document: {
-          id: createInkDocumentId(),
-          filename: startupFile.name,
-          title: startupFile.settings?.title ?? getDisplayTitleFromFilename(startupFile.name),
-          source: startupFile.content,
-          author: startupFile.settings?.author,
-          htmlExport: startupFile.settings?.htmlExport,
-          storyTypeface: startupFile.settings?.storyTypeface ?? startupFile.settings?.htmlExport?.font,
-          previewMode: startupFile.settings?.previewMode ?? "transcript",
-          updatedAt: startupFile.lastModified,
-          lastSavedAt: isRecoveryDraft ? undefined : startupFile.lastSavedAt,
-        },
+        document,
+        project: createProjectFromDocument(document),
+        activeFileId: document.filename,
         recoveredAt: isRecoveryDraft ? startupFile.lastModified : null,
       };
     }
@@ -236,15 +335,19 @@ function getStartupState(): StartupState {
     // localStorage unavailable (private browsing, security settings, etc.)
   }
 
+  const document: InkDocument = {
+    id: createInkDocumentId(),
+    filename: "story.ink",
+    title: "Story",
+    source: SAMPLE_STORY,
+    author: "",
+    previewMode: "transcript",
+  };
+
   return {
-    document: {
-      id: createInkDocumentId(),
-      filename: "story.ink",
-      title: "Story",
-      source: SAMPLE_STORY,
-      author: "",
-      previewMode: "transcript",
-    },
+    document,
+    project: createProjectFromDocument(document),
+    activeFileId: document.filename,
     recoveredAt: null,
   };
 }
@@ -259,6 +362,8 @@ export default function Editor() {
   const [storageWarningDismissed, setStorageWarningDismissed] = useState(false);
 
   const [currentDocument, setCurrentDocument] = useState<InkDocument>(startupStateRef.current.document);
+  const [currentProject, setCurrentProject] = useState<InkProject>(startupStateRef.current.project);
+  const [activeFileId, setActiveFileId] = useState(startupStateRef.current.activeFileId);
   const title = currentDocument.title ?? getDisplayTitleFromFilename(currentDocument.filename);
   const [recentFiles, setRecentFiles] = useState<StoredInkDocument[]>(() => {
     try { return FileOperations.getAllFiles(); } catch { return []; }
@@ -285,6 +390,19 @@ export default function Editor() {
   const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
   const isMobile = useIsMobile();
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile);
+
+  useEffect(() => {
+    if (
+      currentProject.id === currentDocument.id
+      && Object.prototype.hasOwnProperty.call(currentProject.files, currentDocument.filename)
+    ) {
+      return;
+    }
+
+    const nextProject = createProjectFromDocument(currentDocument);
+    setCurrentProject(nextProject);
+    setActiveFileId(nextProject.entryFile);
+  }, [currentDocument, currentProject]);
 
   // True mobile owns the tab layout outright; clear any desktop focus state on entry.
   useEffect(() => {
@@ -335,6 +453,7 @@ export default function Editor() {
   } = useInkStory();
 
   const commitBufferedSource = useCallback((latestSource: string) => {
+    setCurrentProject((project) => withProjectFileSource(project, activeFileId, latestSource));
     setCurrentDocument((document) => {
       if (document.source === latestSource) {
         return document;
@@ -342,11 +461,12 @@ export default function Editor() {
 
       return {
         ...document,
+        filename: activeFileId,
         source: latestSource,
         updatedAt: Date.now(),
       };
     });
-  }, []);
+  }, [activeFileId]);
 
   const {
     scheduleSourceState,
@@ -361,10 +481,22 @@ export default function Editor() {
     onSourceCommit: commitBufferedSource,
   });
 
+  const hasMultipleProjectFiles = Object.keys(currentProject.files).length > 1;
+  const currentProjectForSave = useMemo(
+    () => withProjectFileSource(currentProject, activeFileId, currentDocument.source),
+    [activeFileId, currentDocument.source, currentProject],
+  );
+  const localSaveFileName = hasMultipleProjectFiles
+    ? getProjectExportName(currentProjectForSave)
+    : currentDocument.filename;
+  const localSaveContent = hasMultipleProjectFiles
+    ? JSON.stringify(currentProjectForSave, null, 2)
+    : currentDocument.source;
+
   // Autosave system
   const autosave = useAutosave({
-    fileName: currentDocument.filename,
-    content: currentDocument.source,
+    fileName: localSaveFileName,
+    content: localSaveContent,
     enabled: storageAvailable,
     onSave: async (filename, source) => {
       await FileOperations.saveFile(filename, source, {
@@ -375,7 +507,10 @@ export default function Editor() {
         previewMode: currentDocument.previewMode,
       });
       cancelPendingRecoveryDraft();
-      FileOperations.clearRecoveryDraft(filename);
+      FileOperations.clearRecoveryDraft(currentDocument.filename);
+      if (filename !== currentDocument.filename) {
+        FileOperations.clearRecoveryDraft(filename);
+      }
       setRecoveredAt(null);
       setIsRecoveryBannerDismissed(false);
       setRecentFiles(FileOperations.getAllFiles());
@@ -423,17 +558,17 @@ export default function Editor() {
   // Show error toasts for save failures
   useSaveErrorToast({
     saveState: autosave.saveState,
-    fileName: currentDocument.filename
+    fileName: localSaveFileName
   });
 
   // Compile the Ink source on initial load
   useEffect(() => {
-    if (!currentDocument.source) return;
+    if (!currentProject.entryFile) return;
 
     let timeoutId: number | null = null;
     const frameId = window.requestAnimationFrame(() => {
       timeoutId = window.setTimeout(() => {
-        compileLive(currentDocument.source);
+        compileLive(getProjectCompileInput(currentProject));
       }, 0);
     });
 
@@ -447,6 +582,8 @@ export default function Editor() {
   }, []); // Only run on initial load
 
   const handleSourceChange = useCallback((newSource: string) => {
+    const nextProject = withProjectFileSource(currentProject, activeFileId, newSource);
+    setCurrentProject(nextProject);
     scheduleRecoveryDraft(currentDocument.filename, newSource, {
       title: currentDocument.title,
       author: currentDocument.author,
@@ -455,8 +592,9 @@ export default function Editor() {
       previewMode: currentDocument.previewMode,
     });
     scheduleSourceState(newSource);
-    compileLive(newSource);
+    compileLive(getProjectCompileInput(nextProject));
   }, [
+    activeFileId,
     compileLive,
     currentDocument.author,
     currentDocument.filename,
@@ -464,6 +602,7 @@ export default function Editor() {
     currentDocument.previewMode,
     currentDocument.storyTypeface,
     currentDocument.title,
+    currentProject,
     scheduleRecoveryDraft,
     scheduleSourceState,
   ]);
@@ -488,8 +627,11 @@ export default function Editor() {
     // Use the editor's value as source of truth and do immediate compile
     const editorSource = editorRef.current?.getValue() || "";
     const sourceToCompile = editorSource || currentDocument.source;
+    const projectToCompile = withProjectFileSource(currentProject, activeFileId, sourceToCompile);
+    const compileInput = getProjectCompileInput(projectToCompile);
+    const projectFingerprint = getProjectFingerprint(projectToCompile);
     const compileStartedAt = performance.now();
-    const result = await compileNow(sourceToCompile);
+    const result = await compileNow(compileInput);
     const compileTimeMs = performance.now() - compileStartedAt;
     
     if (result?.runtimeStory) {
@@ -498,7 +640,7 @@ export default function Editor() {
         storyText: sourceToCompile,
         compileTimeMs,
       });
-      setLastRunSource(sourceToCompile);
+      setLastRunSource(projectFingerprint);
       runStory(result.runtimeStory); // Pass the freshly compiled runtime story directly
       setStorySessionKey(k => k + 1);
       setMobileTab("preview");
@@ -525,39 +667,196 @@ export default function Editor() {
         }
       }
     }
-  }, [compileNow, currentDocument.source, focusedPanel, isMobile, runStory]);
+  }, [activeFileId, compileNow, currentDocument.source, currentProject, focusedPanel, isMobile, runStory]);
 
   const handleRestart = useCallback(() => {
     setStorySessionKey(k => k + 1);
     restartStory();
   }, [restartStory]);
 
+  const getLiveProject = useCallback(() => {
+    const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
+    return withProjectFileSource(currentProject, activeFileId, activeSource);
+  }, [activeFileId, currentDocument.source, currentProject]);
+
   const handleSave = useCallback(async () => {
-    await saveCurrentDocument(true);
-  }, [saveCurrentDocument]);
+    if (!hasMultipleProjectFiles) {
+      await saveCurrentDocument(true);
+      return;
+    }
+
+    const nextProject = getLiveProject();
+    const filename = getProjectExportName(nextProject);
+    const content = JSON.stringify(nextProject, null, 2);
+    try {
+      await FileOperations.saveFile(filename, content, {
+        title: currentDocument.title,
+        author: currentDocument.author,
+        htmlExport: currentDocument.htmlExport,
+        storyTypeface: currentDocument.storyTypeface,
+        previewMode: currentDocument.previewMode,
+      });
+      setCurrentProject(nextProject);
+      autosave.markSaved(filename, content);
+      cancelPendingRecoveryDraft();
+      FileOperations.clearRecoveryDraft(currentDocument.filename);
+      FileOperations.clearRecoveryDraft(filename);
+      setRecoveredAt(null);
+      setIsRecoveryBannerDismissed(false);
+      setRecentFiles(FileOperations.getAllFiles());
+      toast({ title: "Saved", description: `${filename} saved successfully.` });
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }, [
+    autosave,
+    cancelPendingRecoveryDraft,
+    currentDocument.author,
+    currentDocument.filename,
+    currentDocument.htmlExport,
+    currentDocument.previewMode,
+    currentDocument.storyTypeface,
+    currentDocument.title,
+    getLiveProject,
+    hasMultipleProjectFiles,
+    saveCurrentDocument,
+    setRecentFiles,
+    toast,
+  ]);
+
+  const handleExportProject = useCallback(() => {
+    const project = getLiveProject();
+    FileOperations.downloadFile(
+      JSON.stringify(project, null, 2),
+      getProjectExportName(project),
+      "application/json",
+    );
+  }, [getLiveProject]);
+
+  const switchToProjectFile = useCallback((fileId: string, options?: { line?: number }) => {
+    if (!Object.prototype.hasOwnProperty.call(currentProject.files, fileId)) return;
+
+    const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
+    const projectWithLatestActiveFile = withProjectFileSource(currentProject, activeFileId, activeSource);
+    const nextSource = getProjectFileSource(projectWithLatestActiveFile, fileId);
+    setCurrentProject(projectWithLatestActiveFile);
+    setActiveFileId(fileId);
+    resetBufferedSource(nextSource);
+    setCurrentDocument((document) => ({
+      ...document,
+      filename: fileId,
+      source: nextSource,
+      updatedAt: Date.now(),
+    }));
+    setMobileDrawer(null);
+    setMobileTab("code");
+    if (!isMobile && focusedPanel !== null) {
+      setFocusedPanel("code");
+    }
+    window.setTimeout(() => {
+      editorRef.current?.layout();
+      if (options?.line) {
+        editorRef.current?.jumpToLine(options.line);
+      }
+    }, 0);
+  }, [
+    activeFileId,
+    currentDocument.source,
+    currentProject,
+    focusedPanel,
+    isMobile,
+    resetBufferedSource,
+  ]);
+
+  const handleAddProjectFile = useCallback(() => {
+    const requestedPath = window.prompt("New Ink file path", "chapter.ink");
+    if (requestedPath === null) return;
+
+    const normalizedPath = normalizeInkProjectPath(requestedPath);
+    if (!normalizedPath) {
+      toast({
+        title: "Could not add file",
+        description: "Use a project-relative Ink path like chapters/opening.ink.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(currentProject.files, normalizedPath)) {
+      toast({
+        title: "Could not add file",
+        description: `${normalizedPath} already exists in this project.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (hasCaseInsensitiveInkProjectPathCollision([...Object.keys(currentProject.files), normalizedPath])) {
+      toast({
+        title: "Could not add file",
+        description: `${normalizedPath} collides with an existing path on case-insensitive filesystems.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
+    const projectWithLatestActiveFile = withProjectFileSource(currentProject, activeFileId, activeSource);
+    const nextProject = {
+      ...projectWithLatestActiveFile,
+      files: {
+        ...projectWithLatestActiveFile.files,
+        [normalizedPath]: { content: "" },
+      },
+    };
+    setCurrentProject(nextProject);
+    setActiveFileId(normalizedPath);
+    resetBufferedSource("");
+    setCurrentDocument((document) => ({
+      ...document,
+      filename: normalizedPath,
+      source: "",
+      updatedAt: Date.now(),
+    }));
+    compileLive(getProjectCompileInput(nextProject));
+    setMobileTab("code");
+    window.setTimeout(() => editorRef.current?.layout(), 0);
+  }, [
+    activeFileId,
+    compileLive,
+    currentDocument.source,
+    currentProject,
+    resetBufferedSource,
+    toast,
+  ]);
 
   const handleNavigateToKnot = useCallback((knotName: string) => {
     trackNavigatorUsed("knot");
-    // Jump to knot in editor - find the line with "=== knotName ==="
-    const lines = currentDocument.source.split('\n');
-    const knotLineIndex = lines.findIndex(line => 
-      line.trim() === `=== ${knotName} ===`
-    );
-    
-    if (knotLineIndex !== -1) {
-      // Jump to line in the editor (line numbers are 1-based)
-      const lineNumber = knotLineIndex + 1;
-      editorRef.current?.jumpToLine(lineNumber);
+
+    const liveProject = getLiveProject();
+    for (const fileId of getSortedProjectFileIds(liveProject)) {
+      const symbol = buildSymbolTable(getProjectFileSource(liveProject, fileId), fileId)
+        .symbols
+        .find((item) => item.path === knotName || item.name === knotName);
+      if (symbol) {
+        switchToProjectFile(fileId, { line: symbol.range.startLineNumber });
+        break;
+      }
     }
     
     // Also jump to knot in story preview if running
     if (isRunning) {
       jumpToKnot(knotName);
     }
-  }, [currentDocument.source, isRunning, jumpToKnot]);
+  }, [getLiveProject, isRunning, jumpToKnot, switchToProjectFile]);
 
   const { exportInk, exportJson, exportHtml, isExporting } = useStoryExport({
     getSource: getCurrentSource,
+    getCompileInput: () => getProjectCompileInput(getLiveProject()),
     title,
     author: currentDocument.author ?? "",
     filename: currentDocument.filename,
@@ -565,16 +864,10 @@ export default function Editor() {
     onError: handleExportError,
   });
 
-  const handleErrorClick = useCallback((line: number) => {
-    setMobileDrawer(null);
-    setMobileTab("code");
-    if (!isMobile && focusedPanel !== null) {
-      setFocusedPanel("code");
-    }
-    window.setTimeout(() => {
-      editorRef.current?.jumpToLine(line);
-    }, 0);
-  }, [focusedPanel, isMobile]);
+  const handleErrorClick = useCallback((error: EditorDiagnostic) => {
+    const fileId = error.fileId ?? activeFileId;
+    switchToProjectFile(fileId, { line: getEditorDiagnosticLine(error) });
+  }, [activeFileId, switchToProjectFile]);
 
   const handleToggleFind = useCallback(() => {
     setMobileDrawer(null);
@@ -597,9 +890,21 @@ export default function Editor() {
   }) => {
     const nextDocument = { ...currentDocument, ...updates, updatedAt: Date.now() };
     setCurrentDocument(nextDocument);
+    if (updates.title) {
+      setCurrentProject((project) => ({ ...project, name: updates.title ?? project.name }));
+    }
 
     try {
-      await FileOperations.saveFile(nextDocument.filename, getCurrentSource(), {
+      const projectForSettings = updates.title
+        ? { ...currentProjectForSave, name: updates.title }
+        : currentProjectForSave;
+      const settingsFileName = hasMultipleProjectFiles
+        ? getProjectExportName(projectForSettings)
+        : nextDocument.filename;
+      const settingsContent = hasMultipleProjectFiles
+        ? JSON.stringify(projectForSettings, null, 2)
+        : getCurrentSource();
+      await FileOperations.saveFile(settingsFileName, settingsContent, {
         title: nextDocument.title,
         author: nextDocument.author,
         htmlExport: nextDocument.htmlExport,
@@ -614,7 +919,14 @@ export default function Editor() {
         variant: "destructive",
       });
     }
-  }, [currentDocument, getCurrentSource, setRecentFiles, toast]);
+  }, [
+    currentDocument,
+    currentProjectForSave,
+    getCurrentSource,
+    hasMultipleProjectFiles,
+    setRecentFiles,
+    toast,
+  ]);
 
   const effectiveStoryTypeface: HtmlExportFont =
     currentDocument.storyTypeface
@@ -700,21 +1012,28 @@ export default function Editor() {
 
   const inkpadDiagnostics = useMemo(() => {
     const missingStartDiagnostic = getMissingStartDiagnostic(
-      buildSymbolTable(currentDocument.source, currentDocument.filename),
+      buildSymbolTable(
+        getProjectFileSource(currentProjectForSave, currentProjectForSave.entryFile),
+        currentProjectForSave.entryFile,
+      ),
     );
     return missingStartDiagnostic ? [missingStartDiagnostic] : [];
-  }, [currentDocument.filename, currentDocument.source]);
+  }, [currentProjectForSave]);
   const editorDiagnostics = useMemo<EditorDiagnostic[]>(() => ([
     ...errors.map((error) => ({
       ...error,
       source: "inkjs" as const,
-      fileId: error.fileId && error.fileId !== "story.ink" ? error.fileId : currentDocument.filename,
+      fileId: error.fileId ?? currentProject.entryFile,
     })),
     ...inkpadDiagnostics,
-  ]), [currentDocument.filename, errors, inkpadDiagnostics]);
+  ]), [currentProject.entryFile, errors, inkpadDiagnostics]);
   const errorCount = errors.filter(e => e.type === "error").length;
   const warningCount = errors.filter(e => e.type === "warning").length;
-  const isPreviewStale = Boolean(runtimeState && lastRunSource !== null && currentDocument.source !== lastRunSource);
+  const isPreviewStale = Boolean(
+    runtimeState
+    && lastRunSource !== null
+    && getProjectFingerprint(currentProjectForSave) !== lastRunSource,
+  );
 
   const handleErrorPanelOpened = useCallback(() => {
     trackErrorPanelOpened(errorCount + warningCount);
@@ -728,24 +1047,84 @@ export default function Editor() {
     trackMobileTabChanged(tab);
   }, []);
 
+  const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
+  const projectFilesPane = (
+    <aside className={`${isMobile ? "flex h-10 items-stretch overflow-x-auto border-b" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
+      <div className={`${isMobile ? "sr-only" : "flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3"}`}>
+        <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+          Files
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleAddProjectFile}
+              className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
+              aria-label="Add Ink file"
+            >
+              <FilePlus2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Add Ink file</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className={`${isMobile ? "flex min-w-0 flex-1 items-stretch" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
+        {projectFileIds.map((fileId) => {
+          const isActive = fileId === activeFileId;
+          const isEntry = fileId === currentProject.entryFile;
+          return (
+            <button
+              key={fileId}
+              type="button"
+              onClick={() => switchToProjectFile(fileId)}
+              aria-current={isActive ? "page" : undefined}
+              className={`${isMobile ? "h-full max-w-[13rem] shrink-0 border-r px-3" : "mb-1 w-full rounded px-2.5 py-2"} flex min-w-0 items-center gap-2 border-border-color text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis`}
+            >
+              <FileText className={`h-3.5 w-3.5 shrink-0 ${isEntry ? "text-accent-blue" : "text-text-secondary"}`} />
+              <span className="truncate font-mono">{fileId}</span>
+            </button>
+          );
+        })}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={handleAddProjectFile}
+            className="flex h-full w-10 shrink-0 items-center justify-center text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis"
+            aria-label="Add Ink file"
+            title="Add Ink file"
+          >
+            <FilePlus2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+
   const editorPane = (
-    <CodeEditorPane
-      editorRef={editorRef}
-      value={currentDocument.source}
-      onChange={handleSourceChange}
-      onControlStateChange={setEditorControlState}
-      errors={editorDiagnostics}
-      fileId={currentDocument.filename}
-      documentId={currentDocument.id}
-      fileName={currentDocument.filename}
-      isMobileLayout={isMobile}
-      showHeader={!isMobile && focusedPanel === null}
-      fontSize={preferences.editorFontSize}
-      wordWrap={preferences.wordWrap}
-      saveState={autosave.saveState}
-      isPhone={isMobile}
-      isVisible={!isMobile || mobileTab === "code"}
-    />
+    <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
+      {projectFilesPane}
+      <div className="min-h-0 min-w-0 flex-1">
+        <CodeEditorPane
+          editorRef={editorRef}
+          value={currentDocument.source}
+          onChange={handleSourceChange}
+          onControlStateChange={setEditorControlState}
+          errors={editorDiagnostics}
+          fileId={activeFileId}
+          documentId={`${currentProject.id}:${activeFileId}`}
+          fileName={activeFileId}
+          isMobileLayout={isMobile}
+          showHeader={!isMobile && focusedPanel === null}
+          fontSize={preferences.editorFontSize}
+          wordWrap={preferences.wordWrap}
+          saveState={autosave.saveState}
+          isPhone={isMobile}
+          isVisible={!isMobile || mobileTab === "code"}
+        />
+      </div>
+    </div>
   );
 
   const previewPane = (
@@ -848,6 +1227,7 @@ export default function Editor() {
         onRun={handleRun}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportInk={exportInk}
+        onExportProject={handleExportProject}
         onExportJson={exportJson}
         resolvedTheme={resolvedExportTheme}
         resolvedFromSystem={resolvedFromSystem}
@@ -855,6 +1235,7 @@ export default function Editor() {
         onSetFileTheme={handleSetFileTheme}
         onStoryTypefaceChange={handleStoryTypefaceChange}
         isExporting={isExporting}
+        hasMultipleFiles={hasMultipleProjectFiles}
         onNavigateToKnot={handleNavigateToKnot}
         saveState={autosave.saveState}
       />
