@@ -345,6 +345,7 @@ export function EditorWorkspace({
     : mobileDrawer === "snippets"
       ? "Insert reusable Ink structures at the editor cursor."
       : "Review compiler errors and warnings.";
+  const isMobileSearchMode = isMobile && mobileTab === "code" && editorControlState.isFindVisible;
 
   const mobileKeyboardOffsetStyle = mobileKeyboardInset > 0
     ? { transform: `translateY(-${mobileKeyboardInset}px)` }
@@ -403,6 +404,14 @@ export function EditorWorkspace({
       window.removeEventListener("orientationchange", updateKeyboardInset);
     };
   }, [editorRef, isMobile]);
+
+  useEffect(() => {
+    if (!isMobileSearchMode) return;
+
+    setMobileDrawer(null);
+    const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
+    return () => window.clearTimeout(timer);
+  }, [editorRef, isMobileSearchMode, setMobileDrawer]);
 
   // Desktop and tablet keep the inspector dock independent from primary-pane focus.
   if (!isMobile) {
@@ -547,19 +556,21 @@ export function EditorWorkspace({
         onValueChange={handleMobilePrimaryTabChange}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className="flex h-10 w-full shrink-0 rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
-          <TabsTrigger
-            value="code"
-            onPointerEnter={onCodeTabIntent}
-            onFocus={onCodeTabIntent}
-            className="relative h-full flex-1 rounded-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue"
-          >
-            Code
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="relative h-full flex-1 rounded-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue">
-            Preview
-          </TabsTrigger>
-        </TabsList>
+        {!isMobileSearchMode && (
+          <TabsList className="flex h-10 w-full shrink-0 rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
+            <TabsTrigger
+              value="code"
+              onPointerEnter={onCodeTabIntent}
+              onFocus={onCodeTabIntent}
+              className="relative h-full flex-1 rounded-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue"
+            >
+              Code
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="relative h-full flex-1 rounded-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue">
+              Preview
+            </TabsTrigger>
+          </TabsList>
+        )}
         <TabsContent value="code" forceMount className="m-0 min-h-0 flex-1 data-[state=inactive]:hidden">
           <div className="h-full min-h-0">{editorPane}</div>
         </TabsContent>
@@ -568,7 +579,7 @@ export function EditorWorkspace({
         </TabsContent>
       </Tabs>
 
-      {mobileTab === "code" && (
+      {mobileTab === "code" && !isMobileSearchMode && (
         <div
           className="inkpad-mobile-keyboard-offset relative z-40 flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-t border-border-color bg-editor-bg px-1 py-1 transition-transform duration-150 ease-out"
           style={mobileKeyboardOffsetStyle}
@@ -693,49 +704,51 @@ export function EditorWorkspace({
         </div>
       )}
 
-      <div
-        className="inkpad-mobile-keyboard-offset relative z-40 flex h-12 shrink-0 border-t border-border-color bg-panel-bg transition-transform duration-150 ease-out"
-        style={mobileKeyboardOffsetStyle}
-      >
-        {mobileTab === "code" ? (
-          <>
-            <div className="flex shrink-0 items-stretch px-1">
-              <Button type="button" variant="ghost" onClick={() => editorRef.current?.undo()} disabled={!editorControlState.canUndo} aria-label="Undo" className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                <Undo2 className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => editorRef.current?.redo()} disabled={!editorControlState.canRedo} aria-label="Redo" className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                <Redo2 className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="ghost" onClick={onToggleFind} aria-label={editorControlState.isFindVisible ? "Close find and replace" : "Find and replace"} aria-pressed={editorControlState.isFindVisible} className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-accent-blue">
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="my-2 w-px shrink-0 bg-border-color" aria-hidden="true" />
-          </>
-        ) : (
-          <>
-            <div className="flex shrink-0 items-stretch px-1">
-              <Button type="button" variant="ghost" onClick={onStepBack} disabled={!canStepBack || !hasRuntimeState} aria-label="Back to previous choice" className="h-full w-11 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="ghost" onClick={onRestart} disabled={!hasRuntimeState} aria-label="Restart story from beginning" className="h-full w-11 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="my-2 w-px shrink-0 bg-border-color" aria-hidden="true" />
-          </>
-        )}
-        <Button variant="ghost" onClick={() => handleMobileDrawerToggle("problems")} aria-label={`Problems ${problemCount}`} aria-pressed={mobileDrawer === "problems"} className="h-full min-w-0 flex-1 rounded-none justify-center gap-1.5 px-1 text-[0.75rem] text-text-primary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-text-emphasis min-[360px]:gap-2 min-[360px]:text-[0.8125rem]">
-          <AlertTriangle className="h-4 w-4 text-error" />
-          <span className="hidden min-[340px]:inline">Problems</span>
-          <span className="tabular-nums text-text-secondary">{problemCount}</span>
-        </Button>
-        <Button variant="ghost" onClick={() => handleMobileDrawerToggle("variables")} aria-label={`Variables ${variableCount}`} aria-pressed={mobileDrawer === "variables"} className="h-full min-w-0 flex-1 rounded-none justify-center gap-1.5 px-1 text-[0.75rem] text-text-primary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-text-emphasis min-[360px]:gap-2 min-[360px]:text-[0.8125rem]">
-          <List className="h-4 w-4 text-accent-blue" />
-          <span className="hidden min-[340px]:inline">Variables</span>
-          <span className="tabular-nums text-text-secondary">{variableCount}</span>
-        </Button>
-      </div>
+      {!isMobileSearchMode && (
+        <div
+          className="inkpad-mobile-keyboard-offset relative z-40 flex h-12 shrink-0 border-t border-border-color bg-panel-bg transition-transform duration-150 ease-out"
+          style={mobileKeyboardOffsetStyle}
+        >
+          {mobileTab === "code" ? (
+            <>
+              <div className="flex shrink-0 items-stretch px-1">
+                <Button type="button" variant="ghost" onClick={() => editorRef.current?.undo()} disabled={!editorControlState.canUndo} aria-label="Undo" className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => editorRef.current?.redo()} disabled={!editorControlState.canRedo} aria-label="Redo" className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="ghost" onClick={onToggleFind} aria-label={editorControlState.isFindVisible ? "Close find and replace" : "Find and replace"} aria-pressed={editorControlState.isFindVisible} className="h-full w-10 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-accent-blue">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="my-2 w-px shrink-0 bg-border-color" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-stretch px-1">
+                <Button type="button" variant="ghost" onClick={onStepBack} disabled={!canStepBack || !hasRuntimeState} aria-label="Back to previous choice" className="h-full w-11 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="ghost" onClick={onRestart} disabled={!hasRuntimeState} aria-label="Restart story from beginning" className="h-full w-11 rounded-none p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="my-2 w-px shrink-0 bg-border-color" aria-hidden="true" />
+            </>
+          )}
+          <Button variant="ghost" onClick={() => handleMobileDrawerToggle("problems")} aria-label={`Problems ${problemCount}`} aria-pressed={mobileDrawer === "problems"} className="h-full min-w-0 flex-1 rounded-none justify-center gap-1.5 px-1 text-[0.75rem] text-text-primary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-text-emphasis min-[360px]:gap-2 min-[360px]:text-[0.8125rem]">
+            <AlertTriangle className="h-4 w-4 text-error" />
+            <span className="hidden min-[340px]:inline">Problems</span>
+            <span className="tabular-nums text-text-secondary">{problemCount}</span>
+          </Button>
+          <Button variant="ghost" onClick={() => handleMobileDrawerToggle("variables")} aria-label={`Variables ${variableCount}`} aria-pressed={mobileDrawer === "variables"} className="h-full min-w-0 flex-1 rounded-none justify-center gap-1.5 px-1 text-[0.75rem] text-text-primary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-text-emphasis min-[360px]:gap-2 min-[360px]:text-[0.8125rem]">
+            <List className="h-4 w-4 text-accent-blue" />
+            <span className="hidden min-[340px]:inline">Variables</span>
+            <span className="tabular-nums text-text-secondary">{variableCount}</span>
+          </Button>
+        </div>
+      )}
 
       <Drawer open={mobileDrawer !== null} onOpenChange={(open) => !open && setMobileDrawer(null)}>
         <DrawerContent
