@@ -650,9 +650,3 @@
   -webkit-user-select: none !important;
   user-select: none !important;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .inkpad-mobile-keyboard-offset {
-    transition-duration: 0ms !important;
-  }
-}

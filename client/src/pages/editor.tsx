@@ -35,6 +35,7 @@ import { useEditorDocumentActions } from "@/hooks/use-editor-document-actions";
 import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 import { usePreferences } from "@/components/preferences-provider";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
@@ -283,6 +284,7 @@ export default function Editor() {
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
   const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
   const isMobile = useIsMobile();
+  const mobileKeyboardInset = useMobileKeyboardInset(isMobile);
 
   // True mobile owns the tab layout outright; clear any desktop focus state on entry.
   useEffect(() => {
@@ -822,7 +824,10 @@ export default function Editor() {
   }, [handleNew, handleOpenFromDisk, handleRun, handleSave]);
 
   return (
-    <main className="flex h-dvh flex-col bg-editor-bg text-text-primary">
+    <main
+      className="flex h-dvh flex-col bg-editor-bg text-text-primary"
+      style={mobileKeyboardInset > 0 ? { height: `calc(100dvh - ${mobileKeyboardInset}px)` } : undefined}
+    >
       <TopMenu
         title={title}
         knots={knots}

@@ -15,11 +15,6 @@ import {
   isolateHistory,
   redo,
   redoDepth,
-  selectGroupBackward,
-  selectGroupForward,
-  selectLine,
-  selectParentSyntax,
-  simplifySelection,
   undo,
   undoDepth,
 } from "@codemirror/commands";
@@ -118,14 +113,6 @@ export interface CodeMirrorEditorHandle {
   openReplace: () => void;
   closeFind: () => void;
   replaceValue: (nextValue: string, source?: string) => void;
-  selectPreviousWord: () => void;
-  selectNextWord: () => void;
-  expandSelection: () => void;
-  shrinkSelection: () => void;
-  selectLine: () => void;
-  copySelection: () => void;
-  cutSelection: () => void;
-  pasteFromClipboard: () => void;
   undo: () => void;
   redo: () => void;
 }
@@ -318,10 +305,14 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   fileName,
   isMobileLayout = false,
   showHeader = true,
-  fontSize = isMobileLayout ? 13 : 14,
+  fontSize = 14,
   wordWrap = true,
   saveState = "saved",
 }, ref) => {
+  // iOS Safari auto-zooms the page when focusing an editable element whose
+  // font-size is below 16px. Floor the mobile font size regardless of the
+  // user's chosen preference so tapping into the editor never zooms.
+  const effectiveFontSize = isMobileLayout ? Math.max(fontSize, 16) : fontSize;
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView>();
   const changeEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -448,7 +439,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     indentUnit.of("  "),
     languageCompartmentRef.current.of(InkLanguageSupport()),
     syntaxHighlighting(inkHighlightStyle),
-    themeCompartmentRef.current.of(createThemeExtension(fontSize, effectiveTheme !== "light")),
+    themeCompartmentRef.current.of(createThemeExtension(effectiveFontSize, effectiveTheme !== "light")),
     wrappingCompartmentRef.current.of(wordWrap ? EditorView.lineWrapping : []),
     editableCompartmentRef.current.of([
       EditorView.editable.of(true),
@@ -472,7 +463,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         scheduleChangeEmit();
       }
     }),
-  ], [effectiveTheme, fileName, fontSize, scheduleChangeEmit, updateControlState, wordWrap]);
+  ], [effectiveFontSize, effectiveTheme, fileName, scheduleChangeEmit, updateControlState, wordWrap]);
 
   const createState = useCallback((doc: string, selection?: { from: number; to?: number }) => (
     EditorState.create({
@@ -582,99 +573,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     emitChangeNow();
   }, [emitChangeNow]);
 
-  const getSelectedEditorText = useCallback((view: EditorView) => {
-    const selection = view.state.selection.main;
-    if (selection.empty) return "";
-
-    return view.state.doc.sliceString(selection.from, selection.to);
-  }, []);
-
-  const writeTextToClipboard = useCallback(async (text: string) => {
-    if (!text) return false;
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch {
-      // Fall through to the legacy copy path below.
-    }
-
-    try {
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.setAttribute("readonly", "");
-      textarea.style.position = "fixed";
-      textarea.style.left = "-9999px";
-      document.body.appendChild(textarea);
-      textarea.select();
-
-      try {
-        return document.execCommand("copy");
-      } finally {
-        textarea.remove();
-      }
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const readTextFromClipboard = useCallback(async () => {
-    try {
-      return await navigator.clipboard?.readText() ?? "";
-    } catch {
-      return "";
-    }
-  }, []);
-
-  const copySelection = useCallback(() => {
-    const view = viewRef.current;
-    if (!view) return;
-
-    void writeTextToClipboard(getSelectedEditorText(view));
-    view.focus();
-  }, [getSelectedEditorText, writeTextToClipboard]);
-
-  const cutSelection = useCallback(() => {
-    const view = viewRef.current;
-    const selection = view?.state.selection.main;
-    if (!view || !selection || selection.empty) {
-      view?.focus();
-      return;
-    }
-
-    void (async () => {
-      const copied = await writeTextToClipboard(view.state.doc.sliceString(selection.from, selection.to));
-      if (!copied) {
-        view.focus();
-        return;
-      }
-
-      view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: "" },
-        annotations: isolateHistory.of("full"),
-        userEvent: "delete.cut",
-      });
-      view.focus();
-      emitChangeNow();
-    })();
-  }, [emitChangeNow, writeTextToClipboard]);
-
-  const pasteFromClipboard = useCallback(() => {
-    const view = viewRef.current;
-    if (!view) return;
-
-    void (async () => {
-      const text = await readTextFromClipboard();
-      if (text) {
-        insertTextAtCursor({ text, userEvent: "input.paste" });
-      } else {
-        view.focus();
-      }
-    })();
-  }, [insertTextAtCursor, readTextFromClipboard]);
-
   const jumpToOffset = useCallback((offset: number) => {
     const view = viewRef.current;
     if (!view) return;
@@ -759,25 +657,14 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     openReplace: () => runCommand(openSearchPanelSafely),
     closeFind: () => runCommand(closeSearchPanel),
     replaceValue: (nextValue: string) => replaceDocument(nextValue, { history: "preserve" }),
-    selectPreviousWord: () => runCommand(selectGroupBackward),
-    selectNextWord: () => runCommand(selectGroupForward),
-    expandSelection: () => runCommand((view) => selectParentSyntax(view) || selectLine(view)),
-    shrinkSelection: () => runCommand(simplifySelection),
-    selectLine: () => runCommand(selectLine),
-    copySelection,
-    cutSelection,
-    pasteFromClipboard,
     undo: () => runCommand(undo),
     redo: () => runCommand(redo),
   }), [
-    copySelection,
-    cutSelection,
     emitChangeNow,
     focusEditor,
     insertTextAtCursor,
     jumpToLine,
     jumpToOffset,
-    pasteFromClipboard,
     replaceRange,
     replaceDocument,
     runCommand,
@@ -818,11 +705,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
 
     view.dispatch({
       effects: themeCompartmentRef.current.reconfigure(
-        createThemeExtension(fontSize, effectiveTheme !== "light"),
+        createThemeExtension(effectiveFontSize, effectiveTheme !== "light"),
       ),
     });
     view.requestMeasure();
-  }, [effectiveTheme, fontSize]);
+  }, [effectiveFontSize, effectiveTheme]);
 
   useEffect(() => {
     const view = viewRef.current;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import { AlertTriangle, ArrowLeft, ArrowRight, Braces, ClipboardPaste, Columns2, Copy, List, Maximize2, Minimize2, Redo2, RotateCcw, Scissors, Search, TextSelect, Undo2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Braces, Columns2, List, Redo2, RotateCcw, Search, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -14,6 +14,7 @@ import type {
   CodeMirrorEditorInsertOptions,
 } from "@/components/editor/codemirror-editor";
 import type { AnalyticsMobileTab, PanelLayout } from "@/lib/analytics";
+import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 
 export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
@@ -135,7 +136,6 @@ export function EditorWorkspace({
   } | null>(null);
   // Incremented each time split view is restored, forcing a clean PanelGroup mount.
   const [splitKey, setSplitKey] = useState(0);
-  const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -232,39 +232,6 @@ export function EditorWorkspace({
     insertAtCursor(insert, closeDrawer);
   }, [insertAtCursor, markPointerActivationHandled]);
 
-  const handleEditorCommandPointerDown = useCallback((
-    event: React.PointerEvent<HTMLElement>,
-    command: () => void,
-  ) => {
-    event.preventDefault();
-    markPointerActivationHandled();
-    setMobileTab("code");
-    command();
-  }, [markPointerActivationHandled, setMobileTab]);
-
-  const handleEditorCommandClick = useCallback((
-    event: React.MouseEvent<HTMLElement>,
-    command: () => void,
-  ) => {
-    if (pointerActivationHandledRef.current) {
-      event.preventDefault();
-      return;
-    }
-    setMobileTab("code");
-    command();
-  }, [setMobileTab]);
-
-  const handleEditorCommandKeyDown = useCallback((
-    event: React.KeyboardEvent<HTMLElement>,
-    command: () => void,
-  ) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    markPointerActivationHandled();
-    setMobileTab("code");
-    command();
-  }, [markPointerActivationHandled, setMobileTab]);
-
   const handleSnippetPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse") return;
 
@@ -347,9 +314,12 @@ export function EditorWorkspace({
       : "Review compiler errors and warnings.";
   const isMobileSearchMode = isMobile && mobileTab === "code" && editorControlState.isFindVisible;
 
-  const mobileKeyboardOffsetStyle = mobileKeyboardInset > 0
-    ? { transform: `translateY(-${mobileKeyboardInset}px)` }
-    : undefined;
+  // The phone `<main>` shrinks to the visible viewport above the keyboard (see
+  // editor.tsx), which already lifts this workspace's toolbar rows into view.
+  // The drawer is portalled outside `<main>` though, so it still needs an
+  // explicit offset to sit above the keyboard.
+  const mobileKeyboardInset = useMobileKeyboardInset(isMobile, () => editorRef.current?.layout());
+
   const mobileDrawerStyle: CSSProperties | undefined = mobileKeyboardInset > 0
     ? {
         bottom: mobileKeyboardInset,
@@ -370,40 +340,6 @@ export function EditorWorkspace({
     }, 0);
     return () => window.clearTimeout(timer);
   }, [editorRef, mobileDrawer, mobileTab, focusedPanel]);
-
-  useEffect(() => {
-    if (!isMobile || typeof window === "undefined" || !window.visualViewport) {
-      setMobileKeyboardInset(0);
-      return;
-    }
-
-    const viewport = window.visualViewport;
-    let frame = 0;
-
-    const updateKeyboardInset = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const inset = Math.max(
-          0,
-          Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
-        );
-        setMobileKeyboardInset(inset > 24 ? inset : 0);
-        editorRef.current?.layout();
-      });
-    };
-
-    updateKeyboardInset();
-    viewport.addEventListener("resize", updateKeyboardInset);
-    viewport.addEventListener("scroll", updateKeyboardInset);
-    window.addEventListener("orientationchange", updateKeyboardInset);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", updateKeyboardInset);
-      viewport.removeEventListener("scroll", updateKeyboardInset);
-      window.removeEventListener("orientationchange", updateKeyboardInset);
-    };
-  }, [editorRef, isMobile]);
 
   useEffect(() => {
     if (!isMobileSearchMode) return;
@@ -580,10 +516,7 @@ export function EditorWorkspace({
       </Tabs>
 
       {mobileTab === "code" && !isMobileSearchMode && (
-        <div
-          className="inkpad-mobile-keyboard-offset relative z-40 flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-t border-border-color bg-editor-bg px-1 py-1 transition-transform duration-150 ease-out"
-          style={mobileKeyboardOffsetStyle}
-        >
+        <div className="relative z-40 flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-t border-border-color bg-editor-bg px-1 py-1">
           {MOBILE_SYNTAX_INSERTS.map((item) => (
             <button
               key={item.label}
@@ -598,98 +531,6 @@ export function EditorWorkspace({
               {item.label}
             </button>
           ))}
-          <div className="ml-1 flex shrink-0 items-stretch gap-1 border-l border-border-color pl-1">
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.selectPreviousWord())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.selectPreviousWord())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.selectPreviousWord())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Extend selection to previous word"
-              title="Extend selection to previous word"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.selectNextWord())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.selectNextWord())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.selectNextWord())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Extend selection to next word"
-              title="Extend selection to next word"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.expandSelection())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.expandSelection())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.expandSelection())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Expand selection"
-              title="Expand selection"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.shrinkSelection())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.shrinkSelection())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.shrinkSelection())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Shrink selection"
-              title="Shrink selection"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.selectLine())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.selectLine())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.selectLine())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Select current line"
-              title="Select current line"
-            >
-              <TextSelect className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="ml-1 flex shrink-0 items-stretch gap-1 border-l border-border-color pl-1">
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.cutSelection())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.cutSelection())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.cutSelection())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Cut selection"
-              title="Cut selection"
-            >
-              <Scissors className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.copySelection())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.copySelection())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.copySelection())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Copy selection"
-              title="Copy selection"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => handleEditorCommandPointerDown(event, () => editorRef.current?.pasteFromClipboard())}
-              onClick={(event) => handleEditorCommandClick(event, () => editorRef.current?.pasteFromClipboard())}
-              onKeyDown={(event) => handleEditorCommandKeyDown(event, () => editorRef.current?.pasteFromClipboard())}
-              className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              aria-label="Paste from clipboard"
-              title="Paste from clipboard"
-            >
-              <ClipboardPaste className="h-4 w-4" />
-            </button>
-          </div>
           <button
             type="button"
             onPointerDown={handleSnippetsTogglePointerDown}
@@ -706,8 +547,7 @@ export function EditorWorkspace({
 
       {!isMobileSearchMode && (
         <div
-          className="inkpad-mobile-keyboard-offset relative z-40 flex h-12 shrink-0 border-t border-border-color bg-panel-bg transition-transform duration-150 ease-out"
-          style={mobileKeyboardOffsetStyle}
+          className="relative z-40 flex h-12 shrink-0 border-t border-border-color bg-panel-bg"
         >
           {mobileTab === "code" ? (
             <>
