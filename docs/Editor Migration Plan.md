@@ -627,6 +627,24 @@ Before finalizing special highlighting, verify the canonical built-in functions/
 - a grammar feature, if natural; or
 - a separate decoration/highlight extension, if cleaner.
 
+Migration decision: built-in highlighting is a separate CodeMirror decoration
+extension, not a grammar patch. The grammar continues to parse built-ins as
+ordinary `ExpressionFunctionCall(Name, ...)` syntax; InkPad overlays a
+`cm-inkBuiltin` mark only on the function-name node when that name is in the
+inkjs-verified built-in set. This avoids making public runtime names part of
+the vendored grammar's syntax rules and prevents prose mentions of words such
+as `RANDOM` or `TURNS_SINCE` from being styled as functions.
+
+The built-in set is verified against pinned inkjs:
+
+- `engine/NativeFunctionCall.js` for native runtime functions:
+  `MIN`, `MAX`, `POW`, `FLOOR`, `CEILING`, `INT`, `FLOAT`, `LIST_MIN`,
+  `LIST_MAX`, `LIST_ALL`, `LIST_COUNT`, `LIST_VALUE`, `LIST_INVERT`.
+- `compiler/Parser/ParsedHierarchy/FunctionCall.js` for compiler-recognized
+  special calls:
+  `CHOICE_COUNT`, `TURNS`, `TURNS_SINCE`, `READ_COUNT`, `RANDOM`,
+  `SEED_RANDOM`, `LIST_RANGE`, `LIST_RANDOM`.
+
 ### Fold semantics
 
 Match Inky unless there is a clear reason not to:

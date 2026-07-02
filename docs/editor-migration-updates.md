@@ -423,6 +423,39 @@ InkPad's architecture.
   map. Splitting that out would need a further grammar patch, not just a
   `HighlightStyle` change.
 
+## 2026-07-02 - Checkpoint 8: Built-in highlighting policy settled
+
+### Implemented
+
+- Added `client/src/editor/codemirror/ink-builtins.ts` as a separate
+  CodeMirror decoration extension for Ink built-in function names.
+- Verified the highlighted built-in set against pinned inkjs instead of the
+  old Monaco/Ace guesses:
+  - native runtime names from `node_modules/inkjs/engine/NativeFunctionCall.js`
+  - compiler-recognized special calls from
+    `node_modules/inkjs/compiler/Parser/ParsedHierarchy/FunctionCall.js`
+- Wired `inkBuiltinFunctions` into the CodeMirror extension stack beside the
+  language support and identifier-occurrence extension.
+- Styled built-ins with `cm-inkBuiltin` through the CodeMirror theme extension,
+  using `--secondary-blue` so light/dark/high-contrast themes inherit the app's
+  existing syntax palette.
+- Added `client/src/editor/codemirror/ink-builtins.test.ts` to assert the
+  canonical set and to confirm prose mentions such as `RANDOM` or
+  `TURNS_SINCE` are not decorated unless parsed as `ExpressionFunctionCall`.
+- Documented the policy in `docs/Editor Migration Plan.md`: this is an editor
+  decoration, not a vendored grammar keyword patch.
+
+### Verified
+
+- `npm test -- ink-builtins.test.ts ink-language-evaluation.test.ts` passes.
+- `npm run check` passes.
+- `npm test` passes: 27 test files, 211 tests. It still prints the known
+  Monaco `marked.umd.js.map` sourcemap warning.
+- `npm run build` passes.
+- Browser smoke on `http://127.0.0.1:5173/`: a real `RANDOM(1, 6)` call
+  renders with `cm-inkBuiltin` and the expected theme color/font weight, while
+  a prose mention of `RANDOM` remains unmarked.
+
 ## Next Checkpoint
 
 Phase 3 remaining exit criteria:
@@ -431,12 +464,9 @@ Phase 3 remaining exit criteria:
   exists: `include-quoted-path.ink` is confirmed `"invalid"`; the
   quoted-vs-bare-path product decision itself is still open, see Open
   Decisions in the migration plan).
-- Built-in highlighting policy: currently built-ins (`RANDOM`,
-  `TURNS_SINCE`, etc.) get no distinct treatment from other function calls
-  in the vendored grammar's `styleTags` map. Decide grammar-node vs.
-  decoration-extension per the migration plan's Open Decisions, and verify
-  the canonical built-in set against inkjs source, not the Ace/Monarch
-  guesses.
+- Fold semantics still need a targeted validation pass against the intended
+  Inky behavior, especially trimming trailing blank lines before the next
+  declaration.
 
 ## Later Checkpoints
 

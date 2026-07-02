@@ -56,6 +56,7 @@ import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
+import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkSearch } from "@/components/editor/codemirror-search-panel";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
@@ -223,6 +224,10 @@ function createThemeExtension(fontSize: number, isDark: boolean) {
       backgroundColor: "color-mix(in srgb, var(--accent-blue) 14%, transparent)",
       outline: "1px solid color-mix(in srgb, var(--accent-blue) 32%, transparent)",
       borderRadius: "2px",
+    },
+    ".cm-inkBuiltin": {
+      color: "var(--secondary-blue)",
+      fontWeight: "600",
     },
     ".cm-foldPlaceholder": {
       backgroundColor: "var(--panel-bg)",
@@ -436,6 +441,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     bracketMatching(),
     inkSearch({ top: true }),
     highlightSelectionMatches({ minSelectionLength: 3 }),
+    inkBuiltinFunctions,
     inkIdentifierOccurrences,
     flashLineField,
     EditorState.tabSize.of(2),
