@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { Ref } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, Ref } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { TopMenu } from "@/components/editor/top-menu";
 import type {
@@ -49,6 +49,7 @@ import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
+import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
 import { AlertTriangle, ChevronLeft, ChevronRight, File, FilePlus2, FileText, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
@@ -98,6 +99,7 @@ const LazyCodeMirrorEditor = lazy(() =>
 );
 
 const PHONE_MEDIA_QUERY = "(max-width: 768px)";
+const PROJECT_FILES_DRAG_THRESHOLD = 28;
 
 function isPhoneViewport() {
   if (typeof window === "undefined") {
@@ -401,8 +403,20 @@ export default function Editor() {
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
   const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
   const previousProjectIdRef = useRef(currentProject.id);
+  const projectFilesHandleDragRef = useRef<{
+    pointerId: number | null;
+    startX: number;
+    startCollapsed: boolean;
+    crossedThreshold: boolean;
+  } | null>(null);
+  const projectFilesHandleCleanupRef = useRef<(() => void) | null>(null);
+  const suppressProjectFilesHandleClickRef = useRef(false);
   const isMobile = useIsMobile();
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile);
+
+  useEffect(() => () => {
+    projectFilesHandleCleanupRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (
@@ -1140,6 +1154,116 @@ export default function Editor() {
   }, []);
 
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
+  const updateProjectFilesHandleDrag = useCallback((clientX: number) => {
+    const drag = projectFilesHandleDragRef.current;
+    if (!drag || drag.crossedThreshold) return;
+
+    const deltaX = clientX - drag.startX;
+    if (drag.startCollapsed && deltaX > PROJECT_FILES_DRAG_THRESHOLD) {
+      drag.crossedThreshold = true;
+      suppressProjectFilesHandleClickRef.current = true;
+      setIsProjectFilesCollapsed(false);
+    } else if (!drag.startCollapsed && deltaX < -PROJECT_FILES_DRAG_THRESHOLD) {
+      drag.crossedThreshold = true;
+      suppressProjectFilesHandleClickRef.current = true;
+      setIsProjectFilesCollapsed(true);
+    }
+  }, []);
+
+  const finishProjectFilesHandleDrag = useCallback(() => {
+    const drag = projectFilesHandleDragRef.current;
+    projectFilesHandleDragRef.current = null;
+    projectFilesHandleCleanupRef.current?.();
+    projectFilesHandleCleanupRef.current = null;
+
+    if (drag?.crossedThreshold) {
+      window.setTimeout(() => {
+        suppressProjectFilesHandleClickRef.current = false;
+      }, 0);
+    }
+  }, []);
+
+  const beginProjectFilesHandleDrag = useCallback((startX: number, pointerId: number | null) => {
+    projectFilesHandleCleanupRef.current?.();
+    projectFilesHandleDragRef.current = {
+      pointerId,
+      startX,
+      startCollapsed: isProjectFilesCollapsed,
+      crossedThreshold: false,
+    };
+  }, [isProjectFilesCollapsed]);
+
+  const handleProjectFilesHandlePointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    beginProjectFilesHandleDrag(event.clientX, event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const handleWindowPointerMove = (moveEvent: PointerEvent) => {
+      const drag = projectFilesHandleDragRef.current;
+      if (!drag || drag.pointerId !== moveEvent.pointerId) return;
+      updateProjectFilesHandleDrag(moveEvent.clientX);
+    };
+    const handleWindowPointerEnd = (endEvent: PointerEvent) => {
+      const drag = projectFilesHandleDragRef.current;
+      if (!drag || drag.pointerId !== endEvent.pointerId) return;
+      finishProjectFilesHandleDrag();
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    projectFilesHandleCleanupRef.current = () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [beginProjectFilesHandleDrag, finishProjectFilesHandleDrag, updateProjectFilesHandleDrag]);
+
+  const handleProjectFilesHandlePointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = projectFilesHandleDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    updateProjectFilesHandleDrag(event.clientX);
+  }, [updateProjectFilesHandleDrag]);
+
+  const handleProjectFilesHandlePointerEnd = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = projectFilesHandleDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    finishProjectFilesHandleDrag();
+  }, [finishProjectFilesHandleDrag]);
+
+  const handleProjectFilesHandleMouseDown = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || projectFilesHandleDragRef.current) return;
+
+    beginProjectFilesHandleDrag(event.clientX, null);
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      updateProjectFilesHandleDrag(moveEvent.clientX);
+    };
+    const handleWindowMouseEnd = () => {
+      finishProjectFilesHandleDrag();
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseEnd);
+    projectFilesHandleCleanupRef.current = () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseEnd);
+    };
+  }, [beginProjectFilesHandleDrag, finishProjectFilesHandleDrag, updateProjectFilesHandleDrag]);
+
+  const handleProjectFilesHandleClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (suppressProjectFilesHandleClickRef.current) {
+      event.preventDefault();
+      suppressProjectFilesHandleClickRef.current = false;
+      return;
+    }
+
+    setIsProjectFilesCollapsed((collapsed) => !collapsed);
+  }, []);
+
   const projectNewMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -1204,9 +1328,23 @@ export default function Editor() {
     </DropdownMenuContent>
   );
   const projectFilesPane = (
-    <aside className={`${isProjectFilesCollapsed ? "flex w-10 flex-col items-center border-r" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
+    <aside className={`${isProjectFilesCollapsed ? "flex w-11 flex-col items-center" : "flex w-56 flex-col"} relative shrink-0 border-border-color bg-panel-bg`}>
+      <button
+        type="button"
+        onPointerDown={handleProjectFilesHandlePointerDown}
+        onPointerMove={handleProjectFilesHandlePointerMove}
+        onPointerUp={handleProjectFilesHandlePointerEnd}
+        onPointerCancel={handleProjectFilesHandlePointerEnd}
+        onMouseDown={handleProjectFilesHandleMouseDown}
+        onClick={handleProjectFilesHandleClick}
+        aria-label={isProjectFilesCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag or click to hide files"}
+        aria-expanded={!isProjectFilesCollapsed}
+        className="group absolute inset-y-0 -right-1 z-20 flex w-2 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
+      >
+        <span className="h-full w-px bg-border-color transition-colors group-hover:bg-accent-blue group-focus-visible:bg-accent-blue" aria-hidden="true" />
+      </button>
       {!isMobile && isProjectFilesCollapsed && (
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1 py-2">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1.5 py-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1227,10 +1365,15 @@ export default function Editor() {
         </div>
       )}
       {!isMobile && (
-        <div className={`${isProjectFilesCollapsed ? "hidden" : "flex"} h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3`}>
-          <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
-            Files
-          </span>
+        <div className={`${isProjectFilesCollapsed ? "hidden" : "flex"} h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3 pr-4`}>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+              Files
+            </span>
+            <span className="rounded-sm bg-editor-bg px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums leading-none text-text-secondary">
+              {projectFileCount}
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             {projectNewMenu}
             <Tooltip>
@@ -1252,7 +1395,7 @@ export default function Editor() {
           </div>
         </div>
       )}
-      <div className={`${isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
+      <div className={`${isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5 pr-2.5"}`}>
         {projectFileIds.map((fileId) => {
           const isActive = fileId === activeFileId;
           const isEntry = fileId === currentProject.entryFile;
@@ -1262,10 +1405,18 @@ export default function Editor() {
               type="button"
               onClick={() => switchToProjectFile(fileId)}
               aria-current={isActive ? "page" : undefined}
-              className="mb-1 flex min-w-0 w-full items-center gap-2 rounded border-border-color px-2.5 py-2 text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis"
+              className={cn(
+                "mb-0.5 flex min-w-0 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-[0.8125rem] text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+                "hover:border-border-color hover:bg-accent hover:text-text-emphasis",
+                isActive && "border-accent-blue bg-accent text-text-emphasis hover:border-accent-blue",
+              )}
             >
-              <FileText className={`h-3.5 w-3.5 shrink-0 ${isEntry ? "text-accent-blue" : "text-text-secondary"}`} />
-              <span className="truncate font-mono">{fileId}</span>
+              <FileText className={cn(
+                "h-3.5 w-3.5 shrink-0",
+                isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
+              )} />
+              <span className={cn("truncate font-mono", isActive && "font-medium")}>{fileId}</span>
+              {isActive && <span className="sr-only">Current file</span>}
             </button>
           );
         })}
