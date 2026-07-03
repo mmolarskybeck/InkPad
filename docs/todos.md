@@ -1,5 +1,16 @@
 # To Do
 
+## After naming refactor (2026-07-03)
+
+### Quick wins
+* **Export dialog inline rename** — wire the suggested-name input to `pinExportNameBase()` so users can edit the `.inkpad` name in the export dialog, not just in Save As. (20 min)
+* **Mobile file-rail rename** — add rename action to mobile file tab dropdown or modal, matching desktop pencil-icon affordance. (Roadmap Phase 5)
+* **`.inkpad` import** — wire load path to detect and parse `.inkpad` files as multi-file projects. (Roadmap Phase 5)
+
+### Documentation
+* Update project onboarding with the new naming model: independent story title, project name, and file names.
+* Add a "Project structure" help page explaining `.ink` vs `.inkpad` vs internal InkProject model.
+
 ## rn
 
 * add a bit more whitespace in gutter on desktop, between line numbers and code?

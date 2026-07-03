@@ -92,24 +92,36 @@ The worker still sends `storyJson` as a JSON string. Sender and receiver must ch
 
 ```ts
 interface InkProject {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
-  name: string;
-  entryFile: string;
+  name: string;                    // Project name (topbar display, export basis)
+  nameIsExplicit: boolean;        // false → auto-follows Story Title tag
+  fileNameIsExplicit: boolean;    // false → entry file name auto-follows project name (single-file only)
+  exportNameBase: string;         // Basis for .inkpad bundle name
+  exportNameIsExplicit: boolean;  // false → auto-follows project name
+  entryFile: string;              // The entry .ink file
   files: Record<string, { content: string }>;
+  // Story settings (now part of the portable project):
+  author?: string;
+  htmlExport?: HtmlExportOptions;
+  storyTypeface?: HtmlExportFont;
+  previewMode?: PreviewMode;
+  titleFallback?: string;         // Fallback Story Title when no # title: tag present
 }
 ```
 
-The model is intentionally serializable and versioned because it will be shared by:
+The model is intentionally serializable and versioned because it is shared by:
 
-- `.inkproject` import/export
+- Local project persistence (single-file and multi-file)
+- `.inkpad` import/export (full-fidelity project bundles)
 - shareable project snapshots
-- future multi-file persistence
 - compiler virtual-file input
 
-The current editor and local persistence still use `InkDocument`. Migration to project-level state is planned, not complete.
+**Single-file stories are modeled as one-file `InkProject`s.** This unifies the persistence model: every story (single or multi-file) is an `InkProject`, stored in localStorage with a computed storage key based on file count.
 
-User preferences do not belong in `InkProject`. Story metadata and intended presentation defaults may eventually belong in the portable project schema, but the current browser-local document settings are not part of `InkProject` yet. Source-authored global tags remain portable with `.ink` files. Derived data such as compiler symbols does not belong there either.
+**Story title, project name, and file names are now independent** — see [`docs/naming-refactor-completed.md`](./docs/naming-refactor-completed.md) for the full design, propagation rules, and pin semantics.
+
+User preferences do not belong in `InkProject`. Source-authored global tags (`# author:`, `# theme:`) remain portable with `.ink` exports. Derived data such as compiler symbols does not belong there.
 
 ### Persistence
 
@@ -160,16 +172,25 @@ The top-level error boundary displays a recovery-oriented fallback and offers re
 
 Compilation errors remain ordinary application state and are displayed in the problems panel and Monaco markers; they should not trigger the error boundary.
 
-## Multi-file limitations
+## Multi-file support
 
-The compiler foundation supports exact filenames in a virtual file map. Multi-file authoring UI and persistence are not implemented yet.
+The compiler foundation supports exact filenames in a virtual file map. Multi-file projects are now fully persistent in the `.inkpad` format.
 
-Before exposing multi-file editing:
+Completed work:
 
-- Decide relative-path semantics. `inkjs.JsonFileHandler` does not resolve relative imports.
-- Include filenames in compiler diagnostics.
-- Define entry-file rename/deletion behavior.
-- Migrate existing local single-file saves safely.
+- [x] Single-file and multi-file use the same `InkProject` domain model.
+- [x] Projects persist as JSON to localStorage, keyed by filename or project name.
+- [x] Compiler diagnostics include filenames and line numbers.
+- [x] Entry-file rename behavior is defined and tested (pins the file name).
+- [x] Existing local single-file saves migrate safely (legacy schema-v1 → v2 with explicit pin defaults).
+- [x] File rename updates INCLUDE references across the project.
+
+Remaining work for Phase 5 (see [docs/roadmap.md](./docs/roadmap.md)):
+
+- [ ] Create, duplicate, and delete file operations
+- [ ] `.inkpad` import support (export is complete)
+- [ ] Mobile file-rail UX for phones
+- [ ] Relative-path semantics (currently only exact-name INCLUDE is supported)
 
 ## Verification
 

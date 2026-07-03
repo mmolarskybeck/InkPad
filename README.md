@@ -29,7 +29,9 @@ Start with the included sample story, write your own, or import an existing `.in
 - **Settings and accessibility** — Choose dark, light, or high-contrast themes; adjust editor and preview font sizes; control editor word wrap; and manage privacy preferences.
 - **Story details** — Store an author name and preferred preview mode with each local story.
 - **Local saves and recovery** — Save and manage multiple stories in your browser, with recovery drafts and local snapshots.
-- **Import/export** — Import `.ink` files and export your work as `.ink` source, JSON, or a playable web story.
+- **Multi-file projects** — Organize stories into multiple `.ink` files with `INCLUDE` support. Save and export as `.inkpad` bundles to preserve file structure and project metadata.
+- **Independent naming** — Story title (from `# title:` tag), project name (display label), and file names are independently editable.
+- **Import/export** — Import `.ink` files and export your work as `.ink` source, `.inkpad` (full-fidelity project bundle), JSON, or a playable web story.
 - **Responsive layout** — Desktop split view with a mobile-friendly editor/preview tab layout.
 
 ## Saving and privacy
@@ -47,19 +49,23 @@ InkPad separates browser-wide preferences from story-specific settings:
 - InkPad theme, story theme, editor font size, preview font size, and word wrap apply across InkPad in the current browser.
 - Author name and transcript/scene preview mode are stored with the current local story.
 
-Plain `.ink` files contain Ink source only, so author and preview settings are not included when exporting or importing `.ink` files unless you save them as top-level tags such as `# author:` or `# theme:`. Portable InkPad project metadata is planned for the future `.inkproject` format.
+Plain `.ink` files contain Ink source only. To preserve project metadata (author, preview settings, file structure, story title) across devices or browsers, export as `.inkpad`, which bundles all files and settings together. `.ink` files are portable and can be opened in other editors; `.inkpad` files are InkPad-specific and preserve full project fidelity.
 
 ## Import and export
 
-InkPad can import editable `.ink` source files.
+InkPad can import:
+
+- Editable `.ink` source files (single-file stories)
+- `.inkpad` bundles (multi-file projects with full metadata)
 
 Export options include:
 
-- `.ink` source file for backup or editing elsewhere
-- JSON export
-- playable web story export as an HTML/JavaScript bundle with a README
+- `.ink` source files (individual files or the entry file of a multi-file project) — portable, editable in other tools
+- `.inkpad` bundles (complete project with all files, metadata, and settings) — preserves full fidelity for backup or transfer between devices
+- `.json` export (compiled story data for developers)
+- Playable web story as an HTML/JavaScript bundle — ready to share or deploy
 
-Note: exported JSON and playable story bundles are output formats. They are not currently importable as editable InkPad projects.
+Note: JSON and playable story bundles are output formats and are not directly importable as editable InkPad projects. They can be read by other tools, but to edit in InkPad again, re-import the original `.ink` or `.inkpad` source.
 
 ## What is ink?
 

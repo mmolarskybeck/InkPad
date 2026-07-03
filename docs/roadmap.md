@@ -14,6 +14,19 @@ This is the working implementation checklist. It favors small, testable slices a
 - [x] Define a versioned `InkProject` model
 - [x] Change the compiler contract to `{ entryFile, files }`
 - [x] Verify virtual-file `INCLUDE` compilation with automated tests
+- [x] **Decouple story title, project name, and file names** (2026-07-03)
+  - [x] Schema v2 with naming-pin fields (`nameIsExplicit`, `fileNameIsExplicit`, `exportNameIsExplicit`)
+  - [x] Forward-only propagation: tag → project name → {entry file, export name}
+  - [x] Legacy schema-v1 migration with explicit defaults (never retroactively rename old saves)
+  - [x] Unified save path onto `InkProject` (single-file and multi-file use the same model)
+  - [x] Storage-key rename-awareness (old keys deleted, no ghost entries in Local Saves)
+  - [x] INCLUDE reference rewriting on multi-file rename
+  - [x] Desktop file-rail inline rename with pencil icon
+  - [x] Settings "File name" caption distinguishing single vs. multi-file behavior
+  - [x] Autosave leadership-change recovery (prevent stalling on filename change)
+  - [x] 25 unit tests covering schema, migration, reconciliation, pinning, INCLUDE rewriting
+  - [x] End-to-end browser verification: tag→name→file auto-follow, pinning, multi-file transition, legacy load
+  - See: [`docs/naming-refactor-completed.md`](./naming-refactor-completed.md)
 
 ## Phase 1: Preferences and settings
 
