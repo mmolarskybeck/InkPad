@@ -50,6 +50,7 @@ interface SettingsSheetProps {
   onWriteTag: (field: MetadataField, value: string | null) => void;
   onStoryDetailsChange: (updates: { title?: string; author?: string }) => void;
   onRenameFile: (fileName: string) => void | Promise<void>;
+  hasMultipleFiles?: boolean;
   onPreviewModeChange: (mode: PreviewMode) => void;
   onStoryTypefaceChange: (font: HtmlExportFont) => void;
   onJumpToTagLine: (field: MetadataField) => void;
@@ -168,13 +169,15 @@ function MetaField({
   const hasTag = tagValue !== undefined;
   const sourceValue = tagValue ?? "";
 
-  const [draft, setDraft] = useState(value || sourceValue);
+  const [draft, setDraft] = useState(hasTag ? sourceValue : value || sourceValue);
   const [announcementMsg, setAnnouncementMsg] = useState("");
   const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setDraft(value || sourceValue);
-  }, [sourceValue, value]);
+    // When a tag exists in the ink source it is the source of truth for this
+    // field; the stored value only fills in when no tag is present.
+    setDraft(hasTag ? sourceValue : value || sourceValue);
+  }, [hasTag, sourceValue, value]);
 
   const normalizedDraft = draft.trim();
   const isDirty = normalizedDraft !== sourceValue;
@@ -306,13 +309,14 @@ function MetaField({
 interface FileNameFieldProps {
   currentFileName: string;
   onRenameFile: (fileName: string) => void | Promise<void>;
+  hasMultipleFiles?: boolean;
 }
 
 function getFileBaseName(fileName: string): string {
   return fileName.replace(/\.ink$/i, "");
 }
 
-function FileNameField({ currentFileName, onRenameFile }: FileNameFieldProps) {
+function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false }: FileNameFieldProps) {
   const sourceBaseName = getFileBaseName(currentFileName);
   const [draftName, setDraftName] = useState(sourceBaseName);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -359,7 +363,9 @@ function FileNameField({ currentFileName, onRenameFile }: FileNameFieldProps) {
       </div>
       {!isDirty && (
         <p className="text-[0.75rem] leading-5 text-text-secondary">
-          Used for saves and exports. This can be different from the story title.
+          {hasMultipleFiles
+            ? "Renames this .ink file within the project. The project keeps its own name, set in the toolbar."
+            : "Used for saves and exports. This can be different from the story title."}
         </p>
       )}
       {isDirty && (
@@ -370,7 +376,9 @@ function FileNameField({ currentFileName, onRenameFile }: FileNameFieldProps) {
           )}>
             {normalizedDraft.length === 0
               ? "File name cannot be empty."
-              : "Renames this local save. Story title stays unchanged."}
+              : hasMultipleFiles
+                ? "Renames this file only. Project name and story title stay unchanged."
+                : "Renames this local save. Story title stays unchanged."}
           </p>
           <div className="flex items-center gap-3">
             <Button
@@ -562,6 +570,7 @@ export function SettingsSheet({
   onWriteTag,
   onStoryDetailsChange,
   onRenameFile,
+  hasMultipleFiles = false,
   onPreviewModeChange,
   onStoryTypefaceChange,
   onJumpToTagLine,
@@ -669,6 +678,7 @@ export function SettingsSheet({
             <FileNameField
               currentFileName={currentFileName}
               onRenameFile={onRenameFile}
+              hasMultipleFiles={hasMultipleFiles}
             />
           </SettingsSection>
 

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEditorDocumentActions } from "./use-editor-document-actions";
 import { FileOperations } from "@/lib/file-operations";
-import { createSingleFileProject } from "@/lib/ink-project";
+import { createSingleFileProject, parseInkProject } from "@/lib/ink-project";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
 import type { InkDocument } from "@/types/ink-document";
 
@@ -185,11 +185,17 @@ describe("useEditorDocumentActions", () => {
     });
 
     const savedCopy = FileOperations.loadFile("Novel Copy.inkpad");
-    expect(savedCopy?.content).toBe(serializedProject);
+    expect(savedCopy).not.toBeNull();
+    // A Save As copy is an independent project: fresh id, and the chosen
+    // name pins the export name. File contents are untouched.
+    const copiedProject = parseInkProject(savedCopy!.content);
+    expect(copiedProject.id).not.toBe(project.id);
+    expect(copiedProject.exportNameBase).toBe("Novel Copy");
+    expect(copiedProject.exportNameIsExplicit).toBe(true);
+    expect(copiedProject.files).toEqual(project.files);
     expect(FileOperations.loadFile("Novel Copy.ink")).toBeNull();
     expect(applyLoadedProjectFile).toHaveBeenCalledWith(expect.objectContaining({
       name: "Novel Copy.inkpad",
-      content: serializedProject,
     }));
     expect(setCurrentDocument).not.toHaveBeenCalled();
   });

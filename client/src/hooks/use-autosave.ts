@@ -147,6 +147,15 @@ export function useAutosave(options: AutosaveOptions): AutosaveStatus {
     debouncedSave();
   }, [enabled, debouncedSave]);
 
+  // A fileName change re-runs leader election (new BroadcastChannel), which
+  // can swallow a save scheduled while leadership was pending. Re-kick the
+  // save once leadership lands with unsaved changes outstanding.
+  useEffect(() => {
+    if (isLeader && saveState === "dirty") {
+      debouncedSave();
+    }
+  }, [debouncedSave, isLeader, saveState]);
+
   // Schedule save when content changes
   useEffect(() => {
     if (!fileName || content === undefined) return;

@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   createSingleFileProject,
+  getProjectStorageName,
   isInkProject,
   parseInkProject,
+  pinExportNameBase,
+  pinProjectName,
   projectToCompileInput,
+  reconcileProjectNaming,
+  renameProjectFile,
+  rewriteIncludeReferences,
 } from "./ink-project";
 
 describe("InkProject", () => {
@@ -16,15 +22,33 @@ describe("InkProject", () => {
     });
 
     expect(project).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "project-1",
       name: "Story",
+      nameIsExplicit: false,
+      fileNameIsExplicit: false,
+      exportNameBase: "Story",
+      exportNameIsExplicit: false,
       entryFile: "story.ink",
       files: {
         "story.ink": { content: "Hello" },
       },
     });
     expect(isInkProject(project)).toBe(true);
+  });
+
+  it("marks a project as already-explicit when created for a returning/legacy document", () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Story",
+      fileName: "story.ink",
+      content: "Hello",
+      explicit: true,
+    });
+
+    expect(project.nameIsExplicit).toBe(true);
+    expect(project.fileNameIsExplicit).toBe(true);
+    expect(project.exportNameIsExplicit).toBe(true);
   });
 
   it("normalizes single-file project paths when creating a project", () => {
@@ -45,13 +69,13 @@ describe("InkProject", () => {
     const project = createSingleFileProject({
       id: "project-1",
       name: "Story",
-      fileName: "cafe\u0301.ink",
+      fileName: "café.ink",
       content: "Hello",
     });
 
-    expect(project.entryFile).toBe("caf\u00e9.ink");
+    expect(project.entryFile).toBe("café.ink");
     expect(project.files).toEqual({
-      "caf\u00e9.ink": { content: "Hello" },
+      "café.ink": { content: "Hello" },
     });
   });
 
@@ -64,11 +88,18 @@ describe("InkProject", () => {
     })).toThrow("relative project paths");
   });
 
-  it("rejects projects whose entry file is missing", () => {
-    expect(isInkProject({
-      schemaVersion: 1,
+  function validProject() {
+    return createSingleFileProject({
       id: "project-1",
       name: "Story",
+      fileName: "main.ink",
+      content: "Hello",
+    });
+  }
+
+  it("rejects projects whose entry file is missing", () => {
+    expect(isInkProject({
+      ...validProject(),
       entryFile: "main.ink",
       files: {
         "chapter.ink": { content: "Hello" },
@@ -76,11 +107,14 @@ describe("InkProject", () => {
     })).toBe(false);
   });
 
+  it("rejects projects missing naming-pin fields", () => {
+    const { nameIsExplicit, ...withoutNameIsExplicit } = validProject();
+    expect(isInkProject(withoutNameIsExplicit)).toBe(false);
+  });
+
   it("rejects projects with non-normalized or unsafe paths", () => {
     expect(isInkProject({
-      schemaVersion: 1,
-      id: "project-1",
-      name: "Story",
+      ...validProject(),
       entryFile: "./story.ink",
       files: {
         "./story.ink": { content: "Hello" },
@@ -88,9 +122,7 @@ describe("InkProject", () => {
     })).toBe(false);
 
     expect(isInkProject({
-      schemaVersion: 1,
-      id: "project-1",
-      name: "Story",
+      ...validProject(),
       entryFile: "story.ink",
       files: {
         "story.ink": { content: "Hello" },
@@ -99,22 +131,18 @@ describe("InkProject", () => {
     })).toBe(false);
 
     expect(isInkProject({
-      schemaVersion: 1,
-      id: "project-1",
-      name: "Story",
-      entryFile: "caf\u00e9.ink",
+      ...validProject(),
+      entryFile: "café.ink",
       files: {
-        "caf\u00e9.ink": { content: "Hello" },
-        "cafe\u0301.ink": { content: "Nope" },
+        "café.ink": { content: "Hello" },
+        "café.ink": { content: "Nope" },
       },
     })).toBe(false);
   });
 
   it("rejects projects with case-insensitive path collisions", () => {
     expect(isInkProject({
-      schemaVersion: 1,
-      id: "project-1",
-      name: "Story",
+      ...validProject(),
       entryFile: "chapters/Start.ink",
       files: {
         "chapters/Start.ink": { content: "Hello" },
@@ -134,6 +162,26 @@ describe("InkProject", () => {
     expect(parseInkProject(serialized).entryFile).toBe("story.ink");
   });
 
+  it("migrates legacy schema-1 data to explicit-everything on read", () => {
+    const legacy = {
+      schemaVersion: 1,
+      id: "project-1",
+      name: "Old Story",
+      entryFile: "story.ink",
+      files: {
+        "story.ink": { content: "Hello" },
+      },
+    };
+
+    const migrated = parseInkProject(JSON.stringify(legacy));
+
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.nameIsExplicit).toBe(true);
+    expect(migrated.fileNameIsExplicit).toBe(true);
+    expect(migrated.exportNameIsExplicit).toBe(true);
+    expect(migrated.exportNameBase).toBe("Old Story");
+  });
+
   it("converts project files into the compiler's virtual file map", () => {
     const project = createSingleFileProject({
       id: "project-1",
@@ -150,6 +198,192 @@ describe("InkProject", () => {
         "story.ink": "Hello",
         "chapter.ink": "Chapter",
       },
+    });
+  });
+
+  describe("reconcileProjectNaming", () => {
+    it("follows the resolved story title into the name and entry file name while unpinned", () => {
+      const project = createSingleFileProject({
+        id: "project-1",
+        name: "Untitled Story",
+        fileName: "Untitled Story.ink",
+        content: "Hello",
+      });
+
+      const reconciled = reconcileProjectNaming(project, "80 Days");
+
+      expect(reconciled.name).toBe("80 Days");
+      expect(reconciled.entryFile).toBe("80 Days.ink");
+      expect(reconciled.exportNameBase).toBe("80 Days");
+      expect(reconciled.files["80 Days.ink"]).toEqual({ content: "Hello" });
+    });
+
+    it("returns the same reference when nothing changes", () => {
+      const project = reconcileProjectNaming(
+        createSingleFileProject({ id: "project-1", name: "80 Days", fileName: "80 Days.ink", content: "Hello" }),
+        "80 Days",
+      );
+
+      expect(reconcileProjectNaming(project, "80 Days")).toBe(project);
+    });
+
+    it("stops following once the name is pinned", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "Untitled Story",
+        fileName: "Untitled Story.ink",
+        content: "Hello",
+      });
+      project = pinProjectName(project, "My Journey");
+
+      const reconciled = reconcileProjectNaming(project, "80 Days");
+
+      expect(reconciled.name).toBe("My Journey");
+    });
+
+    it("stops following the entry file name once it's pinned, but keeps following exportNameBase", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "My Journey.ink",
+        content: "Hello",
+      });
+      project = renameProjectFile(project, "My Journey.ink", "draft.ink");
+
+      const reconciled = reconcileProjectNaming(project, "Final Cut");
+
+      expect(reconciled.name).toBe("Final Cut");
+      expect(reconciled.entryFile).toBe("draft.ink");
+      expect(reconciled.exportNameBase).toBe("Final Cut");
+    });
+
+    it("stops auto-following the entry file name once a second file exists", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "My Journey.ink",
+        content: "Hello",
+      });
+      project = { ...project, files: { ...project.files, "chapter-two.ink": { content: "More" } } };
+
+      const reconciled = reconcileProjectNaming(project, "Final Cut");
+
+      expect(reconciled.name).toBe("Final Cut");
+      expect(reconciled.entryFile).toBe("My Journey.ink");
+      expect(reconciled.exportNameBase).toBe("Final Cut");
+    });
+  });
+
+  describe("renameProjectFile / pinExportNameBase", () => {
+    it("renaming the entry file pins fileNameIsExplicit without touching name or exportNameBase", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "My Journey.ink",
+        content: "Hello",
+      });
+      project = renameProjectFile(project, "My Journey.ink", "draft.ink");
+
+      expect(project.entryFile).toBe("draft.ink");
+      expect(project.fileNameIsExplicit).toBe(true);
+      expect(project.name).toBe("My Journey");
+      expect(project.exportNameBase).toBe("My Journey");
+    });
+
+    it("renaming a non-entry file does not pin fileNameIsExplicit", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "INCLUDE chapter.ink",
+      });
+      project = { ...project, files: { ...project.files, "chapter.ink": { content: "Chapter text" } } };
+
+      project = renameProjectFile(project, "chapter.ink", "chapter-one.ink");
+
+      expect(project.fileNameIsExplicit).toBe(false);
+      expect(project.files["chapter-one.ink"]).toEqual({ content: "Chapter text" });
+      expect(project.files["chapter.ink"]).toBeUndefined();
+    });
+
+    it("rewrites INCLUDE references across the project when a file is renamed", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "INCLUDE chapter.ink\n\n-> DONE",
+      });
+      project = { ...project, files: { ...project.files, "chapter.ink": { content: "Chapter text" } } };
+
+      project = renameProjectFile(project, "chapter.ink", "chapter-one.ink");
+
+      expect(project.files["start.ink"].content).toBe("INCLUDE chapter-one.ink\n\n-> DONE");
+    });
+
+    it("resolves collisions when renaming a file to a name already in use", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "Hello",
+      });
+      project = { ...project, files: { ...project.files, "chapter.ink": { content: "Chapter" } } };
+
+      project = renameProjectFile(project, "chapter.ink", "start.ink");
+
+      expect(project.files["start 2.ink"]).toEqual({ content: "Chapter" });
+      expect(project.files["start.ink"]).toEqual({ content: "Hello" });
+    });
+
+    it("pinExportNameBase pins independently of the entry file's own name", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "draft.ink",
+        content: "Hello",
+        explicit: true,
+      });
+
+      project = pinExportNameBase(project, "custom-bundle");
+
+      expect(project.exportNameBase).toBe("custom-bundle");
+      expect(project.exportNameIsExplicit).toBe(true);
+      expect(project.entryFile).toBe("draft.ink");
+    });
+  });
+
+  describe("getProjectStorageName", () => {
+    it("names a one-file project by the file itself", () => {
+      const project = createSingleFileProject({
+        id: "project-1",
+        name: "Final Cut",
+        fileName: "draft.ink",
+        content: "Hello",
+      });
+
+      expect(getProjectStorageName(project)).toBe("draft.ink");
+    });
+
+    it("names a multi-file project by the project, not by any member file", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "Final Cut",
+        fileName: "draft.ink",
+        content: "Hello",
+        explicit: true,
+      });
+      project = { ...project, files: { ...project.files, "chapter-two.ink": { content: "More" } } };
+
+      expect(getProjectStorageName(project)).toBe("Final Cut.inkpad");
+    });
+  });
+
+  describe("rewriteIncludeReferences", () => {
+    it("rewrites a matching INCLUDE line and leaves others untouched", () => {
+      const source = "INCLUDE chapter.ink\nINCLUDE other.ink\n-> DONE";
+      expect(rewriteIncludeReferences(source, "chapter.ink", "chapter-one.ink")).toBe(
+        "INCLUDE chapter-one.ink\nINCLUDE other.ink\n-> DONE",
+      );
     });
   });
 });

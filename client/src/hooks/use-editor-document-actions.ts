@@ -15,7 +15,7 @@ import {
 } from "@/lib/analytics";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
-import { parseInkProject } from "@/lib/ink-project";
+import { parseInkProject, retargetProjectForCopy } from "@/lib/ink-project";
 import type { InkDocument } from "@/types/ink-document";
 
 export interface PendingDocumentAction {
@@ -35,6 +35,10 @@ interface UseEditorDocumentActionsOptions {
   applyLoadedProjectFile?: (file: StoredInkDocument) => boolean;
   currentSaveFileName?: string;
   getCurrentSaveFile?: () => { filename: string; content: string };
+  /** Project-aware save; when provided, saveCurrentDocument delegates to it. */
+  persistCurrentSave?: (showToast?: boolean) => Promise<boolean>;
+  /** Project-aware rename of the open file; when provided, renameCurrentDocument delegates to it. */
+  renameActiveDocument?: (requestedName: string) => Promise<{ nextFilename: string; sourceName: string }>;
   recoveredAt: number | null;
   setRecoveredAt: Dispatch<SetStateAction<number | null>>;
   setIsRecoveryBannerDismissed: Dispatch<SetStateAction<boolean>>;
@@ -89,6 +93,8 @@ export function useEditorDocumentActions({
   applyLoadedProjectFile,
   currentSaveFileName = currentDocument.filename,
   getCurrentSaveFile,
+  persistCurrentSave,
+  renameActiveDocument,
   recoveredAt,
   setRecoveredAt,
   setIsRecoveryBannerDismissed,
@@ -115,6 +121,10 @@ export function useEditorDocumentActions({
   }, [autosave.saveState, recoveredAt]);
 
   const saveCurrentDocument = useCallback(async (showToast = false): Promise<boolean> => {
+    if (persistCurrentSave) {
+      return persistCurrentSave(showToast);
+    }
+
     const currentSource = getCurrentSource();
     try {
       await FileOperations.saveFile(
@@ -159,6 +169,7 @@ export function useEditorDocumentActions({
     currentDocument.title,
     getCurrentSource,
     resetBufferedSource,
+    persistCurrentSave,
     setCurrentDocument,
     setIsRecoveryBannerDismissed,
     setRecentFiles,
@@ -224,6 +235,7 @@ export function useEditorDocumentActions({
       filename,
       title: getDisplayTitleFromFilename(filename),
       source,
+      namingExplicit: false,
       author: "",
       previewMode: "transcript",
       updatedAt: Date.now(),
@@ -242,6 +254,7 @@ export function useEditorDocumentActions({
       filename: "untitled.ink",
       title: "Untitled",
       source: "",
+      namingExplicit: false,
       author: "",
       previewMode: "transcript",
       updatedAt: Date.now(),
@@ -370,6 +383,10 @@ export function useEditorDocumentActions({
   ]);
 
   const renameCurrentDocument = useCallback(async (name: string) => {
+    if (renameActiveDocument) {
+      return renameActiveDocument(name);
+    }
+
     const requestedFilename = getInkStorageFilenameFromInput(name, ".ink");
     const sourceName = currentDocument.filename;
     const nextFilename = FileOperations.getAvailableFileName(requestedFilename, sourceName);
@@ -388,6 +405,7 @@ export function useEditorDocumentActions({
     cancelPendingRecoveryDraft,
     currentDocument,
     getCurrentSource,
+    renameActiveDocument,
   ]);
 
   const handleRenameCurrentDocument = useCallback(async (name: string) => {
@@ -416,7 +434,17 @@ export function useEditorDocumentActions({
       if (fileAction.mode === "save-as") {
         const currentSaveFile = getCurrentSaveFile?.();
         const nextFilename = FileOperations.getAvailableFileName(requestedFilename);
-        const currentSource = currentSaveFile?.content ?? getCurrentSource();
+        let currentSource = currentSaveFile?.content ?? getCurrentSource();
+        // Project-shaped content must carry its own identity: a copy gets a
+        // fresh id, and the user-chosen name pins the entry file (one-file)
+        // or the export name (multi-file) so the storage key and the
+        // project's internal names stay consistent.
+        try {
+          const retargeted = retargetProjectForCopy(parseInkProject(currentSource), nextFilename);
+          currentSource = JSON.stringify(retargeted, null, 2);
+        } catch {
+          // Raw ink source, not project JSON — save as-is.
+        }
         const storedSettings = getStoredSettings(currentDocument);
         await FileOperations.saveFile(nextFilename, currentSource, storedSettings);
         cancelPendingRecoveryDraft();

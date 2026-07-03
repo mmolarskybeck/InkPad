@@ -51,7 +51,7 @@ import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, ChevronLeft, ChevronRight, File, FilePlus2, FileText, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, File, FilePlus2, FileText, Pencil, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -67,7 +67,7 @@ import {
   type HtmlExportRequest,
   type HtmlExportTheme,
 } from "@/features/export/html-export-options";
-import { findTopLevelTagLine, setTopLevelTag, removeTopLevelTag } from "@/lib/ink-source-tags";
+import { findTopLevelTagLine, parseTagsFromSource, setTopLevelTag, removeTopLevelTag } from "@/lib/ink-source-tags";
 import {
   trackErrorPanelOpened,
   trackMobileTabChanged,
@@ -84,8 +84,12 @@ import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import { getEditorDiagnosticLine } from "@/types/editor-diagnostic";
 import {
   createSingleFileProject,
+  getProjectStorageName,
   parseInkProject,
+  pinProjectName,
   projectToCompileInput,
+  reconcileProjectNaming,
+  renameProjectFile,
 } from "@/lib/ink-project";
 import {
   hasCaseInsensitiveInkProjectPathCollision,
@@ -152,6 +156,8 @@ interface StartupState {
   document: InkDocument;
   project: InkProject;
   activeFileId: string;
+  /** The localStorage key the loaded save lives under (used to clean up on renames). */
+  storageKey: string;
   recoveredAt: number | null;
 }
 
@@ -161,6 +167,7 @@ function createProjectFromDocument(document: InkDocument): InkProject {
     name: document.title ?? getDisplayTitleFromFilename(document.filename),
     fileName: document.filename,
     content: document.source,
+    explicit: document.namingExplicit ?? true,
   });
 }
 
@@ -200,7 +207,7 @@ function getProjectFingerprint(project: InkProject): string {
 }
 
 function getProjectExportName(project: InkProject): string {
-  const baseName = (project.name || project.entryFile.replace(/\.ink$/i, "")).trim();
+  const baseName = (project.exportNameBase || project.name || project.entryFile.replace(/\.ink$/i, "")).trim();
   return getFilename(baseName.replace(/\.inkpad$/i, ""), ".inkpad");
 }
 
@@ -317,6 +324,7 @@ function getStartupState(): StartupState {
           },
           project: storedProject,
           activeFileId,
+          storageKey: startupFile.name,
           recoveredAt: isRecoveryDraft ? startupFile.lastModified : null,
         };
       }
@@ -338,6 +346,7 @@ function getStartupState(): StartupState {
         document,
         project: createProjectFromDocument(document),
         activeFileId: document.filename,
+        storageKey: startupFile.name,
         recoveredAt: isRecoveryDraft ? startupFile.lastModified : null,
       };
     }
@@ -350,6 +359,7 @@ function getStartupState(): StartupState {
     filename: "story.ink",
     title: "Story",
     source: SAMPLE_STORY,
+    namingExplicit: false,
     author: "",
     previewMode: "transcript",
   };
@@ -358,6 +368,7 @@ function getStartupState(): StartupState {
     document,
     project: createProjectFromDocument(document),
     activeFileId: document.filename,
+    storageKey: document.filename,
     recoveredAt: null,
   };
 }
@@ -374,6 +385,14 @@ export default function Editor() {
   const [currentDocument, setCurrentDocument] = useState<InkDocument>(startupStateRef.current.document);
   const [currentProject, setCurrentProject] = useState<InkProject>(startupStateRef.current.project);
   const [activeFileId, setActiveFileId] = useState(startupStateRef.current.activeFileId);
+  // Identity of the open editor buffer. Bumped when the user switches files or
+  // loads another save (resets undo history/diagnostics), but NOT when the open
+  // file is merely renamed — a rename keeps the same buffer.
+  const [editorBufferKey, setEditorBufferKey] = useState(0);
+  // The localStorage key the current project was last saved under. When naming
+  // changes move the storage name, the save path renames instead of leaving a
+  // ghost entry behind.
+  const lastStorageKeyRef = useRef(startupStateRef.current.storageKey);
   const [isProjectFilesCollapsed, setIsProjectFilesCollapsed] = useState(() => (
     Object.keys(startupStateRef.current?.project.files ?? {}).length <= 1
   ));
@@ -392,6 +411,7 @@ export default function Editor() {
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddProjectFileOpen, setIsAddProjectFileOpen] = useState(false);
+  const [renameProjectFileTarget, setRenameProjectFileTarget] = useState<string | null>(null);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
   const [storySessionKey, setStorySessionKey] = useState(0);
   const [editorControlState, setEditorControlState] = useState<CodeMirrorEditorControlState>({
@@ -429,6 +449,10 @@ export default function Editor() {
     const nextProject = createProjectFromDocument(currentDocument);
     setCurrentProject(nextProject);
     setActiveFileId(nextProject.entryFile);
+    setEditorBufferKey((key) => key + 1);
+    // A rebuilt project means another save was opened (or created); its
+    // storage key is the document's own filename until the next save.
+    lastStorageKeyRef.current = currentDocument.filename;
   }, [currentDocument, currentProject]);
 
   // True mobile owns the tab layout outright; clear any desktop focus state on entry.
@@ -514,27 +538,22 @@ export default function Editor() {
     () => withProjectFileSource(currentProject, activeFileId, currentDocument.source),
     [activeFileId, currentDocument.source, currentProject],
   );
-  const localSaveFileName = hasMultipleProjectFiles
-    ? getProjectExportName(currentProjectForSave)
-    : currentDocument.filename;
-  const localSaveContent = hasMultipleProjectFiles
-    ? JSON.stringify(currentProjectForSave, null, 2)
-    : currentDocument.source;
+  // Every local save stores the full InkProject model as JSON — a one-file
+  // story is just a one-file project. The storage key is the entry file for
+  // one-file projects and the project export name for multi-file ones.
+  const localSaveFileName = getProjectStorageName(currentProjectForSave);
+  const localSaveContent = useMemo(
+    () => JSON.stringify(currentProjectForSave, null, 2),
+    [currentProjectForSave],
+  );
   const getCurrentSaveFileForAction = useCallback(() => {
     const activeSource = getCurrentSource();
     const projectForAction = withProjectFileSource(currentProject, activeFileId, activeSource);
-    if (Object.keys(projectForAction.files).length > 1) {
-      return {
-        filename: getProjectExportName(projectForAction),
-        content: JSON.stringify(projectForAction, null, 2),
-      };
-    }
-
     return {
-      filename: currentDocument.filename,
-      content: activeSource,
+      filename: getProjectStorageName(projectForAction),
+      content: JSON.stringify(projectForAction, null, 2),
     };
-  }, [activeFileId, currentDocument.filename, currentProject, getCurrentSource]);
+  }, [activeFileId, currentProject, getCurrentSource]);
 
   useEffect(() => {
     if (previousProjectIdRef.current === currentProject.id) {
@@ -545,27 +564,51 @@ export default function Editor() {
     setIsProjectFilesCollapsed(projectFileCount <= 1);
   }, [currentProject.id, projectFileCount]);
 
+  // Rename-aware save core: when the computed storage key has moved (a title
+  // tag auto-followed into a new file name, or the project was renamed), the
+  // save is a storage-key rename — write the new key, retire the old one —
+  // so Local Saves never accumulates ghost entries.
+  const persistSaveContent = useCallback(async (
+    filename: string,
+    content: string,
+    settings: {
+      title?: string;
+      author?: string;
+      htmlExport?: InkDocument["htmlExport"];
+      storyTypeface?: InkDocument["storyTypeface"];
+      previewMode?: PreviewMode;
+    },
+  ) => {
+    const previousKey = lastStorageKeyRef.current;
+    await FileOperations.saveFile(filename, content, settings);
+    if (previousKey && previousKey !== filename && FileOperations.fileExists(previousKey)) {
+      FileOperations.deleteFile(previousKey);
+      FileOperations.clearRecoveryDraft(previousKey);
+    }
+    lastStorageKeyRef.current = filename;
+    cancelPendingRecoveryDraft();
+    FileOperations.clearRecoveryDraft(currentDocument.filename);
+    if (filename !== currentDocument.filename) {
+      FileOperations.clearRecoveryDraft(filename);
+    }
+    setRecoveredAt(null);
+    setIsRecoveryBannerDismissed(false);
+    setRecentFiles(FileOperations.getAllFiles());
+  }, [cancelPendingRecoveryDraft, currentDocument.filename, setRecentFiles]);
+
   // Autosave system
   const autosave = useAutosave({
     fileName: localSaveFileName,
     content: localSaveContent,
     enabled: storageAvailable,
     onSave: async (filename, source) => {
-      await FileOperations.saveFile(filename, source, {
+      await persistSaveContent(filename, source, {
         title: currentDocument.title,
         author: currentDocument.author,
         htmlExport: currentDocument.htmlExport,
         storyTypeface: currentDocument.storyTypeface,
         previewMode: currentDocument.previewMode,
       });
-      cancelPendingRecoveryDraft();
-      FileOperations.clearRecoveryDraft(currentDocument.filename);
-      if (filename !== currentDocument.filename) {
-        FileOperations.clearRecoveryDraft(filename);
-      }
-      setRecoveredAt(null);
-      setIsRecoveryBannerDismissed(false);
-      setRecentFiles(FileOperations.getAllFiles());
     }
   });
 
@@ -587,6 +630,8 @@ export default function Editor() {
     setIsRecoveryBannerDismissed(false);
     setCurrentProject(loadedProject);
     setActiveFileId(nextActiveFileId);
+    setEditorBufferKey((key) => key + 1);
+    lastStorageKeyRef.current = file.name;
     setCurrentDocument({
       id: loadedProject.id,
       filename: nextActiveFileId,
@@ -610,6 +655,116 @@ export default function Editor() {
     setIsRecoveryBannerDismissed,
     setRecoveredAt,
   ]);
+
+  const getLiveProject = useCallback(() => {
+    const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
+    return withProjectFileSource(currentProject, activeFileId, activeSource);
+  }, [activeFileId, currentDocument.source, currentProject]);
+
+  // One save path for every project size: serialize the given project and save
+  // it under its computed storage key (rename-aware via persistSaveContent).
+  const persistProject = useCallback(async (project: InkProject, showToast: boolean): Promise<boolean> => {
+    const filename = getProjectStorageName(project);
+    const content = JSON.stringify(project, null, 2);
+    try {
+      await persistSaveContent(filename, content, {
+        title: currentDocument.title,
+        author: currentDocument.author,
+        htmlExport: currentDocument.htmlExport,
+        storyTypeface: currentDocument.storyTypeface,
+        previewMode: currentDocument.previewMode,
+      });
+      setCurrentProject(project);
+      setCurrentDocument((document) => ({
+        ...document,
+        updatedAt: Date.now(),
+        lastSavedAt: Date.now(),
+      }));
+      autosave.markSaved(filename, content);
+      if (showToast) {
+        toast({ title: "Saved", description: `${filename} saved successfully.` });
+      }
+      return true;
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [
+    autosave,
+    currentDocument.author,
+    currentDocument.htmlExport,
+    currentDocument.previewMode,
+    currentDocument.storyTypeface,
+    currentDocument.title,
+    persistSaveContent,
+    toast,
+  ]);
+
+  const persistProjectNow = useCallback(
+    (showToast = false) => persistProject(getLiveProject(), showToast),
+    [getLiveProject, persistProject],
+  );
+
+  // Renames a file inside the project: rekeys the files map, rewrites INCLUDE
+  // references, updates the open buffer/active file if affected, and persists.
+  // Renaming the entry file pins it against further name auto-follow.
+  const handleRenameProjectFileById = useCallback(async (fileId: string, requestedName: string) => {
+    const live = getLiveProject();
+    if (!Object.prototype.hasOwnProperty.call(live.files, fileId)) {
+      throw new Error(`${fileId} is not part of this project.`);
+    }
+
+    const requested = getFilename(requestedName.trim().replace(/\.ink$/i, ""), ".ink");
+    const isSingleFile = Object.keys(live.files).length === 1;
+    // For a one-file project the file name is also the local-save key, so it
+    // must not collide with another save.
+    const target = isSingleFile
+      ? FileOperations.getAvailableFileName(requested, fileId)
+      : requested;
+    if (target === fileId) {
+      return { nextFilename: fileId, sourceName: fileId };
+    }
+
+    const next = renameProjectFile(live, fileId, target);
+    if (next === live) {
+      throw new Error(`${requestedName} is not a valid project file name.`);
+    }
+    const nextFilename = Object.keys(next.files)
+      .find((name) => !Object.prototype.hasOwnProperty.call(live.files, name)) ?? target;
+
+    setCurrentProject(next);
+    const activeAfter = fileId === activeFileId ? nextFilename : activeFileId;
+    if (fileId === activeFileId) {
+      setActiveFileId(nextFilename);
+      setCurrentDocument((document) => ({ ...document, filename: nextFilename, updatedAt: Date.now() }));
+    }
+
+    // INCLUDE rewrites may have touched the open buffer.
+    const activeSourceBefore = live.files[activeFileId].content;
+    const activeSourceAfter = next.files[activeAfter].content;
+    if (activeSourceAfter !== activeSourceBefore) {
+      if (editorRef.current) {
+        const change = getSingleTextChange(activeSourceBefore, activeSourceAfter);
+        editorRef.current.replaceRange(change.from, change.to, change.insert, "input.rename");
+      } else {
+        resetBufferedSource(activeSourceAfter);
+        setCurrentDocument((document) => ({ ...document, source: activeSourceAfter, updatedAt: Date.now() }));
+      }
+    }
+
+    FileOperations.clearRecoveryDraft(fileId);
+    await persistProject(next, false);
+    return { nextFilename, sourceName: fileId };
+  }, [activeFileId, getLiveProject, persistProject, resetBufferedSource]);
+
+  const renameActiveDocumentInProject = useCallback(
+    (requestedName: string) => handleRenameProjectFileById(activeFileId, requestedName),
+    [activeFileId, handleRenameProjectFileById],
+  );
 
   const {
     pendingAction,
@@ -643,6 +798,8 @@ export default function Editor() {
     applyLoadedProjectFile,
     currentSaveFileName: localSaveFileName,
     getCurrentSaveFile: getCurrentSaveFileForAction,
+    persistCurrentSave: persistProjectNow,
+    renameActiveDocument: renameActiveDocumentInProject,
     recoveredAt,
     setRecoveredAt,
     setIsRecoveryBannerDismissed,
@@ -772,59 +929,9 @@ export default function Editor() {
     restartStory();
   }, [restartStory]);
 
-  const getLiveProject = useCallback(() => {
-    const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
-    return withProjectFileSource(currentProject, activeFileId, activeSource);
-  }, [activeFileId, currentDocument.source, currentProject]);
-
   const handleSave = useCallback(async () => {
-    if (!hasMultipleProjectFiles) {
-      await saveCurrentDocument(true);
-      return;
-    }
-
-    const nextProject = getLiveProject();
-    const filename = getProjectExportName(nextProject);
-    const content = JSON.stringify(nextProject, null, 2);
-    try {
-      await FileOperations.saveFile(filename, content, {
-        title: currentDocument.title,
-        author: currentDocument.author,
-        htmlExport: currentDocument.htmlExport,
-        storyTypeface: currentDocument.storyTypeface,
-        previewMode: currentDocument.previewMode,
-      });
-      setCurrentProject(nextProject);
-      autosave.markSaved(filename, content);
-      cancelPendingRecoveryDraft();
-      FileOperations.clearRecoveryDraft(currentDocument.filename);
-      FileOperations.clearRecoveryDraft(filename);
-      setRecoveredAt(null);
-      setIsRecoveryBannerDismissed(false);
-      setRecentFiles(FileOperations.getAllFiles());
-      toast({ title: "Saved", description: `${filename} saved successfully.` });
-    } catch (error) {
-      toast({
-        title: "Save failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    }
-  }, [
-    autosave,
-    cancelPendingRecoveryDraft,
-    currentDocument.author,
-    currentDocument.filename,
-    currentDocument.htmlExport,
-    currentDocument.previewMode,
-    currentDocument.storyTypeface,
-    currentDocument.title,
-    getLiveProject,
-    hasMultipleProjectFiles,
-    saveCurrentDocument,
-    setRecentFiles,
-    toast,
-  ]);
+    await persistProjectNow(true);
+  }, [persistProjectNow]);
 
   const handleExportProject = useCallback(() => {
     const project = getLiveProject();
@@ -843,6 +950,7 @@ export default function Editor() {
     const nextSource = getProjectFileSource(projectWithLatestActiveFile, fileId);
     setCurrentProject(projectWithLatestActiveFile);
     setActiveFileId(fileId);
+    setEditorBufferKey((key) => key + 1);
     resetBufferedSource(nextSource);
     setCurrentDocument((document) => ({
       ...document,
@@ -869,6 +977,83 @@ export default function Editor() {
     isMobile,
     resetBufferedSource,
   ]);
+
+  // ── Naming fan-out: # title: tag → project name → {entry file, export name} ──
+  // Story Title resolves from the entry file's own source (not compiled
+  // globalTags, which can splice in tags from INCLUDEd files).
+  const entryFileSource = activeFileId === currentProject.entryFile
+    ? currentDocument.source
+    : getProjectFileSource(currentProject, currentProject.entryFile);
+  const sourceTagTitle = useMemo(
+    () => parseTagsFromSource(entryFileSource).metadata.title,
+    [entryFileSource],
+  );
+  const resolvedStoryTitle = useMemo(() => resolveMetadata(
+    parseTagsFromSource(entryFileSource),
+    { title: currentDocument.title, author: currentDocument.author ?? null },
+    currentProject.entryFile,
+  ).title, [currentDocument.author, currentDocument.title, currentProject.entryFile, entryFileSource]);
+
+  // Name and export name follow the title tag immediately (no editor impact).
+  useEffect(() => {
+    if (!sourceTagTitle) return;
+    setCurrentProject((project) => reconcileProjectNaming(project, sourceTagTitle, { renameEntryFile: false }));
+  }, [sourceTagTitle]);
+
+  // The entry-file rename leg is debounced: renaming mid-keystroke would churn
+  // the storage key while the user is still typing the title tag.
+  const applyEntryFileFollow = useCallback(() => {
+    const live = getLiveProject();
+    const next = reconcileProjectNaming(live, sourceTagTitle ?? "");
+    if (next === live || next.entryFile === live.entryFile) return;
+    try {
+      // The entry file name doubles as the local-save key for one-file
+      // projects; if another save already owns the derived name, leave the
+      // file alone rather than inventing a variant the user never chose.
+      if (FileOperations.getAvailableFileName(next.entryFile, live.entryFile) !== next.entryFile) return;
+    } catch {
+      // Storage unavailable — rename in memory only.
+    }
+    const previousEntryFile = live.entryFile;
+    setCurrentProject(next);
+    setActiveFileId(next.entryFile);
+    setCurrentDocument((document) => ({ ...document, filename: next.entryFile, updatedAt: Date.now() }));
+    FileOperations.clearRecoveryDraft(previousEntryFile);
+  }, [getLiveProject, sourceTagTitle]);
+
+  useEffect(() => {
+    const wouldRename = reconcileProjectNaming(currentProject, sourceTagTitle ?? "");
+    if (wouldRename === currentProject || wouldRename.entryFile === currentProject.entryFile) return;
+    const timer = window.setTimeout(applyEntryFileFollow, 1200);
+    return () => window.clearTimeout(timer);
+  }, [applyEntryFileFollow, currentProject, sourceTagTitle]);
+
+  // Explicit project rename from the topbar: pins the name, fans out to the
+  // file/export names immediately (a deliberate action, nothing to debounce).
+  const handleProjectNameChange = useCallback((requestedName: string) => {
+    const trimmed = requestedName.trim();
+    if (!trimmed) return;
+    const live = getLiveProject();
+    const pinned = pinProjectName(live, trimmed);
+    let next = reconcileProjectNaming(pinned, "");
+    if (next.entryFile !== live.entryFile) {
+      try {
+        if (FileOperations.getAvailableFileName(next.entryFile, live.entryFile) !== next.entryFile) {
+          next = reconcileProjectNaming(pinned, "", { renameEntryFile: false });
+        }
+      } catch {
+        // Storage unavailable — keep the in-memory rename.
+      }
+    }
+    const previousEntryFile = live.entryFile;
+    setCurrentProject(next);
+    if (next.entryFile !== previousEntryFile) {
+      setActiveFileId(next.entryFile);
+      setCurrentDocument((document) => ({ ...document, filename: next.entryFile, updatedAt: Date.now() }));
+      FileOperations.clearRecoveryDraft(previousEntryFile);
+    }
+    void persistProject(next, false);
+  }, [getLiveProject, persistProject]);
 
   const handleAddProjectFile = useCallback(() => {
     setIsAddProjectFileOpen(true);
@@ -914,6 +1099,7 @@ export default function Editor() {
     };
     setCurrentProject(nextProject);
     setActiveFileId(normalizedPath);
+    setEditorBufferKey((key) => key + 1);
     resetBufferedSource("");
     setCurrentDocument((document) => ({
       ...document,
@@ -982,6 +1168,9 @@ export default function Editor() {
     }, 0);
   }, [editorControlState.isFindVisible]);
 
+  // Story settings (stored title fallback, author, export options). Never
+  // touches the project name — that's the topbar's job, and the two are
+  // independent now.
   const handleProjectSettingsChange = useCallback(async (updates: {
     title?: string;
     author?: string;
@@ -991,28 +1180,19 @@ export default function Editor() {
   }) => {
     const nextDocument = { ...currentDocument, ...updates, updatedAt: Date.now() };
     setCurrentDocument(nextDocument);
-    if (updates.title) {
-      setCurrentProject((project) => ({ ...project, name: updates.title ?? project.name }));
-    }
 
     try {
-      const projectForSettings = updates.title
-        ? { ...currentProjectForSave, name: updates.title }
-        : currentProjectForSave;
-      const settingsFileName = hasMultipleProjectFiles
-        ? getProjectExportName(projectForSettings)
-        : nextDocument.filename;
-      const settingsContent = hasMultipleProjectFiles
-        ? JSON.stringify(projectForSettings, null, 2)
-        : getCurrentSource();
-      await FileOperations.saveFile(settingsFileName, settingsContent, {
+      const project = getLiveProject();
+      const settingsFileName = getProjectStorageName(project);
+      const settingsContent = JSON.stringify(project, null, 2);
+      await persistSaveContent(settingsFileName, settingsContent, {
         title: nextDocument.title,
         author: nextDocument.author,
         htmlExport: nextDocument.htmlExport,
         storyTypeface: nextDocument.storyTypeface,
         previewMode: nextDocument.previewMode,
       });
-      setRecentFiles(FileOperations.getAllFiles());
+      autosave.markSaved(settingsFileName, settingsContent);
     } catch (error) {
       toast({
         title: "Could not save story settings",
@@ -1021,11 +1201,10 @@ export default function Editor() {
       });
     }
   }, [
+    autosave,
     currentDocument,
-    currentProjectForSave,
-    getCurrentSource,
-    hasMultipleProjectFiles,
-    setRecentFiles,
+    getLiveProject,
+    persistSaveContent,
     toast,
   ]);
 
@@ -1080,15 +1259,7 @@ export default function Editor() {
     }
   }, [currentDocument.source]);
 
-  const previewMetadata = resolveMetadata(
-    parsedGlobalTags,
-    {
-      title,
-      author: currentDocument.author,
-    },
-    currentDocument.filename,
-  );
-  const exportMetadata = resolveMetadata(
+  const storyMetadata = resolveMetadata(
     parsedGlobalTags,
     {
       title,
@@ -1400,24 +1571,40 @@ export default function Editor() {
           const isActive = fileId === activeFileId;
           const isEntry = fileId === currentProject.entryFile;
           return (
-            <button
-              key={fileId}
-              type="button"
-              onClick={() => switchToProjectFile(fileId)}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "mb-0.5 flex min-w-0 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-[0.8125rem] text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-                "hover:border-border-color hover:bg-accent hover:text-text-emphasis",
-                isActive && "border-accent-blue bg-accent text-text-emphasis hover:border-accent-blue",
-              )}
-            >
-              <FileText className={cn(
-                "h-3.5 w-3.5 shrink-0",
-                isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
-              )} />
-              <span className={cn("truncate font-mono", isActive && "font-medium")}>{fileId}</span>
-              {isActive && <span className="sr-only">Current file</span>}
-            </button>
+            <div key={fileId} className="group relative mb-0.5">
+              <button
+                type="button"
+                onClick={() => switchToProjectFile(fileId)}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex min-w-0 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 pr-8 text-left text-[0.8125rem] text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+                  "hover:border-border-color hover:bg-accent hover:text-text-emphasis",
+                  isActive && "border-accent-blue bg-accent text-text-emphasis hover:border-accent-blue",
+                )}
+              >
+                <FileText className={cn(
+                  "h-3.5 w-3.5 shrink-0",
+                  isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
+                )} />
+                <span className={cn("truncate font-mono", isActive && "font-medium")}>{fileId}</span>
+                {isActive && <span className="sr-only">Current file</span>}
+              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRenameProjectFileTarget(fileId)}
+                    aria-label={`Rename ${fileId}`}
+                    className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0 text-text-secondary opacity-0 transition-opacity hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Rename file</TooltipContent>
+              </Tooltip>
+            </div>
           );
         })}
       </div>
@@ -1436,7 +1623,7 @@ export default function Editor() {
           errors={editorDiagnostics}
           symbols={projectSymbols}
           fileId={activeFileId}
-          documentId={`${currentProject.id}:${activeFileId}`}
+          documentId={`${currentProject.id}:${editorBufferKey}`}
           fileName={activeFileId}
           isMobileLayout={isMobile}
           showHeader={!isMobile && focusedPanel === null}
@@ -1459,7 +1646,7 @@ export default function Editor() {
       previewMode={currentDocument.previewMode ?? "transcript"}
       previewFontSize={preferences.previewFontSize}
       previewTheme={preferences.previewTheme}
-      metadata={previewMetadata}
+      metadata={storyMetadata}
       sessionKey={storySessionKey}
       onMakeChoice={makeChoice}
       onStepBack={stepBack}
@@ -1531,7 +1718,7 @@ export default function Editor() {
       style={mobileKeyboardInset > 0 ? { height: `calc(100dvh - ${mobileKeyboardInset}px)` } : undefined}
     >
       <TopMenu
-        title={title}
+        title={currentProject.name}
         knots={knots}
         onNew={handleNew}
         onNewFile={handleAddProjectFile}
@@ -1539,16 +1726,14 @@ export default function Editor() {
         recentFiles={recentFiles}
         currentFileName={currentDocument.filename}
         currentSaveFileName={localSaveFileName}
-        exportMetadata={exportMetadata}
+        exportMetadata={storyMetadata}
         savedHtmlExport={currentDocument.htmlExport}
         storyTypeface={effectiveStoryTypeface}
         onOpenRecent={handleOpenRecent}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onManageSaves={() => setIsLocalSavesOpen(true)}
-        onTitleChange={(nextTitle) => {
-          void handleProjectSettingsChange({ title: nextTitle });
-        }}
+        onTitleChange={handleProjectNameChange}
         onRun={handleRun}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportInk={exportInk}
@@ -1570,7 +1755,7 @@ export default function Editor() {
         onOpenChange={setIsSettingsOpen}
         parsedGlobalTags={parsedGlobalTags}
         currentFileName={currentDocument.filename}
-        storyTitle={title}
+        storyTitle={resolvedStoryTitle}
         author={currentDocument.author}
         previewMode={currentDocument.previewMode ?? "transcript"}
         storyTypeface={effectiveStoryTypeface}
@@ -1580,6 +1765,7 @@ export default function Editor() {
         }}
         onStoryTypefaceChange={handleStoryTypefaceChange}
         onRenameFile={handleRenameCurrentDocument}
+        hasMultipleFiles={hasMultipleProjectFiles}
         onPreviewModeChange={(previewMode) => {
           void handleProjectSettingsChange({ previewMode });
         }}
@@ -1604,6 +1790,33 @@ export default function Editor() {
         extension=".ink"
         onOpenChange={setIsAddProjectFileOpen}
         onConfirm={handleConfirmAddProjectFile}
+      />
+
+      <FileActionDialog
+        mode={renameProjectFileTarget !== null ? "rename" : null}
+        initialName={renameProjectFileTarget ?? ""}
+        extension=".ink"
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameProjectFileTarget(null);
+          }
+        }}
+        onConfirm={async (name) => {
+          if (!renameProjectFileTarget) return;
+          try {
+            const { nextFilename, sourceName } = await handleRenameProjectFileById(renameProjectFileTarget, name);
+            setRenameProjectFileTarget(null);
+            if (nextFilename !== sourceName) {
+              toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
+            }
+          } catch (error) {
+            toast({
+              title: "Rename failed",
+              description: error instanceof Error ? error.message : "Unknown error",
+              variant: "destructive",
+            });
+          }
+        }}
       />
 
       <LocalSavesDialog
