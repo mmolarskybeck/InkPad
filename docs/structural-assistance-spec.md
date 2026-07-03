@@ -3,7 +3,7 @@
 Status: **authoritative spec for Roadmap Phase 3.** Supersedes and absorbs the
 earlier `completions-and-snippets-spec.md` (now removed).
 Owner: @mmolarskybeck
-Last updated: 2026-07-02 — **retargeted from Monaco to CodeMirror 6** after the
+Last updated: 2026-07-03 — **retargeted from Monaco to CodeMirror 6** after the
 editor migration (see `docs/archive/codemirror-migration/Editor Migration Plan.md` / `docs/archive/codemirror-migration/editor-migration-updates.md`)
 and reconciled against the current repo state.
 
@@ -66,7 +66,7 @@ This is diagnostics + quick fixes + quick insert + navigation — **not**
 
 ---
 
-## Implementation status (2026-07-02)
+## Implementation status (2026-07-03)
 
 More is built than at the last revision — but one previously-working surface is
 now dormant.
@@ -86,6 +86,10 @@ now dormant.
   and pushed with `setDiagnostics` in `codemirror-editor.tsx`. Its CodeMirror
   lint quick fix now exists as the first action pipeline proof: **Start at
   target** inserts `-> target` at the top of the active file.
+- **Unresolved-divert quick fixes**:
+  the pinned inkjs adapter recognizes unresolved divert messages, and the
+  CodeMirror lint tooltip now offers both **Change to target** and
+  **Create knot target** when the signal is confident enough.
 - **Shared snippet library (12 snippets)** + compile-verification test:
   `client/src/features/snippets/ink-snippets.ts` / `ink-snippets.test.ts`.
   All 12 round-trip through the compiler. `desktopSnippet` uses `${n:default}`

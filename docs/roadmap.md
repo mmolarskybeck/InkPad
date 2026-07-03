@@ -26,7 +26,7 @@ This is the working implementation checklist. It favors small, testable slices a
   - [x] Autosave leadership-change recovery (prevent stalling on filename change)
   - [x] 25 unit tests covering schema, migration, reconciliation, pinning, INCLUDE rewriting
   - [x] End-to-end browser verification: tag→name→file auto-follow, pinning, multi-file transition, legacy load
-  - See: [`docs/naming-refactor-completed.md`](./naming-refactor-completed.md)
+  - See: [`docs/archive/naming-refactor-completed.md`](./archive/naming-refactor-completed.md)
 
 ## Phase 1: Preferences and settings
 
@@ -37,7 +37,7 @@ This is the working implementation checklist. It favors small, testable slices a
 - [x] Add editor word-wrap preference
 - [x] Add editor and preview font-size preferences
 - [x] Expose supported color themes through settings
-- [x] Add a high-contrast application and Monaco theme
+- [x] Add a high-contrast application theme
 - [x] Decide which settings are global user preferences versus project-specific behavior
 - [x] Store author and preview mode with each local story
 - [x] Add story typeface preference and synchronize with HTML export
@@ -60,14 +60,18 @@ This is the working implementation checklist. It favors small, testable slices a
 ## Phase 3: Completions and snippets
 
 > Authoritative design: [`structural-assistance-spec.md`](./structural-assistance-spec.md) (symbol table, completion, diagnostics, quick fixes, go-to-definition, Ink Info, snippets). Deferred until the core editor (compile, highlighting, save/load/export) is stable.
+>
+> Status note: the tolerant symbol table, missing-start diagnostic, mobile snippet drawer, and unresolved-divert quick fixes are already shipped. The next user-visible slice is desktop CodeMirror completion, followed by go-to-definition and Ink Info.
 
-- [ ] Define a derived `InkSymbolIndex`
-- [ ] Index knots, stitches, variables, lists, functions, and their source locations
+- [x] Define the shared tolerant symbol-table result used by completions and quick fixes
+- [x] Index knots, stitches, and function knots with source locations
+- [ ] Extend the index to variables and lists
 - [ ] Make the index readable by the CodeMirror editor (e.g. a `@codemirror/autocomplete` source) without coupling it to React render state
-- [ ] Register an Ink completion provider
+- [ ] Install `@codemirror/autocomplete` and register an Ink completion provider
 - [ ] Add divert completion for known knots and stitches
 - [ ] Add variable/list completion in relevant contexts
-- [ ] Add a code snippet panel using static built-in snippets first
+- [x] Keep the shared snippet library and mobile insertion surfaces in place
+- [ ] Add a desktop code snippet panel using static built-in snippets first
 - [ ] Decide whether custom snippets belong in user preferences
 - [ ] Add completion tests for incomplete and invalid Ink source
 
