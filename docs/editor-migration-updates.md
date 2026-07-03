@@ -779,31 +779,6 @@ Notes:
   duplicate, delete, entry-file replacement, project-wide search, and graph
   view are still later work.
 
-## Later Checkpoints
-
-- Phase 2 diagnostic model hardening:
-  - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
-    InkPad-authored lint rules are added.
-- Phase 4 mobile authoring:
-  - Broaden real-device validation beyond the initial iPhone smoke pass,
-    especially iPad behavior.
-  - Re-check accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad before final sign-off.
-  - Confirm pointerdown insertion does not conflict with scroll gestures in drawers.
-  - Confirm clipboard toolbar behavior on iOS Safari.
-  - Decide whether phone/desktop breakpoint flips need undo-history
-    preservation or whether remount-on-layout-change is acceptable.
-  - Fix the Problems/Snippets drawer-open keyboard-dismiss regression noted
-    above.
-- Multi-file follow-up:
-  - Add rename, duplicate, delete, and entry-file replacement flows.
-  - Add `.inkpad` import from disk once the file picker accepts project files.
-  - Add project-level recovery/snapshot tests beyond serialized autosave.
-  - Validate the collapsible project rail and New menu on phone and tablet
-    layouts; check keyboard behavior, horizontal overflow, and accessible
-    labels before closing the UI/UX pass.
-  - Keep project-wide search, graph view, and advanced file management out of
-    the migration-critical path.
-
 ## 2026-07-02 - Checkpoint 14: Bundle chunk cleanup
 
 Followed up on the production build's oversized `vendor` warning:
@@ -839,3 +814,28 @@ Build result:
   - `storyExportService`: about `2.3 kB` minified / `1 kB` gzip
   - `zip-vendor`: about `97 kB` minified / `30 kB` gzip, only needed for
     playable HTML ZIP export
+
+## Later Checkpoints
+
+- Phase 2 diagnostic model hardening:
+  - Separate `inkjs` and InkPad-authored diagnostics more explicitly if new
+    InkPad-authored lint rules are added.
+- Phase 4 mobile authoring:
+  - Broaden real-device validation beyond the initial iPhone smoke pass,
+    especially iPad behavior.
+  - Re-check accessory insertion, snippet insertion, selection, keyboard survival, and drawer behavior on iPhone/iPad before final sign-off.
+  - Confirm pointerdown insertion does not conflict with scroll gestures in drawers.
+  - Confirm clipboard toolbar behavior on iOS Safari.
+  - Decide whether phone/desktop breakpoint flips need undo-history
+    preservation or whether remount-on-layout-change is acceptable.
+  - Fix the Problems/Snippets drawer-open keyboard-dismiss regression noted
+    above.
+- Multi-file follow-up:
+  - Add rename, duplicate, delete, and entry-file replacement flows.
+  - Add `.inkpad` import from disk once the file picker accepts project files.
+  - Add project-level recovery/snapshot tests beyond serialized autosave.
+  - Validate the collapsible project rail and New menu on phone and tablet
+    layouts; check keyboard behavior, horizontal overflow, and accessible
+    labels before closing the UI/UX pass.
+  - Keep project-wide search, graph view, and advanced file management out of
+    the migration-critical path.

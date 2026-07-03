@@ -1,18 +1,19 @@
 import { useCallback } from "react";
 
 interface UseFileImportOptions {
-  onLoad: (importedFilename: string, importedSource: string) => void;
+  onLoad: (importedFile: ImportedFile) => void | Promise<void>;
   onError?: (message: string) => void;
   accept?: string;
   maxFileSizeBytes?: number;
 }
 
-interface ImportedFile {
+export interface ImportedFile {
   importedFilename: string;
-  importedSource: string;
+  importedSource: string | ArrayBuffer;
+  kind: "text" | "archive";
 }
 
-const DEFAULT_MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
+const DEFAULT_MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -43,15 +44,21 @@ function pickTextFile(
         return;
       }
 
+      const isArchive = /\.(?:inkpad|zip)$/i.test(file.name);
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         resolve({
           importedFilename: file.name,
-          importedSource: loadEvent.target?.result as string,
+          importedSource: loadEvent.target?.result as string | ArrayBuffer,
+          kind: isArchive ? "archive" : "text",
         });
       };
       reader.onerror = () => resolve(null);
-      reader.readAsText(file);
+      if (isArchive) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
     };
 
     input.click();
@@ -61,14 +68,14 @@ function pickTextFile(
 export function useFileImport({
   onLoad,
   onError,
-  accept = ".ink,.txt",
+  accept = ".ink,.txt,.inkpad,.zip",
   maxFileSizeBytes = DEFAULT_MAX_IMPORT_FILE_BYTES,
 }: UseFileImportOptions) {
   return useCallback(async () => {
     try {
       const importedFile = await pickTextFile(accept, maxFileSizeBytes);
       if (importedFile) {
-        onLoad(importedFile.importedFilename, importedFile.importedSource);
+        await onLoad(importedFile);
       }
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Could not import file.");

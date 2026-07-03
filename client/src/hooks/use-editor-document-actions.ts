@@ -1,6 +1,7 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import type { FileActionMode } from "@/components/editor/file-action-dialog";
 import { useFileImport } from "@/features/files/useFileImport";
+import type { ImportedFile } from "@/features/files/useFileImport";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -15,8 +16,9 @@ import {
 } from "@/lib/analytics";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
-import { parseInkProject, retargetProjectForCopy } from "@/lib/ink-project";
+import { getProjectStorageName, parseInkProject, retargetProjectForCopy } from "@/lib/ink-project";
 import type { InkDocument } from "@/types/ink-document";
+import type { InkProject } from "@/types/ink-project";
 
 export interface PendingDocumentAction {
   label: string;
@@ -226,7 +228,50 @@ export function useEditorDocumentActions({
     );
   }, [applyLoadedDocument, applyLoadedProjectFile]);
 
-  const handleLoad = useCallback((filename: string, source: string) => {
+  const handleLoad = useCallback(async (importedFile: ImportedFile) => {
+    const { importedFilename: filename, importedSource, kind } = importedFile;
+    if (kind === "archive") {
+      if (!(importedSource instanceof ArrayBuffer)) {
+        throw new Error("Could not read this project archive.");
+      }
+
+      const { parseInkPadBundle } = await import("@/lib/inkpad-bundle");
+      let importedProject: InkProject;
+      let importedSettings: StoredStorySettings | undefined;
+      try {
+        const parsedBundle = await parseInkPadBundle(importedSource);
+        importedProject = parsedBundle.project;
+        importedSettings = parsedBundle.settings;
+      } catch (bundleError) {
+        try {
+          importedProject = parseInkProject(new TextDecoder().decode(importedSource));
+        } catch {
+          throw bundleError;
+        }
+      }
+      const project = importedProject;
+      const settings = importedSettings;
+      const storageName = getProjectStorageName(project);
+      const content = JSON.stringify(project, null, 2);
+      cancelPendingRecoveryDraft();
+      resetBufferedSource(project.files[project.entryFile]?.content ?? "");
+      FileOperations.saveRecoveryDraft(storageName, content, settings);
+      const opened = applyLoadedProjectFile?.({
+        name: storageName,
+        content,
+        settings,
+        lastModified: Date.now(),
+      });
+      if (!opened) {
+        throw new Error("This InkPad project could not be opened.");
+      }
+      trackProjectCreated("import");
+      return;
+    }
+
+    const source = typeof importedSource === "string"
+      ? importedSource
+      : new TextDecoder().decode(importedSource);
     cancelPendingRecoveryDraft();
     resetBufferedSource(source);
     FileOperations.saveRecoveryDraft(filename, source);
@@ -242,7 +287,13 @@ export function useEditorDocumentActions({
     });
     trackProjectCreated("import");
     compileLive(source);
-  }, [cancelPendingRecoveryDraft, compileLive, resetBufferedSource, setCurrentDocument]);
+  }, [
+    applyLoadedProjectFile,
+    cancelPendingRecoveryDraft,
+    compileLive,
+    resetBufferedSource,
+    setCurrentDocument,
+  ]);
 
   const createNewDocument = useCallback(() => {
     cancelPendingRecoveryDraft();

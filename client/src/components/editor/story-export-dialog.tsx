@@ -13,6 +13,7 @@ import {
 interface StoryExportDialogProps {
   onExportInk: () => void | Promise<void>;
   onExportProject?: () => void | Promise<void>;
+  onExportProjectZip?: () => void | Promise<void>;
   onExportJson: () => void | Promise<void>;
   onConfigureHtml: () => void;
   hasMultipleFiles?: boolean;
@@ -22,6 +23,7 @@ interface StoryExportDialogProps {
 export function StoryExportDialog({
   onExportInk,
   onExportProject,
+  onExportProjectZip,
   onExportJson,
   onConfigureHtml,
   hasMultipleFiles = false,
@@ -73,20 +75,38 @@ export function StoryExportDialog({
           </Button>
 
           {hasMultipleFiles && onExportProject && (
-            <Button
-              onClick={() => void runExport(onExportProject)}
-              disabled={isExporting}
-              variant="outline"
-              className="h-auto w-full min-w-0 justify-start whitespace-normal border-border-color bg-editor-bg p-3 text-left hover:border-accent-blue hover:bg-accent"
-            >
-              <div className="mr-3 rounded-md bg-accent-blue/10 p-2">
-                <FileArchive className="h-5 w-5 text-accent-blue" />
-              </div>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-[0.9375rem] font-semibold text-text-emphasis">InkPad project</span>
-                <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">Full multi-file .inkpad project</span>
-              </div>
-            </Button>
+            <>
+              <Button
+                onClick={() => void runExport(onExportProject)}
+                disabled={isExporting}
+                variant="outline"
+                className="h-auto w-full min-w-0 justify-start whitespace-normal border-border-color bg-editor-bg p-3 text-left hover:border-accent-blue hover:bg-accent"
+              >
+                <div className="mr-3 rounded-md bg-accent-blue/10 p-2">
+                  <FileArchive className="h-5 w-5 text-accent-blue" />
+                </div>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[0.9375rem] font-semibold text-text-emphasis">InkPad project</span>
+                  <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">ZIP archive with .inkpad extension</span>
+                </div>
+              </Button>
+              {onExportProjectZip && (
+                <Button
+                  onClick={() => void runExport(onExportProjectZip)}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal border-border-color bg-editor-bg p-3 text-left hover:border-accent-blue hover:bg-accent"
+                >
+                  <div className="mr-3 rounded-md bg-accent-blue/10 p-2">
+                    <FileArchive className="h-5 w-5 text-accent-blue" />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-[0.9375rem] font-semibold text-text-emphasis">Project ZIP</span>
+                    <span className="text-[0.8125rem] font-normal leading-5 text-text-secondary">Same archive, named .zip</span>
+                  </div>
+                </Button>
+              )}
+            </>
           )}
 
           <Button

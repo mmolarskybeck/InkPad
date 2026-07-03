@@ -48,7 +48,7 @@ import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 import { usePreferences } from "@/components/preferences-provider";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
-import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
+import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
@@ -957,14 +957,48 @@ export default function Editor() {
     await persistProjectNow(true);
   }, [persistProjectNow]);
 
-  const handleExportProject = useCallback(() => {
+  const exportProjectArchive = useCallback(async (extension: ".inkpad" | ".zip") => {
     const project = getLiveProject();
-    FileOperations.downloadFile(
-      JSON.stringify(project, null, 2),
-      getProjectExportName(project),
-      "application/json",
+    const [{ createInkPadBundleBlob }, { downloadBlob }] = await Promise.all([
+      import("@/lib/inkpad-bundle"),
+      import("@/features/files/fileDownload"),
+    ]);
+    const blob = await createInkPadBundleBlob(project, {
+      title: currentDocument.title,
+      author: currentDocument.author,
+      htmlExport: currentDocument.htmlExport,
+      storyTypeface: currentDocument.storyTypeface,
+      previewMode: currentDocument.previewMode,
+    });
+    const inkpadName = getProjectExportName(project);
+    downloadBlob(
+      blob,
+      extension === ".zip" ? replaceFilenameExtension(inkpadName, ".zip") : inkpadName,
     );
-  }, [getLiveProject]);
+  }, [
+    currentDocument.author,
+    currentDocument.htmlExport,
+    currentDocument.previewMode,
+    currentDocument.storyTypeface,
+    currentDocument.title,
+    getLiveProject,
+  ]);
+
+  const handleExportProject = useCallback(async () => {
+    try {
+      await exportProjectArchive(".inkpad");
+    } catch (error) {
+      handleExportError("Failed to export InkPad project", error);
+    }
+  }, [exportProjectArchive, handleExportError]);
+
+  const handleExportProjectZip = useCallback(async () => {
+    try {
+      await exportProjectArchive(".zip");
+    } catch (error) {
+      handleExportError("Failed to export project ZIP", error);
+    }
+  }, [exportProjectArchive, handleExportError]);
 
   const switchToProjectFile = useCallback((fileId: string, options?: { line?: number }) => {
     if (!Object.prototype.hasOwnProperty.call(currentProject.files, fileId)) return;
@@ -1794,6 +1828,7 @@ export default function Editor() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportInk={exportInk}
         onExportProject={handleExportProject}
+        onExportProjectZip={handleExportProjectZip}
         onExportJson={exportJson}
         resolvedTheme={resolvedExportTheme}
         resolvedFromSystem={resolvedFromSystem}

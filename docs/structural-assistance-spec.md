@@ -1,8 +1,7 @@
 # InkPad Structural Writing Assistance — v1 Spec (Phase 3, authoritative)
 
 Status: **authoritative spec for Roadmap Phase 3.** Supersedes and absorbs the
-earlier `completions-and-snippets-spec.md` (now a stub pointing here; the
-snippet-specific detail lives in §Snippets below).
+earlier `completions-and-snippets-spec.md` (now removed).
 Owner: @mmolarskybeck
 Last updated: 2026-07-02 — **retargeted from Monaco to CodeMirror 6** after the
 editor migration (see `Editor Migration Plan.md` / `editor-migration-updates.md`)

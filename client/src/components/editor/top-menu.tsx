@@ -53,6 +53,7 @@ interface TopMenuProps {
   onOpenSettings: () => void;
   onExportInk: () => void | Promise<void>;
   onExportProject?: () => void | Promise<void>;
+  onExportProjectZip?: () => void | Promise<void>;
   onExportJson: () => void | Promise<void>;
   resolvedTheme: ThemeName;
   resolvedFromSystem: boolean;
@@ -86,6 +87,7 @@ export function TopMenu({
   onOpenSettings,
   onExportInk,
   onExportProject,
+  onExportProjectZip,
   onExportJson,
   resolvedTheme,
   resolvedFromSystem,
@@ -143,7 +145,7 @@ export function TopMenu({
     <DropdownMenuContent align="start" className="w-72 bg-panel-bg border-border-color">
       <DropdownMenuItem onClick={onOpen} className="cursor-pointer">
         <FolderOpen className="w-4 h-4" />
-        Import .ink from disk...
+        Import .ink, .inkpad, or .zip...
       </DropdownMenuItem>
       <DropdownMenuItem onClick={onManageSaves} className="cursor-pointer">
         <Archive className="w-4 h-4" />
@@ -299,6 +301,7 @@ export function TopMenu({
           <StoryExportDialog
             onExportInk={onExportInk}
             onExportProject={onExportProject}
+            onExportProjectZip={onExportProjectZip}
             onExportJson={onExportJson}
             onConfigureHtml={() => setIsHtmlExportOpen(true)}
             hasMultipleFiles={hasMultipleFiles}
@@ -435,11 +438,20 @@ export function TopMenu({
                     </Button>
                   </SheetClose>
                   {hasMultipleFiles && onExportProject && (
-                    <SheetClose asChild>
-                      <Button variant="ghost" onClick={onExportProject} disabled={isExporting} className="justify-start">
-                        Full .inkpad project
-                      </Button>
-                    </SheetClose>
+                    <>
+                      <SheetClose asChild>
+                        <Button variant="ghost" onClick={onExportProject} disabled={isExporting} className="justify-start">
+                          Full .inkpad project
+                        </Button>
+                      </SheetClose>
+                      {onExportProjectZip && (
+                        <SheetClose asChild>
+                          <Button variant="ghost" onClick={onExportProjectZip} disabled={isExporting} className="justify-start">
+                            Project ZIP
+                          </Button>
+                        </SheetClose>
+                      )}
+                    </>
                   )}
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onExportJson} disabled={isExporting} className="justify-start">
