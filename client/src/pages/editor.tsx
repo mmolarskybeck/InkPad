@@ -21,6 +21,7 @@ import {
   type MobileTab,
 } from "@/components/editor/editor-workspace";
 import { Button } from "@/components/ui/button";
+import { EditableTitle } from "@/components/ui/editable-title";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -411,7 +412,7 @@ export default function Editor() {
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddProjectFileOpen, setIsAddProjectFileOpen] = useState(false);
-  const [renameProjectFileTarget, setRenameProjectFileTarget] = useState<string | null>(null);
+  const [inlineRenameRequest, setInlineRenameRequest] = useState<{ fileId: string; key: number } | null>(null);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
   const [storySessionKey, setStorySessionKey] = useState(0);
   const [editorControlState, setEditorControlState] = useState<CodeMirrorEditorControlState>({
@@ -765,6 +766,29 @@ export default function Editor() {
     (requestedName: string) => handleRenameProjectFileById(activeFileId, requestedName),
     [activeFileId, handleRenameProjectFileById],
   );
+
+  const handleInlineProjectFileRename = useCallback(async (fileId: string, requestedName: string) => {
+    try {
+      const { nextFilename, sourceName } = await handleRenameProjectFileById(fileId, requestedName);
+      if (nextFilename !== sourceName) {
+        toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
+      }
+    } catch (error) {
+      toast({
+        title: "Rename failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [handleRenameProjectFileById, toast]);
+
+  const requestInlineProjectFileRename = useCallback((fileId: string) => {
+    setInlineRenameRequest((request) => ({
+      fileId,
+      key: (request?.key ?? 0) + 1,
+    }));
+  }, []);
 
   const {
     pendingAction,
@@ -1572,38 +1596,69 @@ export default function Editor() {
           const isEntry = fileId === currentProject.entryFile;
           return (
             <div key={fileId} className="group relative mb-0.5">
-              <button
-                type="button"
-                onClick={() => switchToProjectFile(fileId)}
+              <div
                 aria-current={isActive ? "page" : undefined}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("input")) return;
+                  switchToProjectFile(fileId);
+                }}
                 className={cn(
-                  "flex min-w-0 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 pr-8 text-left text-[0.8125rem] text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-                  "hover:border-border-color hover:bg-accent hover:text-text-emphasis",
-                  isActive && "border-accent-blue bg-accent text-text-emphasis hover:border-accent-blue",
+                  "flex min-w-0 w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1.5 text-[0.8125rem] text-text-primary transition-colors",
+                  "hover:bg-accent hover:text-text-emphasis",
+                  isActive && "bg-accent text-text-emphasis",
                 )}
               >
-                <FileText className={cn(
-                  "h-3.5 w-3.5 shrink-0",
-                  isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
-                )} />
-                <span className={cn("truncate font-mono", isActive && "font-medium")}>{fileId}</span>
-                {isActive && <span className="sr-only">Current file</span>}
-              </button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setRenameProjectFileTarget(fileId)}
-                    aria-label={`Rename ${fileId}`}
-                    className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0 text-text-secondary opacity-0 transition-opacity hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Rename file</TooltipContent>
-              </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        switchToProjectFile(fileId);
+                      }}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
+                      aria-label={`Open ${fileId}`}
+                    >
+                      <FileText className={cn(
+                        "h-3.5 w-3.5",
+                        isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
+                      )} />
+                      {isActive && <span className="sr-only">Current file</span>}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Open file</TooltipContent>
+                </Tooltip>
+                <EditableTitle
+                  title={fileId}
+                  onTitleChange={(nextName) => handleInlineProjectFileRename(fileId, nextName)}
+                  editTrigger="double-click"
+                  editRequestKey={inlineRenameRequest?.fileId === fileId ? inlineRenameRequest.key : undefined}
+                  ariaLabel={`Rename ${fileId}`}
+                  placeholder="File path..."
+                  fallbackTitle={fileId}
+                  normalizeValue={(value) => value.trim() || fileId}
+                  showEditIcon={false}
+                  className="h-7 min-w-0 flex-1 justify-start px-1 hover:bg-transparent md:px-1"
+                  inputClassName="h-7 font-mono text-[0.8125rem]"
+                  textClassName={cn("font-mono text-[0.8125rem]", isActive && "font-medium")}
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        requestInlineProjectFileRename(fileId);
+                      }}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary opacity-0 transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg group-hover:opacity-100"
+                      aria-label={`Rename file ${fileId}`}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Rename file</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           );
         })}
@@ -1630,6 +1685,7 @@ export default function Editor() {
           fontSize={preferences.editorFontSize}
           wordWrap={preferences.wordWrap}
           saveState={autosave.saveState}
+          onRenameFile={(nextName) => handleInlineProjectFileRename(activeFileId, nextName)}
           isPhone={isMobile}
           isVisible={!isMobile || mobileTab === "code"}
         />
@@ -1790,33 +1846,6 @@ export default function Editor() {
         extension=".ink"
         onOpenChange={setIsAddProjectFileOpen}
         onConfirm={handleConfirmAddProjectFile}
-      />
-
-      <FileActionDialog
-        mode={renameProjectFileTarget !== null ? "rename" : null}
-        initialName={renameProjectFileTarget ?? ""}
-        extension=".ink"
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameProjectFileTarget(null);
-          }
-        }}
-        onConfirm={async (name) => {
-          if (!renameProjectFileTarget) return;
-          try {
-            const { nextFilename, sourceName } = await handleRenameProjectFileById(renameProjectFileTarget, name);
-            setRenameProjectFileTarget(null);
-            if (nextFilename !== sourceName) {
-              toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
-            }
-          } catch (error) {
-            toast({
-              title: "Rename failed",
-              description: error instanceof Error ? error.message : "Unknown error",
-              variant: "destructive",
-            });
-          }
-        }}
       />
 
       <LocalSavesDialog

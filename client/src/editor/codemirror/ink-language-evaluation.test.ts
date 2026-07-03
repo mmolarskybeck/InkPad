@@ -240,6 +240,19 @@ describe("vendored Ink language (client/src/editor/codemirror/ink-lang)", () => 
     expect(classesForText(spans, "END")).toContain("keyword");
   });
 
+  it("highlights consecutive includes independently", () => {
+    const source = "INCLUDE chapter2.ink\nINCLUDE chapter3_new.ink\n\nokay here\n";
+    const spans = collectHighlightSpans(source);
+
+    expect(getTreeString(createInkState(source))).toBe(
+      "Script(Include(IncludeKeyword,IncludePath),Include(IncludeKeyword,IncludePath),ContentLine)",
+    );
+    expect(classesForText(spans, "INCLUDE")).toBe("keyword");
+    expect(classesForText(spans, "chapter2.ink")).toBe("string");
+    expect(classesForText(spans, "chapter3_new.ink")).toBe("string");
+    expect(classesForText(spans, "okay here")).toBe("content");
+  });
+
   it("tags AuthorWarning distinctly from LineComment when the node is produced", () => {
     // The `todo` token uses @dynamicPrecedence in the vendored grammar, and
     // its resolution is sensitive to what follows on later lines -- see the

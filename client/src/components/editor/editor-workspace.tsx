@@ -453,9 +453,11 @@ export function EditorWorkspace({
                     variant="ghost"
                     onClick={() => handleFocusPanelChange("code")}
                     aria-pressed={focusedPanel === "code"}
-                    className="relative h-full rounded-none px-3 text-[0.8125rem] font-medium text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:text-text-emphasis after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent aria-pressed:after:bg-accent-blue"
+                    className="relative h-full min-w-0 max-w-[18rem] rounded-none px-3 text-[0.8125rem] font-medium text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:text-text-emphasis after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent aria-pressed:after:bg-accent-blue"
                   >
-                    Code
+                    <span className="min-w-0 truncate">
+                      {mobileCodeTabLabel ?? "Code"}
+                    </span>
                   </Button>
                   <Button
                     type="button"

@@ -49,6 +49,7 @@ import {
 } from "@codemirror/view";
 import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { EditableTitle } from "@/components/ui/editable-title";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
@@ -74,6 +75,7 @@ export interface CodeMirrorEditorProps {
   fontSize?: number;
   wordWrap?: boolean;
   saveState?: SaveState;
+  onRenameFile?: (requestedName: string) => void | Promise<void>;
 }
 
 export interface CodeMirrorEditorControlState {
@@ -324,6 +326,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   fontSize = 14,
   wordWrap = true,
   saveState = "saved",
+  onRenameFile,
 }, ref) => {
   // Mobile renders a touch slightly smaller than the desktop preference
   // (dense monospace reads fine at arm's length on a phone). iOS Safari's
@@ -810,9 +813,25 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color bg-panel-bg px-3 lg:px-4">
           <div className="flex min-w-0 items-center gap-2">
             <Code className="shrink-0 text-sm text-accent-blue" />
-            <span className="truncate text-[0.875rem] font-medium text-text-emphasis">
-              {fileName}
-            </span>
+            {onRenameFile ? (
+              <EditableTitle
+                title={fileName}
+                onTitleChange={onRenameFile}
+                editTrigger="double-click"
+                ariaLabel={`Rename ${fileName}`}
+                placeholder="File path..."
+                fallbackTitle={fileName}
+                normalizeValue={(value) => value.trim() || fileName}
+                showEditIcon={false}
+                className="h-8 min-w-0 px-1 md:px-1.5"
+                inputClassName="font-mono text-[0.8125rem]"
+                textClassName="font-mono text-[0.8125rem]"
+              />
+            ) : (
+              <span className="truncate text-[0.875rem] font-medium text-text-emphasis">
+                {fileName}
+              </span>
+            )}
             <span className={`shrink-0 text-[0.8125rem] ${saveStatus.className}`} aria-live="polite">
               &bull; {saveStatus.label}
             </span>

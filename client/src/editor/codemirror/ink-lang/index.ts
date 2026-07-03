@@ -41,7 +41,7 @@ export const InkLanguage = LRLanguage.define(
                                         SequenceContent: t.content,
 
                                         // Keywords
-                                        Include: t.keyword,
+                                        IncludeKeyword: t.keyword,
                                         END: t.keyword,
                                         DONE: t.keyword,
                                         VariableDeclaration: t.keyword,
@@ -74,6 +74,7 @@ export const InkLanguage = LRLanguage.define(
                                         Int: t.number,
                                         Float: t.number,
                                         String: t.string,
+                                        IncludePath: t.string,
 
                                         // Tags
                                         Tag: t.labelName,

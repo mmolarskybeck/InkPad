@@ -1,3 +1,4 @@
-"INCLUDE \"chapters/start.ink\"\n" -> keyword
+"INCLUDE" -> keyword
+"\"chapters/start.ink\"" -> string
 "->" -> controlOperator
 "start" -> name

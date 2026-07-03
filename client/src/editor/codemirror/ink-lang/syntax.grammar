@@ -32,8 +32,8 @@ context {
 
 line {
   AuthorWarning |
-  ContentLine |
   Include |
+  ContentLine |
   VariableDeclaration |
   ConstDeclaration |
   ListDeclaration |
@@ -70,7 +70,9 @@ divertLine { ~opening !content Divert }
 ContentLine { glueLine | nonGlueLine | tagLine | divertLine }
 AuthorWarning { ~opening !keyword todo notEol+ eol }
 todo[@dynamicPrecedence=1] { @extend<contentWord, "TODO:"> }
-Include { ~opening !keyword opener<"INCLUDE"> notEol+ eol }
+Include[@dynamicPrecedence=1] { ~opening !keyword IncludeKeyword IncludePath }
+IncludeKeyword { opener<"INCLUDE"> }
+IncludePath { notEol+ }
 openBracketedChoiceName[@dynamicPrecedence=1] { !parens @extend<choiceContentWord, "("> }
 openBracketedGatherName[@dynamicPrecedence=1] { !parens @extend<contentWord, "("> }
 openWeaveBracket[@dynamicPrecedence=1] { !parens @extend<choiceContentWord, "["> }

@@ -1,4 +1,6 @@
-"INCLUDE chapters/start.ink" -> content
-"INCLUDE shared/common.ink\n" -> keyword
+"INCLUDE" -> keyword
+"chapters/start.ink" -> string
+"INCLUDE" -> keyword
+"shared/common.ink" -> string
 "->" -> controlOperator
 "start" -> name

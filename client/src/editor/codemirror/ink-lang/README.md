@@ -84,6 +84,19 @@ suite — still 27/27 passing after each patch)
    `divert_targets_with_parameters.ink` (pulled from `ink-tmlanguage` as
    `tmlang-divert-targets-with-parameters.ink`).
 
+4. **Consecutive `INCLUDE` lines.** The `Include` rule consumed its own
+   trailing `eol` even though the top-level `lineSep` wrapper also consumes
+   line endings between items. In practice, a run of includes only highlighted
+   inconsistently because an `Include` node needed an extra blank line after
+   it to satisfy both newline consumers. Changed `Include` to leave newline
+   consumption to `lineSep`, gave it dynamic precedence like other
+   line-start constructs that compete with generic prose, and list it before
+   `ContentLine` in the `line` alternatives. Also split `IncludeKeyword`
+   from `IncludePath` so the keyword can stay bold/keyword-colored while the
+   target path is styled like a string literal. Verified with
+   `include-subfolder-path.ink` and an explicit regression test covering two
+   consecutive include lines followed by prose.
+
 ### Known gap found but NOT patched here: systemic knot-boundary error node
 
 **Every knot/function/stitch in every file produces at least one spurious

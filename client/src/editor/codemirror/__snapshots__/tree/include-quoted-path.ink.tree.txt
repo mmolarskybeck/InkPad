@@ -1,1 +1,1 @@
-Script(Include,ContentLine(Divert(DivertArrow,DivertTarget(Path))))
+Script(Include(IncludeKeyword,IncludePath),ContentLine(Divert(DivertArrow,DivertTarget(Path))))
