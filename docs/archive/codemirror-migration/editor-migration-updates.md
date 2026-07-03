@@ -1,5 +1,7 @@
 # Editor Migration Updates
 
+Archived historical log for the Monaco to CodeMirror 6 migration.
+
 Running log for the Monaco to CodeMirror 6 migration on `codex/monaco-to-codemirror`.
 
 ## 2026-07-03 - Checkpoint 16: Closest-match unresolved-divert quick fix
@@ -510,7 +512,7 @@ InkPad's architecture.
 - Added `client/src/editor/codemirror/ink-builtins.test.ts` to assert the
   canonical set and to confirm prose mentions such as `RANDOM` or
   `TURNS_SINCE` are not decorated unless parsed as `ExpressionFunctionCall`.
-- Documented the policy in `docs/Editor Migration Plan.md`: this is an editor
+- Documented the policy in `docs/archive/codemirror-migration/Editor Migration Plan.md`: this is an editor
   decoration, not a vendored grammar keyword patch.
 
 ### Verified
@@ -541,7 +543,7 @@ InkPad's architecture.
   - function folds run through the function body
   - spacer blank lines are trimmed from all section fold ranges
   - empty headers are not foldable
-- Documented the fold status in `docs/Editor Migration Plan.md`.
+- Documented the fold status in `docs/archive/codemirror-migration/Editor Migration Plan.md`.
 
 ### Verified
 
@@ -581,7 +583,7 @@ InkPad's architecture.
 - Strict compilation remains the default for project-shaped inputs.
 - Added worker tests for ignored unresolved includes and for resolved virtual
   includes under the ignore policy.
-- Updated `docs/Editor Migration Plan.md` with the settled policy.
+- Updated `docs/archive/codemirror-migration/Editor Migration Plan.md` with the settled policy.
 
 ### Verified
 

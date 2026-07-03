@@ -41,7 +41,7 @@ type HighlightSpan = {
 type FixtureCompileStatus = "valid" | "invalid";
 
 // InkPad-authored fixtures target specific taxonomy/coordinate cases (see
-// docs/Editor Migration Plan.md). "tmlang-*" fixtures are pulled from
+// docs/archive/codemirror-migration/Editor Migration Plan.md). "tmlang-*" fixtures are pulled from
 // inkle/ink-tmlanguage's tests/cases/ corpus (MIT) and are not required to be
 // valid inkjs programs -- that corpus exists to exercise a TextMate
 // tokenizer against edge-case/partial syntax, not to be a runnable-story

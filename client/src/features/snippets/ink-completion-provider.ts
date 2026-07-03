@@ -1,12 +1,12 @@
 // Editor-agnostic snippet-completion matching backed by the shared snippet
 // library.
 //
-// See docs/completions-and-snippets-spec.md §3a. Ink is mostly prose, so
+// See docs/structural-assistance-spec.md §Completion. Ink is mostly prose, so
 // triggering is deliberately conservative: a snippet is only offered when the
 // current line is a single word (the thing being typed) and nothing else.
 // This pure function is unit-tested without any editor model; a
 // `@codemirror/autocomplete` source can be built on top of it when
-// completion work starts (see docs/Editor Migration Plan.md Phase 3).
+// completion work starts (see docs/structural-assistance-spec.md).
 
 import { INK_SNIPPETS, type InkSnippet } from "./ink-snippets";
 

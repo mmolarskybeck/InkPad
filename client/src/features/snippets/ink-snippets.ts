@@ -1,7 +1,7 @@
 // Shared Ink snippet library — single source of truth for desktop autocomplete,
 // the snippet palette, and the mobile insertion tools.
 //
-// See docs/completions-and-snippets-spec.md. Every snippet here must compile
+// See docs/structural-assistance-spec.md. Every snippet here must compile
 // through InkPad's own compiler; ink-snippets.test.ts enforces that.
 
 export type SnippetCategory =

@@ -18,7 +18,7 @@ The primary constraints are:
 
 - React 18 and TypeScript
 - Vite
-- Monaco Editor with a custom Ink language definition
+- CodeMirror 6 with a custom Ink language definition
 - `inkjs` compiler/runtime
 - Web Workers for compilation
 - Tailwind CSS and Radix/shadcn UI primitives
@@ -31,17 +31,17 @@ The primary constraints are:
 
 `client/src/pages/editor.tsx` coordinates the active document, layout, dialogs, toolbar commands, editor, preview, problems, variables, and feature hooks.
 
-It is an orchestration boundary, not the implementation home for persistence, compilation, import/export, or Monaco internals.
+It is an orchestration boundary, not the implementation home for persistence, compilation, import/export, or editor internals.
 
-### Monaco editor
+### CodeMirror editor
 
-`client/src/components/editor/monaco-editor.tsx` owns the Monaco instance and its imperative editor controls.
+`client/src/components/editor/codemirror-editor.tsx` owns the CodeMirror instance and its imperative editor controls.
 
-Monaco delays change emission once to avoid a React update for every keystroke. Application document state remains canonical; `latestSourceRef` and `getCurrentSource()` provide immediate access for save, run, and export operations before the debounced React echo arrives.
+CodeMirror delays change emission once to avoid a React update for every keystroke. Application document state remains canonical; `latestSourceRef` and `getCurrentSource()` provide immediate access for save, run, and export operations before the debounced React echo arrives.
 
-Theme changes use Monaco’s registered Ink themes. Editor font-size and word-wrap preference changes call `editor.updateOptions()` on the existing instance; do not recreate Monaco to apply preference changes.
+Theme changes use CodeMirror compartments and reconfiguration. Editor font-size and word-wrap preference changes update the existing view; do not recreate the editor to apply preference changes.
 
-Do not treat the Monaco widget as the portable domain model.
+Do not treat the CodeMirror view as the portable domain model.
 
 ### Settings and preferences
 
@@ -170,7 +170,7 @@ InkSymbolIndex          derived completion/navigation data
 
 The top-level error boundary displays a recovery-oriented fallback and offers recovery-draft export when available.
 
-Compilation errors remain ordinary application state and are displayed in the problems panel and Monaco markers; they should not trigger the error boundary.
+Compilation errors remain ordinary application state and are displayed in the problems panel and CodeMirror lint markers; they should not trigger the error boundary.
 
 ## Multi-file support
 

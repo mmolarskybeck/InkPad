@@ -65,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redundant project-local Impeccable skill bundle and GitHub Copilot hook; Codex uses the global skill with a minimal project hook
 - Unused compiler fallback and syntax-check helpers
 - Obsolete sample-story source files
-- Monaco Editor: the `monaco-editor` and `@monaco-editor/react` dependencies, `monaco-editor.tsx`, `monaco-setup.ts`, the Monaco Monarch tokenizer (`ink-monarch.ts`), the Monaco quick-fix code-action adapter, the Monaco-specific completion-provider registration, Monaco CSS overrides, and the Monaco build-chunk rule. CodeMirror 6 is now the only editor (see `docs/Editor Migration Plan.md` Phase 6).
+- Monaco Editor: the `monaco-editor` and `@monaco-editor/react` dependencies, `monaco-editor.tsx`, `monaco-setup.ts`, the Monaco Monarch tokenizer (`ink-monarch.ts`), the Monaco quick-fix code-action adapter, the Monaco-specific completion-provider registration, Monaco CSS overrides, and the Monaco build-chunk rule. CodeMirror 6 is now the only editor (see `docs/archive/codemirror-migration/Editor Migration Plan.md` Phase 6).
 
 ### Verification
 

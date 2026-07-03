@@ -1,5 +1,8 @@
 # InkPad: Monaco -> CodeMirror 6 Migration Plan
 
+Archived historical plan. The migration itself is complete; active follow-up
+work lives in `docs/roadmap.md` and `docs/structural-assistance-spec.md`.
+
 Working plan for replacing Monaco with CodeMirror 6 on a dedicated branch.
 
 The working decision is to migrate. The strongest practical evidence is that browser editors for adjacent narrative-scripting tools already use CodeMirror successfully: try.yarnspinner.dev for Yarn Spinner and borogove.app for Ink. That evidence matters more than generic bundle-size arguments because it proves the foundation works for this category of product. It does **not** prove InkPad's specific mobile choreography will work: tabs, drawers, preview panels, keyboard accessory buttons, and snippet insertion still need to be tested inside InkPad's real layout.
@@ -1000,7 +1003,7 @@ Accessibility is part of done, not deferred polish.
 
 Settle these as implementation reveals the real constraints:
 
-- ~~**mavnn local patches vs fork vs vendored grammar**: decide after fixtures run.~~ Resolved 2026-07-02 (Checkpoint 7): vendored and patched. See `client/src/editor/codemirror/ink-lang/README.md` for the patch list and reasoning, and `docs/editor-migration-updates.md` for the fixture evidence behind the decision.
+- ~~**mavnn local patches vs fork vs vendored grammar**: decide after fixtures run.~~ Resolved 2026-07-02 (Checkpoint 7): vendored and patched. See `client/src/editor/codemirror/ink-lang/README.md` for the patch list and reasoning, and `docs/archive/codemirror-migration/editor-migration-updates.md` for the fixture evidence behind the decision.
 - ~~**Built-in function highlighting mechanism**: grammar node vs separate decoration extension.~~ Resolved 2026-07-02 (Checkpoint 8): separate CodeMirror decoration extension.
 - ~~**Canonical built-in set**: verify against Ink spec/inkjs, not Ace autocomplete or InkPad Monarch guesses.~~ Resolved 2026-07-02 (Checkpoint 8): verified against pinned inkjs.
 - ~~**INCLUDE quote handling**: verify against inkjs.~~ Resolved 2026-07-02 (Checkpoint 10): bare normalized project-relative paths are the documented convention; quoted relative paths remain a defensive invalid fixture under strict compilation.

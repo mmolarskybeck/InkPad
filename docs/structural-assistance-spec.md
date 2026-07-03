@@ -4,7 +4,7 @@ Status: **authoritative spec for Roadmap Phase 3.** Supersedes and absorbs the
 earlier `completions-and-snippets-spec.md` (now removed).
 Owner: @mmolarskybeck
 Last updated: 2026-07-02 — **retargeted from Monaco to CodeMirror 6** after the
-editor migration (see `Editor Migration Plan.md` / `editor-migration-updates.md`)
+editor migration (see `docs/archive/codemirror-migration/Editor Migration Plan.md` / `docs/archive/codemirror-migration/editor-migration-updates.md`)
 and reconciled against the current repo state.
 
 > **Read first — timing.** This is still a polish layer on top of the editor.

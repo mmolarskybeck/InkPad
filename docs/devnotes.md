@@ -4,7 +4,7 @@ These notes cover implementation details that are easy to break and too specific
 
 ## CodeMirror editor invariants
 
-See `docs/Editor Migration Plan.md` for the full lifecycle rules this section assumes. `CodeMirrorEditor` (`client/src/components/editor/codemirror-editor.tsx`) owns exactly one long-lived `EditorView` per mount; nothing else should read or set `view.state.doc` directly.
+See `docs/archive/codemirror-migration/Editor Migration Plan.md` for the full lifecycle rules this section assumes. `CodeMirrorEditor` (`client/src/components/editor/codemirror-editor.tsx`) owns exactly one long-lived `EditorView` per mount; nothing else should read or set `view.state.doc` directly.
 
 ### Let CodeMirror handle editor keyboard input
 
