@@ -506,6 +506,21 @@ export default function Editor() {
   const localSaveContent = hasMultipleProjectFiles
     ? JSON.stringify(currentProjectForSave, null, 2)
     : currentDocument.source;
+  const getCurrentSaveFileForAction = useCallback(() => {
+    const activeSource = getCurrentSource();
+    const projectForAction = withProjectFileSource(currentProject, activeFileId, activeSource);
+    if (Object.keys(projectForAction.files).length > 1) {
+      return {
+        filename: getProjectExportName(projectForAction),
+        content: JSON.stringify(projectForAction, null, 2),
+      };
+    }
+
+    return {
+      filename: currentDocument.filename,
+      content: activeSource,
+    };
+  }, [activeFileId, currentDocument.filename, currentProject, getCurrentSource]);
 
   useEffect(() => {
     if (previousProjectIdRef.current === currentProject.id) {
@@ -602,6 +617,7 @@ export default function Editor() {
     openFileActionDialog,
     handleSaveAs,
     getFileActionInitialName,
+    getFileActionExtension,
     handleConfirmFileAction,
     handleRenameCurrentDocument,
     handleDuplicateLocalFile,
@@ -611,6 +627,8 @@ export default function Editor() {
     setCurrentDocument,
     setRecentFiles,
     applyLoadedProjectFile,
+    currentSaveFileName: localSaveFileName,
+    getCurrentSaveFile: getCurrentSaveFileForAction,
     recoveredAt,
     setRecoveredAt,
     setIsRecoveryBannerDismissed,
@@ -1420,6 +1438,7 @@ export default function Editor() {
       <FileActionDialog
         mode={fileAction?.mode ?? null}
         initialName={getFileActionInitialName()}
+        extension={getFileActionExtension()}
         onOpenChange={(open) => {
           if (!open) {
             setFileAction(null);
@@ -1431,6 +1450,7 @@ export default function Editor() {
       <FileActionDialog
         mode={isAddProjectFileOpen ? "add-file" : null}
         initialName="chapter"
+        extension=".ink"
         onOpenChange={setIsAddProjectFileOpen}
         onConfirm={handleConfirmAddProjectFile}
       />

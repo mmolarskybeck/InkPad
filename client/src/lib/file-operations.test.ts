@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { FileOperations } from "./file-operations";
+import { createSingleFileProject } from "./ink-project";
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -123,6 +124,24 @@ describe("FileOperations document lifecycle", () => {
     });
     expect(FileOperations.deleteFile("story-copy.ink")).toBe(true);
     expect(FileOperations.loadFile("story.ink")?.content).toBe("content");
+  });
+
+  it("duplicates multi-file project saves as .inkpad containers", async () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Novel",
+      fileName: "chapter1.ink",
+      content: "Chapter one",
+    });
+    project.files["chapter2.ink"] = { content: "Chapter two" };
+    const serializedProject = JSON.stringify(project);
+    await FileOperations.saveFile("Novel.inkpad", serializedProject);
+
+    const duplicate = await FileOperations.duplicateFile("Novel.inkpad");
+
+    expect(duplicate?.name).toBe("Novel-copy.inkpad");
+    expect(duplicate?.content).toBe(serializedProject);
+    expect(FileOperations.loadFile("Novel.inkpad-copy.ink")).toBeNull();
   });
 
   it("preserves project settings through rename and recovery", async () => {

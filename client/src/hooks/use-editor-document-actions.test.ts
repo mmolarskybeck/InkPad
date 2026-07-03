@@ -102,4 +102,95 @@ describe("useEditorDocumentActions", () => {
     }));
     expect(setCurrentDocument).not.toHaveBeenCalled();
   });
+
+  it("renames multi-file local project saves as .inkpad containers", async () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Novel",
+      fileName: "chapter1.ink",
+      content: "Chapter one",
+    });
+    project.files["chapter2.ink"] = { content: "Chapter two" };
+    const serializedProject = JSON.stringify(project);
+    await FileOperations.saveFile("Novel.inkpad", serializedProject, { title: "Novel" });
+
+    const { result } = renderHook(() => useEditorDocumentActions({
+      currentDocument,
+      setCurrentDocument: vi.fn(),
+      setRecentFiles: vi.fn(),
+      recoveredAt: null,
+      setRecoveredAt: vi.fn(),
+      setIsRecoveryBannerDismissed: vi.fn(),
+      autosave,
+      getCurrentSource: vi.fn(() => currentDocument.source),
+      cancelPendingRecoveryDraft: vi.fn(),
+      resetBufferedSource: vi.fn(),
+      compileLive: vi.fn(),
+    }));
+
+    await act(async () => {
+      result.current.openFileActionDialog("rename", "Novel.inkpad");
+    });
+
+    expect(result.current.getFileActionExtension()).toBe(".inkpad");
+
+    await act(async () => {
+      await result.current.handleConfirmFileAction("Better Novel");
+    });
+
+    expect(FileOperations.loadFile("Novel.inkpad")).toBeNull();
+    expect(FileOperations.loadFile("Better Novel.ink")).toBeNull();
+    expect(FileOperations.loadFile("Better Novel.inkpad")?.content).toBe(serializedProject);
+  });
+
+  it("saves active multi-file project copies as .inkpad without flattening to the active ink file", async () => {
+    const project = createSingleFileProject({
+      id: "project-1",
+      name: "Novel",
+      fileName: "chapter1.ink",
+      content: "Chapter one",
+    });
+    project.files["chapter2.ink"] = { content: "Chapter two" };
+    const serializedProject = JSON.stringify(project);
+    const setCurrentDocument = vi.fn();
+    const applyLoadedProjectFile = vi.fn(() => true);
+    const { result } = renderHook(() => useEditorDocumentActions({
+      currentDocument,
+      setCurrentDocument,
+      setRecentFiles: vi.fn(),
+      applyLoadedProjectFile,
+      currentSaveFileName: "Novel.inkpad",
+      getCurrentSaveFile: vi.fn(() => ({
+        filename: "Novel.inkpad",
+        content: serializedProject,
+      })),
+      recoveredAt: null,
+      setRecoveredAt: vi.fn(),
+      setIsRecoveryBannerDismissed: vi.fn(),
+      autosave,
+      getCurrentSource: vi.fn(() => currentDocument.source),
+      cancelPendingRecoveryDraft: vi.fn(),
+      resetBufferedSource: vi.fn(),
+      compileLive: vi.fn(),
+    }));
+
+    await act(async () => {
+      result.current.openFileActionDialog("save-as");
+    });
+
+    expect(result.current.getFileActionExtension()).toBe(".inkpad");
+
+    await act(async () => {
+      await result.current.handleConfirmFileAction("Novel Copy");
+    });
+
+    const savedCopy = FileOperations.loadFile("Novel Copy.inkpad");
+    expect(savedCopy?.content).toBe(serializedProject);
+    expect(FileOperations.loadFile("Novel Copy.ink")).toBeNull();
+    expect(applyLoadedProjectFile).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Novel Copy.inkpad",
+      content: serializedProject,
+    }));
+    expect(setCurrentDocument).not.toHaveBeenCalled();
+  });
 });

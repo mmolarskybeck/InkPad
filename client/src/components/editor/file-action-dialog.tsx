@@ -16,6 +16,7 @@ export type FileActionMode = "save-as" | "rename" | "add-file";
 interface FileActionDialogProps {
   mode: FileActionMode | null;
   initialName: string;
+  extension?: ".ink" | ".inkpad";
   onOpenChange: (open: boolean) => void;
   onConfirm: (name: string) => void | Promise<void>;
 }
@@ -49,6 +50,7 @@ const actionCopy = {
 export function FileActionDialog({
   mode,
   initialName,
+  extension = ".ink",
   onOpenChange,
   onConfirm,
 }: FileActionDialogProps) {
@@ -56,7 +58,7 @@ export function FileActionDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const isOpen = mode !== null;
   const copy = mode ? actionCopy[mode] : actionCopy["save-as"];
-  const getBaseName = (name: string) => name.trim().replace(/\.ink$/i, "");
+  const getBaseName = (name: string) => name.trim().replace(/\.(?:inkpad|ink)$/i, "");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,14 +95,14 @@ export function FileActionDialog({
                 ref={inputRef}
                 id="file-action-name"
                 value={draftName}
-                onChange={(event) => setDraftName(event.target.value.replace(/\.ink$/i, ""))}
+                onChange={(event) => setDraftName(event.target.value.replace(/\.(?:inkpad|ink)$/i, ""))}
                 className="min-w-0 rounded-r-none border-border-color bg-editor-bg text-text-emphasis focus-visible:z-10"
               />
               <span
                 aria-hidden="true"
                 className="flex items-center rounded-r-md border border-l-0 border-border-color bg-muted px-3 font-mono text-[0.8125rem] text-text-secondary"
               >
-                .ink
+                {extension}
               </span>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { simpleHash } from "@/lib/string-hash";
+import { parseInkProject } from "@/lib/ink-project";
 import type { HtmlExportFont, HtmlExportOptions } from "@/features/export/html-export-options";
 import type { PreviewMode } from "@/types/story-runtime";
 
@@ -35,6 +36,20 @@ const LOCAL_FILE_STORAGE_SCHEMA_VERSION = 2;
 const LEGACY_ACTIVE_FILE_KEY = 'inkpad:active-file';
 const LEGACY_RECOVERY_DRAFT_KEY = 'inkpad:recovery-draft';
 const LEGACY_FILE_STORAGE_PREFIX = 'inkpad_';
+
+function getProjectFileCount(content: string): number | null {
+  try {
+    return Object.keys(parseInkProject(content).files).length;
+  } catch {
+    return null;
+  }
+}
+
+function getCopyFilename(sourceName: string, content: string): string {
+  const projectFileCount = getProjectFileCount(content);
+  const extension = projectFileCount !== null && projectFileCount > 1 ? ".inkpad" : ".ink";
+  return `${sourceName.trim().replace(/\.(?:inkpad|ink)$/i, "")}-copy${extension}`;
+}
 
 export class FileOperations {
   private static readonly STORAGE_PREFIX = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:file:`;
@@ -321,7 +336,7 @@ export class FileOperations {
     const sourceFile = this.loadFile(sourceName);
     if (!sourceFile) return null;
 
-    const fallbackName = sourceName.replace(/(\.ink)?$/i, "-copy.ink");
+    const fallbackName = getCopyFilename(sourceName, sourceFile.content);
     const nextName = this.getAvailableFileName(requestedName || fallbackName, sourceName);
     await this.saveFile(nextName, sourceFile.content, sourceFile.settings);
     return this.loadFile(nextName);

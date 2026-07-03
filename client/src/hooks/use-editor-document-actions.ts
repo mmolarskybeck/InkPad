@@ -15,6 +15,7 @@ import {
 } from "@/lib/analytics";
 import { getDisplayTitleFromFilename, getFilename } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
+import { parseInkProject } from "@/lib/ink-project";
 import type { InkDocument } from "@/types/ink-document";
 
 export interface PendingDocumentAction {
@@ -32,6 +33,8 @@ interface UseEditorDocumentActionsOptions {
   setCurrentDocument: Dispatch<SetStateAction<InkDocument>>;
   setRecentFiles: Dispatch<SetStateAction<StoredInkDocument[]>>;
   applyLoadedProjectFile?: (file: StoredInkDocument) => boolean;
+  currentSaveFileName?: string;
+  getCurrentSaveFile?: () => { filename: string; content: string };
   recoveredAt: number | null;
   setRecoveredAt: Dispatch<SetStateAction<number | null>>;
   setIsRecoveryBannerDismissed: Dispatch<SetStateAction<boolean>>;
@@ -42,13 +45,31 @@ interface UseEditorDocumentActionsOptions {
   compileLive: (source: string) => void;
 }
 
-function getInkFilenameFromInput(input: string): string {
-  const baseName = input.trim().replace(/\.ink$/i, "");
-  return getFilename(baseName, ".ink");
+type InkStorageExtension = ".ink" | ".inkpad";
+
+function stripInkStorageExtension(input: string): string {
+  return input.trim().replace(/\.(?:inkpad|ink)$/i, "");
 }
 
-function getCopyFilename(filename: string): string {
-  return filename.replace(/\.ink$/i, "-copy.ink");
+function getInkStorageFilenameFromInput(input: string, extension: InkStorageExtension): string {
+  return getFilename(stripInkStorageExtension(input), extension);
+}
+
+function getCopyFilename(filename: string, extension: InkStorageExtension): string {
+  return `${stripInkStorageExtension(filename)}-copy${extension}`;
+}
+
+function getStoredProjectFileCount(content: string): number | null {
+  try {
+    return Object.keys(parseInkProject(content).files).length;
+  } catch {
+    return null;
+  }
+}
+
+function getStorageExtensionForContent(content: string): InkStorageExtension {
+  const projectFileCount = getStoredProjectFileCount(content);
+  return projectFileCount !== null && projectFileCount > 1 ? ".inkpad" : ".ink";
 }
 
 function getStoredSettings(document: InkDocument): StoredStorySettings {
@@ -66,6 +87,8 @@ export function useEditorDocumentActions({
   setCurrentDocument,
   setRecentFiles,
   applyLoadedProjectFile,
+  currentSaveFileName = currentDocument.filename,
+  getCurrentSaveFile,
   recoveredAt,
   setRecoveredAt,
   setIsRecoveryBannerDismissed,
@@ -308,16 +331,46 @@ export function useEditorDocumentActions({
 
   const handleSaveAs = useCallback(() => openFileActionDialog("save-as"), [openFileActionDialog]);
 
+  const getFileActionExtension = useCallback((): InkStorageExtension => {
+    if (!fileAction) {
+      return currentSaveFileName.toLowerCase().endsWith(".inkpad") ? ".inkpad" : ".ink";
+    }
+
+    if (fileAction.mode === "add-file") {
+      return ".ink";
+    }
+
+    if (fileAction.mode === "save-as") {
+      const currentSaveFile = getCurrentSaveFile?.();
+      return currentSaveFile
+        ? getStorageExtensionForContent(currentSaveFile.content)
+        : currentSaveFileName.toLowerCase().endsWith(".inkpad") ? ".inkpad" : ".ink";
+    }
+
+    const sourceFile = FileOperations.loadFile(fileAction.fileName ?? currentSaveFileName);
+    return sourceFile ? getStorageExtensionForContent(sourceFile.content) : ".ink";
+  }, [currentSaveFileName, fileAction, getCurrentSaveFile]);
+
   const getFileActionInitialName = useCallback(() => {
     if (!fileAction) return currentDocument.filename;
+    const extension = getFileActionExtension();
     if (fileAction.mode === "save-as") {
-      return FileOperations.getAvailableFileName(getCopyFilename(currentDocument.filename));
+      const currentSaveFile = getCurrentSaveFile?.();
+      return FileOperations.getAvailableFileName(
+        getCopyFilename(currentSaveFile?.filename ?? currentSaveFileName, extension),
+      );
     }
     return fileAction.fileName ?? currentDocument.filename;
-  }, [currentDocument.filename, fileAction]);
+  }, [
+    currentDocument.filename,
+    currentSaveFileName,
+    fileAction,
+    getCurrentSaveFile,
+    getFileActionExtension,
+  ]);
 
   const renameCurrentDocument = useCallback(async (name: string) => {
-    const requestedFilename = getInkFilenameFromInput(name);
+    const requestedFilename = getInkStorageFilenameFromInput(name, ".ink");
     const sourceName = currentDocument.filename;
     const nextFilename = FileOperations.getAvailableFileName(requestedFilename, sourceName);
     const currentSource = getCurrentSource();
@@ -356,17 +409,25 @@ export function useEditorDocumentActions({
 
   const handleConfirmFileAction = useCallback(async (name: string) => {
     if (!fileAction) return;
-    const requestedFilename = getInkFilenameFromInput(name);
+    const extension = getFileActionExtension();
+    const requestedFilename = getInkStorageFilenameFromInput(name, extension);
     const sourceName = fileAction.fileName ?? currentDocument.filename;
     try {
       if (fileAction.mode === "save-as") {
+        const currentSaveFile = getCurrentSaveFile?.();
         const nextFilename = FileOperations.getAvailableFileName(requestedFilename);
-        const currentSource = getCurrentSource();
+        const currentSource = currentSaveFile?.content ?? getCurrentSource();
         const storedSettings = getStoredSettings(currentDocument);
         await FileOperations.saveFile(nextFilename, currentSource, storedSettings);
         cancelPendingRecoveryDraft();
         FileOperations.clearRecoveryDraft(currentDocument.filename);
-        applyLoadedDocument(nextFilename, currentSource, Date.now(), storedSettings);
+        FileOperations.clearRecoveryDraft(nextFilename);
+        const savedFile = FileOperations.loadFile(nextFilename);
+        if (savedFile) {
+          applyLoadedFile(savedFile);
+        } else {
+          applyLoadedDocument(nextFilename, currentSource, Date.now(), storedSettings);
+        }
         trackProjectSavedLocal({ storage: "local_storage", storyText: currentSource });
         toast({ title: "Saved copy", description: `${nextFilename} is now open.` });
       } else if (sourceName === currentDocument.filename) {
@@ -389,10 +450,13 @@ export function useEditorDocumentActions({
     }
   }, [
     applyLoadedDocument,
+    applyLoadedFile,
     cancelPendingRecoveryDraft,
     currentDocument,
     fileAction,
+    getCurrentSaveFile,
     getCurrentSource,
+    getFileActionExtension,
     renameCurrentDocument,
     setRecentFiles,
     toast,
@@ -464,6 +528,7 @@ export function useEditorDocumentActions({
     openFileActionDialog,
     handleSaveAs,
     getFileActionInitialName,
+    getFileActionExtension,
     handleConfirmFileAction,
     handleRenameCurrentDocument,
     handleDuplicateLocalFile,
