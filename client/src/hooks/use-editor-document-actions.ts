@@ -31,6 +31,7 @@ interface UseEditorDocumentActionsOptions {
   currentDocument: InkDocument;
   setCurrentDocument: Dispatch<SetStateAction<InkDocument>>;
   setRecentFiles: Dispatch<SetStateAction<StoredInkDocument[]>>;
+  applyLoadedProjectFile?: (file: StoredInkDocument) => boolean;
   recoveredAt: number | null;
   setRecoveredAt: Dispatch<SetStateAction<number | null>>;
   setIsRecoveryBannerDismissed: Dispatch<SetStateAction<boolean>>;
@@ -64,6 +65,7 @@ export function useEditorDocumentActions({
   currentDocument,
   setCurrentDocument,
   setRecentFiles,
+  applyLoadedProjectFile,
   recoveredAt,
   setRecoveredAt,
   setIsRecoveryBannerDismissed,
@@ -177,6 +179,19 @@ export function useEditorDocumentActions({
     setRecoveredAt,
   ]);
 
+  const applyLoadedFile = useCallback((file: StoredInkDocument) => {
+    if (applyLoadedProjectFile?.(file)) {
+      return;
+    }
+
+    applyLoadedDocument(
+      file.name,
+      file.content,
+      file.lastSavedAt ?? file.lastModified,
+      file.settings,
+    );
+  }, [applyLoadedDocument, applyLoadedProjectFile]);
+
   const handleLoad = useCallback((filename: string, source: string) => {
     cancelPendingRecoveryDraft();
     resetBufferedSource(source);
@@ -245,14 +260,9 @@ export function useEditorDocumentActions({
         setRecentFiles(FileOperations.getAllFiles());
         return;
       }
-      applyLoadedDocument(
-        file.name,
-        file.content,
-        file.lastSavedAt ?? file.lastModified,
-        file.settings,
-      );
+      applyLoadedFile(file);
     });
-  }, [applyLoadedDocument, requestGuardedAction, setRecentFiles, toast]);
+  }, [applyLoadedFile, requestGuardedAction, setRecentFiles, toast]);
 
   const handleOpenManagedFile = useCallback((fileName: string) => {
     setIsLocalSavesOpen(false);
@@ -420,18 +430,13 @@ export function useEditorDocumentActions({
     if (deletedCurrentFile) {
       const nextFile = nextFiles[0];
       if (nextFile) {
-        applyLoadedDocument(
-          nextFile.name,
-          nextFile.content,
-          nextFile.lastSavedAt ?? nextFile.lastModified,
-          nextFile.settings,
-        );
+        applyLoadedFile(nextFile);
       } else {
         createNewDocument();
       }
     }
   }, [
-    applyLoadedDocument,
+    applyLoadedFile,
     createNewDocument,
     currentDocument.filename,
     deleteTarget,

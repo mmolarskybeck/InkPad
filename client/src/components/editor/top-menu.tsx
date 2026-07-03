@@ -40,6 +40,7 @@ interface TopMenuProps {
   onOpen: () => void;
   recentFiles: StoredInkDocument[];
   currentFileName: string;
+  currentSaveFileName?: string;
   exportMetadata: StoryMetadata;
   savedHtmlExport?: HtmlExportOptions;
   storyTypeface: HtmlExportFont;
@@ -72,6 +73,7 @@ export function TopMenu({
   onOpen,
   recentFiles,
   currentFileName,
+  currentSaveFileName = currentFileName,
   exportMetadata,
   savedHtmlExport,
   storyTypeface,
@@ -165,7 +167,7 @@ export function TopMenu({
               <span className="truncate text-text-emphasis">
                 {file.settings?.title ?? file.name.replace(/\.ink$/i, "")}
               </span>
-              {file.name === currentFileName && (
+              {file.name === currentSaveFileName && (
                 <span className="text-[0.6875rem] text-accent-blue">open</span>
               )}
             </span>
