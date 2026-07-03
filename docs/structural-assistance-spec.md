@@ -84,9 +84,9 @@ now dormant.
   severity `"hint"`), computed in `pages/editor.tsx`, merged with compiler
   errors into the `EditorDiagnostic` union (`types/editor-diagnostic.ts`),
   converted by `editor/codemirror/diagnostics.ts` (`toCodeMirrorDiagnostics`),
-  and pushed with `setDiagnostics` in `codemirror-editor.tsx`. **Its quick fix
-  does not exist** — the Monaco `CodeActionProvider` that offered it was
-  deleted in the migration and needs rebuilding as a lint `Action`.
+  and pushed with `setDiagnostics` in `codemirror-editor.tsx`. Its CodeMirror
+  lint quick fix now exists as the first action pipeline proof: **Start at
+  target** inserts `-> target` at the top of the active file.
 - **Shared snippet library (12 snippets)** + compile-verification test:
   `client/src/features/snippets/ink-snippets.ts` / `ink-snippets.test.ts`.
   All 12 round-trip through the compiler. `desktopSnippet` uses `${n:default}`
@@ -344,12 +344,9 @@ You search desperately for a friendly face in the crowd.
 
 Shipped as `getMissingStartDiagnostic` (`inkLanguage/inkDiagnostics.ts`),
 severity `"hint"`, anchored to the first playable symbol's declaration line.
-It needs only the symbol table + `hasTopLevelContent` — no inkjs adapter.
-
-**Remaining work:** the quick fix (insert `-> find_help` at the top of the
-file). Its previous Monaco `CodeActionProvider` was deleted; it returns as the
-first lint `Action` (see §Quick fixes) and is the cheapest way to prove out the
-whole actions pipeline.
+It needs only the symbol table + `hasTopLevelContent` — no inkjs adapter. Its
+quick fix is also shipped as a CodeMirror lint `Action`, using the pure edit in
+`inkLanguage/quickFixes.ts`.
 
 ---
 
@@ -610,10 +607,10 @@ candidate, at most one shown. Ties → suppress. No strong candidate → offer o
 
 Insert `=== target ===` at end of current file.
 
-### 3. Missing starting divert → start story at first knot
+### 3. Missing starting divert → start story at first knot — ✓ shipped
 
 Insert `-> first_knot` at the top of the file. The diagnostic already ships and
-carries the target path; this is the first action to build (no adapter needed)
+carries the target path; this is the first action built (no adapter needed)
 and proves the whole actions pipeline.
 
 ### Out of v1: empty-choice quick fix
@@ -652,7 +649,7 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 0. Install @codemirror/autocomplete (and fastest-levenshtein at step 7)
 1. Error-tolerant symbol scan (knots/stitches + ranges + top-level-content)   ✓ DONE
 2. Missing-starting-divert diagnostic                                          ✓ DONE
-   └─ its quick fix = first lint Action; builds the actions pipeline          [next]
+   └─ its quick fix = first lint Action; builds the actions pipeline          [done]
 3. Desktop divert completion (knots, stitches, END, DONE)      [symbol table only]
    └─ CM snippet source rides along: getSnippetCompletions is ready, only the
       adapter is missing
@@ -690,13 +687,13 @@ inkLanguage/                       — pure, no CodeMirror imports
   inkSymbols.ts         ✓          // types, isDivertTarget, isMissingStartTarget
   inkDiagnostics.ts     ✓          // missing-start diagnostic
   diagnosticAdapter.ts             // inkjs strings → coded diagnostics (fixture-backed)
-  quickFixes.ts                    // pure text-edit computation for all fixes
+  quickFixes.ts         ✓          // pure missing-start edit; other fixes planned
   fuzzyMatch.ts                    // conservative single-candidate edit distance
 
 editor/codemirror/                 — CodeMirror-specific
   ink-lang/             ✓          // vendored Lezer grammar (parser, styleTags, folding)
   coordinates.ts        ✓          // 1-based line/column ↔ document offsets
-  diagnostics.ts        ✓          // EditorDiagnostic[] → lint Diagnostic[] (+ actions, planned)
+  diagnostics.ts        ✓          // EditorDiagnostic[] → lint Diagnostic[] (+ missing-start action)
   identifier-occurrences.ts ✓      // identifierWordAt — resolver primitive
   completion.ts                    // divert + snippet CompletionSources
   resolve-at-position.ts           // resolveSymbolAtPosition(state, pos)

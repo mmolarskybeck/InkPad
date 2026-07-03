@@ -2,6 +2,26 @@
 
 Running log for the Monaco to CodeMirror 6 migration on `codex/monaco-to-codemirror`.
 
+## 2026-07-03 - Checkpoint 14: First CodeMirror lint quick fix
+
+### Implemented
+
+- Added `client/src/inkLanguage/quickFixes.ts` for editor-agnostic text edits.
+- Attached the missing-starting-divert diagnostic's first CodeMirror
+  `Diagnostic.actions` quick fix: **Start at target**.
+- The action inserts `-> target` at the top of the active file through a
+  CodeMirror transaction with isolated history, then leaves the caret after the
+  inserted starting divert.
+- Added unit coverage for the pure edit and for applying the lint action in an
+  `EditorView`.
+
+### Notes
+
+- This proves the CodeMirror lint-action pipeline for InkPad-authored
+  diagnostics. Unresolved-divert quick fixes still need the fixture-backed
+  inkjs diagnostic adapter and fuzzy matching described in
+  `docs/structural-assistance-spec.md`.
+
 ## 2026-07-01 - Checkpoint 1: CodeMirror shell wired
 
 ### Implemented
