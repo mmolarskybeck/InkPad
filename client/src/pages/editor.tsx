@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -1088,17 +1089,55 @@ export default function Editor() {
       <DropdownMenuContent align="start" className="w-52 border-border-color bg-panel-bg">
         <DropdownMenuItem onClick={handleAddProjectFile} className="cursor-pointer">
           <FilePlus2 className="h-4 w-4" />
-          Ink file
+          New ink file
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
           <File className="h-4 w-4" />
-          Blank project
+          New project
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+  const mobileCodeTabLabel = projectFileIds.length > 1 ? (
+    <span className="font-mono text-[0.75rem]">{activeFileId}</span>
+  ) : (
+    "Code"
+  );
+  const mobileCodeTabMenu = (
+    <DropdownMenuContent align="end" className="w-64 border-border-color bg-panel-bg">
+      {projectFileIds.length > 1 && projectFileIds.map((fileId) => {
+        const isActive = fileId === activeFileId;
+        const isEntry = fileId === currentProject.entryFile;
+        return (
+          <DropdownMenuItem
+            key={fileId}
+            onClick={() => switchToProjectFile(fileId)}
+            className="cursor-pointer"
+            aria-current={isActive ? "page" : undefined}
+          >
+            <FileText className={isEntry ? "text-accent-blue" : "text-text-secondary"} />
+            <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{fileId}</span>
+            {isActive && (
+              <span className="text-[0.75rem] text-text-secondary">Current</span>
+            )}
+          </DropdownMenuItem>
+        );
+      })}
+      {projectFileIds.length > 1 && (
+        <DropdownMenuSeparator className="bg-border-color" />
+      )}
+      <DropdownMenuItem onClick={handleAddProjectFile} className="cursor-pointer">
+        <FilePlus2 className="h-4 w-4" />
+        New ink file
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
+        <File className="h-4 w-4" />
+        New project
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
   const projectFilesPane = (
-    <aside className={`${isMobile ? "flex h-11 items-center overflow-x-auto border-b px-2 py-1" : isProjectFilesCollapsed ? "flex w-10 flex-col items-center border-r" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
+    <aside className={`${isProjectFilesCollapsed ? "flex w-10 flex-col items-center border-r" : "flex w-56 flex-col border-r"} shrink-0 border-border-color bg-panel-bg`}>
       {!isMobile && isProjectFilesCollapsed && (
         <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1 py-2">
           <Tooltip>
@@ -1146,7 +1185,7 @@ export default function Editor() {
           </div>
         </div>
       )}
-      <div className={`${isMobile ? "flex min-w-0 flex-1 items-center gap-1.5" : isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
+      <div className={`${isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5"}`}>
         {projectFileIds.map((fileId) => {
           const isActive = fileId === activeFileId;
           const isEntry = fileId === currentProject.entryFile;
@@ -1156,21 +1195,20 @@ export default function Editor() {
               type="button"
               onClick={() => switchToProjectFile(fileId)}
               aria-current={isActive ? "page" : undefined}
-              className={`${isMobile ? "h-8 max-w-[12.5rem] shrink-0 rounded-md border border-transparent px-2.5 aria-current:border-border-color" : "mb-1 w-full rounded px-2.5 py-2"} flex min-w-0 items-center gap-2 border-border-color text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis`}
+              className="mb-1 flex min-w-0 w-full items-center gap-2 rounded border-border-color px-2.5 py-2 text-left text-[0.8125rem] transition-colors hover:bg-accent hover:text-text-emphasis aria-current:bg-accent aria-current:text-text-emphasis"
             >
               <FileText className={`h-3.5 w-3.5 shrink-0 ${isEntry ? "text-accent-blue" : "text-text-secondary"}`} />
               <span className="truncate font-mono">{fileId}</span>
             </button>
           );
         })}
-        {isMobile && projectNewMenu}
       </div>
     </aside>
   );
 
   const editorPane = (
     <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
-      {projectFilesPane}
+      {!isMobile && projectFilesPane}
       <div className="min-h-0 min-w-0 flex-1">
         <CodeEditorPane
           editorRef={editorRef}
@@ -1494,6 +1532,8 @@ export default function Editor() {
         setFocusedPanel={setFocusedPanel}
         editorPane={editorPane}
         previewPane={previewPane}
+        mobileCodeTabLabel={mobileCodeTabLabel}
+        mobileCodeTabMenu={mobileCodeTabMenu}
         problemsPane={problemsPane}
         variablesPane={variablesPane}
         compactProblemsPane={compactProblemsPane}

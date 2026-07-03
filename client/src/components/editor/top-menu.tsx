@@ -208,11 +208,11 @@ export function TopMenu({
         <DropdownMenuContent align="start" className="w-52 bg-panel-bg border-border-color">
           <DropdownMenuItem onClick={onNewFile} className="cursor-pointer">
             <FilePlus2 className="h-4 w-4" />
-            Ink file
+            New ink file
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onNew} className="cursor-pointer">
             <File className="h-4 w-4" />
-            Blank project
+            New project
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -383,14 +383,14 @@ export function TopMenu({
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onNewFile} className="justify-start gap-2">
                       <FilePlus2 className="h-4 w-4" />
-                      New Ink file
+                      New ink file
                     </Button>
                   </SheetClose>
                 )}
                 <SheetClose asChild>
                   <Button variant="ghost" onClick={onNew} className="justify-start gap-2">
                     <File className="h-4 w-4" />
-                    New blank project
+                    New project
                   </Button>
                 </SheetClose>
                 <DropdownMenu>
