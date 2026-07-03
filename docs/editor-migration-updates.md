@@ -2,6 +2,54 @@
 
 Running log for the Monaco to CodeMirror 6 migration on `codex/monaco-to-codemirror`.
 
+## 2026-07-03 - Checkpoint 16: Closest-match unresolved-divert quick fix
+
+### Implemented
+
+- Added exact-pinned `fastest-levenshtein@1.0.16`.
+- Added `client/src/inkLanguage/fuzzyMatch.ts` for conservative divert-target
+  matching:
+  - same first character
+  - length delta no greater than 2
+  - edit distance no greater than 2
+  - ties suppressed
+  - function knots excluded through `isDivertTarget`
+- Threaded project symbols into the CodeMirror diagnostic conversion.
+- Added a CodeMirror lint action for unresolved diverts with one confident
+  candidate: **Change to target**.
+- The action replaces only the unresolved target text on the diagnostic line,
+  preserving the rest of the divert line.
+
+### Verified
+
+- Focused tests cover the pure matcher, tied-candidate suppression, function
+  exclusion, and the CodeMirror action dispatch.
+
+## 2026-07-03 - Checkpoint 15: Unresolved-divert diagnostic adapter and create-knot action
+
+### Implemented
+
+- Added `client/src/inkLanguage/diagnosticAdapter.ts` to recognize pinned
+  inkjs unresolved-divert messages and enrich compiler diagnostics with:
+  - `code: "unresolved-divert"`
+  - `targetName`
+- Routed compiler diagnostics through the adapter before rendering Problems and
+  CodeMirror lint diagnostics.
+- Extended `client/src/inkLanguage/quickFixes.ts` with a pure create-missing-knot
+  edit.
+- Attached a CodeMirror lint action for bare unresolved divert targets:
+  **Create knot target** appends `=== target ===` to the active file.
+- Suppressed the create-knot action for dotted targets such as
+  `chapter.missing`, where a bare knot declaration would be invalid.
+- Added fixture-backed adapter coverage using the existing
+  `missing-divert-target.ink` compiler fixture, plus CodeMirror action tests.
+
+### Notes
+
+- The flagship closest-match action is still pending. It should be added after
+  installing the exact-pinned fuzzy-match dependency described in
+  `docs/structural-assistance-spec.md`.
+
 ## 2026-07-03 - Checkpoint 14: First CodeMirror lint quick fix
 
 ### Implemented

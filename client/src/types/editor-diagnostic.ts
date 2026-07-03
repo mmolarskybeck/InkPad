@@ -1,7 +1,8 @@
 import type { InkPadDiagnostic, InkPadDiagnosticSeverity } from "@/inkLanguage/inkDiagnostics";
+import type { AdaptedCompilerDiagnosticMetadata } from "@/inkLanguage/diagnosticAdapter";
 import type { InkCompilerError } from "@/lib/ink-compiler";
 
-export type CompilerEditorDiagnostic = InkCompilerError & {
+export type CompilerEditorDiagnostic = InkCompilerError & AdaptedCompilerDiagnosticMetadata & {
   source: "inkjs";
   fileId: string;
 };

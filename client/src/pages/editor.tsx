@@ -77,6 +77,7 @@ import {
   type PanelLayout,
 } from "@/lib/analytics";
 import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
+import { adaptCompilerDiagnostic } from "@/inkLanguage/diagnosticAdapter";
 import { getMissingStartDiagnostic } from "@/inkLanguage/inkDiagnostics";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import { getEditorDiagnosticLine } from "@/types/editor-diagnostic";
@@ -539,6 +540,48 @@ export default function Editor() {
     }
   });
 
+  const applyLoadedProjectFile = useCallback((file: StoredInkDocument) => {
+    const loadedProject = tryParseStoredProject(file.content);
+    if (!loadedProject) {
+      return false;
+    }
+
+    const nextActiveFileId = loadedProject.entryFile;
+    const nextActiveSource = getProjectFileSource(loadedProject, nextActiveFileId);
+
+    cancelPendingRecoveryDraft();
+    resetBufferedSource(nextActiveSource);
+    FileOperations.setActiveFile(file.name);
+    FileOperations.clearRecoveryDraft(file.name);
+    FileOperations.clearRecoveryDraft(nextActiveFileId);
+    setRecoveredAt(null);
+    setIsRecoveryBannerDismissed(false);
+    setCurrentProject(loadedProject);
+    setActiveFileId(nextActiveFileId);
+    setCurrentDocument({
+      id: loadedProject.id,
+      filename: nextActiveFileId,
+      title: file.settings?.title ?? loadedProject.name,
+      source: nextActiveSource,
+      author: file.settings?.author ?? "",
+      htmlExport: file.settings?.htmlExport,
+      storyTypeface: file.settings?.storyTypeface ?? file.settings?.htmlExport?.font,
+      previewMode: file.settings?.previewMode ?? "transcript",
+      updatedAt: Date.now(),
+      lastSavedAt: file.lastSavedAt ?? file.lastModified,
+    });
+    setIsProjectFilesCollapsed(Object.keys(loadedProject.files).length <= 1);
+    setRecentFiles(FileOperations.getAllFiles());
+    compileLive(getProjectCompileInput(loadedProject));
+    return true;
+  }, [
+    cancelPendingRecoveryDraft,
+    compileLive,
+    resetBufferedSource,
+    setIsRecoveryBannerDismissed,
+    setRecoveredAt,
+  ]);
+
   const {
     pendingAction,
     setPendingAction,
@@ -567,6 +610,7 @@ export default function Editor() {
     currentDocument,
     setCurrentDocument,
     setRecentFiles,
+    applyLoadedProjectFile,
     recoveredAt,
     setRecoveredAt,
     setIsRecoveryBannerDismissed,
@@ -1044,8 +1088,13 @@ export default function Editor() {
     );
     return missingStartDiagnostic ? [missingStartDiagnostic] : [];
   }, [currentProjectForSave]);
+  const projectSymbols = useMemo(() => (
+    getSortedProjectFileIds(currentProjectForSave).flatMap((fileId) => (
+      buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId).symbols
+    ))
+  ), [currentProjectForSave]);
   const editorDiagnostics = useMemo<EditorDiagnostic[]>(() => ([
-    ...errors.map((error) => ({
+    ...errors.map((error) => adaptCompilerDiagnostic({
       ...error,
       source: "inkjs" as const,
       fileId: error.fileId ?? currentProject.entryFile,
@@ -1216,6 +1265,7 @@ export default function Editor() {
           onChange={handleSourceChange}
           onControlStateChange={setEditorControlState}
           errors={editorDiagnostics}
+          symbols={projectSymbols}
           fileId={activeFileId}
           documentId={`${currentProject.id}:${activeFileId}`}
           fileName={activeFileId}
@@ -1319,6 +1369,7 @@ export default function Editor() {
         onOpen={handleOpenFromDisk}
         recentFiles={recentFiles}
         currentFileName={currentDocument.filename}
+        currentSaveFileName={localSaveFileName}
         exportMetadata={exportMetadata}
         savedHtmlExport={currentDocument.htmlExport}
         storyTypeface={effectiveStoryTypeface}
@@ -1387,7 +1438,7 @@ export default function Editor() {
       <LocalSavesDialog
         open={isLocalSavesOpen}
         files={recentFiles}
-        currentFileName={currentDocument.filename}
+        currentFileName={localSaveFileName}
         storageAvailable={storageAvailable}
         onOpenChange={setIsLocalSavesOpen}
         onOpenFile={handleOpenManagedFile}

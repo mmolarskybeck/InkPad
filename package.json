@@ -49,6 +49,7 @@
     "@vercel/speed-insights": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fastest-levenshtein": "1.0.16",
     "file-saver": "^2.0.5",
     "inkjs": "2.3.2",
     "jszip": "^3.10.1",

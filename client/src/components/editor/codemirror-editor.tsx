@@ -58,12 +58,14 @@ import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
+import type { InkSymbol } from "@/inkLanguage/inkSymbols";
 
 export interface CodeMirrorEditorProps {
   value: string;
   onChange: (value: string) => void;
   onControlStateChange?: (state: CodeMirrorEditorControlState) => void;
   errors: EditorDiagnostic[];
+  symbols?: InkSymbol[];
   fileId: string;
   documentId: string;
   fileName: string;
@@ -313,6 +315,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   onChange,
   onControlStateChange,
   errors,
+  symbols = [],
   fileId,
   documentId,
   fileName,
@@ -339,6 +342,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const onChangeRef = useRef(onChange);
   const onControlStateChangeRef = useRef(onControlStateChange);
   const errorsRef = useRef(errors);
+  const symbolsRef = useRef(symbols);
   const lastControlStateRef = useRef<CodeMirrorEditorControlState | null>(null);
   const themeCompartmentRef = useRef(new Compartment());
   const wrappingCompartmentRef = useRef(new Compartment());
@@ -365,6 +369,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   useEffect(() => {
     errorsRef.current = errors;
   }, [errors]);
+
+  useEffect(() => {
+    symbolsRef.current = symbols;
+  }, [symbols]);
 
   const emitControlState = useCallback((nextHistoryState = historyStateRef.current) => {
     const nextControlState = {
@@ -519,7 +527,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         view.state,
         options.diagnostics === "clear"
           ? []
-          : toCodeMirrorDiagnostics(view.state, errorsRef.current, { activeFileId: fileId }),
+          : toCodeMirrorDiagnostics(view.state, errorsRef.current, {
+              activeFileId: fileId,
+              symbols: symbolsRef.current,
+            }),
       ));
     } else {
       const selection = options.selection
@@ -787,8 +798,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const view = viewRef.current;
     if (!view) return;
 
-    view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errors, { activeFileId: fileId })));
-  }, [errors, fileId]);
+    view.dispatch(setDiagnostics(view.state, toCodeMirrorDiagnostics(view.state, errors, {
+      activeFileId: fileId,
+      symbols,
+    })));
+  }, [errors, fileId, symbols]);
 
   return (
     <div className="flex h-full flex-col">

@@ -1,6 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
+import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import { toCodeMirrorDiagnostics } from "./diagnostics";
 
@@ -126,5 +127,78 @@ describe("toCodeMirrorDiagnostics", () => {
     expect(view.state.selection.main.from).toBe("-> start\n\n".length);
     view.destroy();
     parent.remove();
+  });
+
+  it("attaches and applies create-knot actions for bare unresolved divert targets", () => {
+    const state = EditorState.create({
+      doc: "Opening\n-> missing",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Divert target not found: '-> missing'",
+      type: "error",
+      code: "unresolved-divert",
+      targetName: "missing",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Create knot missing"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("Opening\n-> missing\n\n=== missing ===\n");
+    expect(view.state.selection.main.from).toBe(view.state.doc.length);
+    view.destroy();
+    parent.remove();
+  });
+
+  it("attaches and applies closest-match actions for unresolved divert targets", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n-> END\n\n-> strat\n",
+    });
+    const symbols = buildSymbolTable(state.doc.toString(), "main.ink").symbols;
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 4,
+      message: "Divert target not found: '-> strat'",
+      type: "error",
+      code: "unresolved-divert",
+      targetName: "strat",
+    }], { activeFileId: "main.ink", symbols });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual([
+      "Change to start",
+      "Create knot strat",
+    ]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("=== start ===\n-> END\n\n-> start\n");
+    expect(view.state.selection.main.from).toBe("=== start ===\n-> END\n\n-> start".length);
+    view.destroy();
+    parent.remove();
+  });
+
+  it("does not attach create-knot actions for dotted unresolved divert targets", () => {
+    const state = EditorState.create({
+      doc: "-> chapter.missing",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 1,
+      message: "Divert target not found: '-> chapter.missing'",
+      type: "error",
+      code: "unresolved-divert",
+      targetName: "chapter.missing",
+    }], { activeFileId: "main.ink" });
+
+    expect(diagnostic.actions).toBeUndefined();
   });
 });

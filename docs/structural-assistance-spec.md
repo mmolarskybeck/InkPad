@@ -39,8 +39,8 @@ Translation table for every Monaco concept this spec previously leaned on:
 | Language services registry | global `monaco.languages.register*` | extensions composed in `buildExtensions()` in `codemirror-editor.tsx`, or support extensions passed to `InkLanguageSupport()` |
 
 **Dependencies to add when Phase 3 starts:** `@codemirror/autocomplete`
-(completion + snippet fields) and `fastest-levenshtein` (quick-fix fuzzy match).
-Everything else this spec needs is already in `package.json`.
+(completion + snippet fields). `fastest-levenshtein` is already installed and
+exact-pinned for quick-fix fuzzy matching.
 
 **New capability the Monaco draft didn't have:** a real error-tolerant syntax
 tree. The vendored Lezer grammar (`editor/codemirror/ink-lang/`, forked from
@@ -111,6 +111,10 @@ now dormant.
   `include-missing-target.ink`, `included-file-error.ink`, `chapters/broken.ink`),
   exercised by `workers/compile-ink-project.test.ts`. inkjs is pinned exactly
   (`"inkjs": "2.3.2"`, no range).
+- **inkjs diagnostic adapter (partial)**:
+  `client/src/inkLanguage/diagnosticAdapter.ts` recognizes pinned inkjs
+  unresolved-divert messages and adds `code: "unresolved-divert"` plus
+  `targetName`, with fixture-backed coverage against `missing-divert-target.ink`.
 
 **Dormant (regressed by the migration, by design):**
 
@@ -120,9 +124,9 @@ now dormant.
   `CompletionSource` exists. There is **no completion UI of any kind in the
   editor today** — `@codemirror/autocomplete` is not installed.
 
-**Not yet built:** divert completion, all quick fixes, go-to-definition,
-Ink Info, mobile target picker, command palette / desktop accessory surface,
-the inkjs diagnostic adapter (coded diagnostics).
+**Not yet built:** divert completion, go-to-definition, Ink Info, mobile target
+picker, command palette / desktop accessory surface, the remaining inkjs coded
+diagnostics beyond unresolved diverts.
 
 ---
 
@@ -593,10 +597,9 @@ Two implementation rules:
   wraps them as `Action.apply` calls that `view.dispatch` a transaction.
   Never apply a fix by mutating React state — the editor's `updateListener`
   already syncs the document back to React after any dispatch.
-- **Fuzzy matching needs `fastest-levenshtein`** — add the dependency when this
-  ships.
+- **Fuzzy matching uses `fastest-levenshtein`** — installed exact-pinned.
 
-### 1. Unresolved divert → change to closest match (flagship)
+### 1. Unresolved divert → change to closest match (flagship) — ✓ shipped
 
 Conservative fuzzy match: same first char, length Δ ≤ 2, single clear best
 candidate, at most one shown. Ties → suppress. No strong candidate → offer only
@@ -605,7 +608,8 @@ candidate, at most one shown. Ties → suppress. No strong candidate → offer o
 
 ### 2. Unresolved divert → create missing knot
 
-Insert `=== target ===` at end of current file.
+Insert `=== target ===` at end of current file. ✓ shipped for bare knot names
+only; dotted targets are suppressed until stitch/file-aware creation exists.
 
 ### 3. Missing starting divert → start story at first knot — ✓ shipped
 
@@ -646,7 +650,7 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 ## Implementation order
 
 ```text
-0. Install @codemirror/autocomplete (and fastest-levenshtein at step 7)
+0. Install @codemirror/autocomplete (fastest-levenshtein is installed)
 1. Error-tolerant symbol scan (knots/stitches + ranges + top-level-content)   ✓ DONE
 2. Missing-starting-divert diagnostic                                          ✓ DONE
    └─ its quick fix = first lint Action; builds the actions pipeline          [done]
@@ -657,10 +661,10 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 5. Mobile target picker / quick fix sheet                [symbol table; snippet
                                                           model already feeds the
                                                           shipped accessory bar]
-6. inkjs diagnostic adapter (pinned version ✓ + grow existing fixtures)  [string layer]
-7. Unresolved-divert quick fixes (closest-match + create) [adapter + symbols + fuzzy]
+6. inkjs diagnostic adapter (pinned version ✓ + grow existing fixtures)  [partial: unresolved-divert done]
+7. Unresolved-divert quick fixes (closest-match + create)                  ✓ DONE
 
-Fast-follows: empty-choice quick fix · variables/lists in symbols ·
+Fast-follows: empty-choice quick fix · more inkjs diagnostic codes · variables/lists in symbols ·
               logic completion · labels/gathers · static keyword tooltips
 ```
 
@@ -686,9 +690,9 @@ inkLanguage/                       — pure, no CodeMirror imports
   buildSymbolTable.ts   ✓          // tolerant scan → InkSymbol[] + top-level facts
   inkSymbols.ts         ✓          // types, isDivertTarget, isMissingStartTarget
   inkDiagnostics.ts     ✓          // missing-start diagnostic
-  diagnosticAdapter.ts             // inkjs strings → coded diagnostics (fixture-backed)
-  quickFixes.ts         ✓          // pure missing-start edit; other fixes planned
-  fuzzyMatch.ts                    // conservative single-candidate edit distance
+  diagnosticAdapter.ts  ✓          // unresolved-divert coded diagnostics; more planned
+  quickFixes.ts         ✓          // missing-start + create bare knot; other fixes planned
+  fuzzyMatch.ts         ✓          // conservative single-candidate edit distance
 
 editor/codemirror/                 — CodeMirror-specific
   ink-lang/             ✓          // vendored Lezer grammar (parser, styleTags, folding)
