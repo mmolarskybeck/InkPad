@@ -88,7 +88,7 @@ npm run dev
 Open the local development URL shown in your terminal, usually:
 
 ```text
-http://localhost:5173
+http://localhost:2173
 ```
 
 Build for production:
@@ -101,6 +101,12 @@ Preview the production build locally:
 
 ```bash
 npm run preview
+```
+
+Open the local preview URL shown in your terminal, usually:
+
+```text
+http://localhost:3173
 ```
 
 ## Project structure

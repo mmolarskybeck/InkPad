@@ -8,6 +8,9 @@ const isStackblitz =
   process.env.STACKBLITZ === "true" ||
   (process.env.HOSTNAME ?? "").endsWith(".webcontainer.io");
 
+const devServerPort = Number(process.env.PORT) || 2173;
+const previewServerPort = Number(process.env.PREVIEW_PORT) || 3173;
+
 export default defineConfig({
   root: path.resolve(__dirname, "client"),
   define: {
@@ -59,9 +62,15 @@ export default defineConfig({
     },
 
 
+    preview: {
+      host: true,
+      port: previewServerPort,
+      strictPort: false,
+    },
+
     server: {
       host: true,
-      port: Number(process.env.PORT) || 5173,
+      port: devServerPort,
       strictPort: false,
       hmr: {
         overlay: false, // hide Replit overlay
