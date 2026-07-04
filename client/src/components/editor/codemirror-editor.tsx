@@ -51,6 +51,7 @@ import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
+import { inkCompletions } from "@/editor/codemirror/completion";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
@@ -458,6 +459,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     indentOnInput(),
     bracketMatching(),
     inkSearch({ top: true }),
+    inkCompletions(() => symbolsRef.current),
     highlightSelectionMatches({ minSelectionLength: 3 }),
     inkBuiltinFunctions,
     inkIdentifierOccurrences,
