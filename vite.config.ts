@@ -21,6 +21,40 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
     },
+    // CodeMirror extensions break silently if two copies of @codemirror/state
+    // or @codemirror/view end up in the same page (facets/keymaps from one
+    // copy are invisible to a view built from the other).
+    dedupe: [
+      "@codemirror/autocomplete",
+      "@codemirror/commands",
+      "@codemirror/language",
+      "@codemirror/lint",
+      "@codemirror/search",
+      "@codemirror/state",
+      "@codemirror/view",
+      "@lezer/common",
+      "@lezer/highlight",
+      "@lezer/lr",
+    ],
+  },
+
+  // The editor is lazy-loaded, so without this Vite only discovers the
+  // CodeMirror packages mid-session, re-optimizes, and can leave a stale
+  // browser tab mixing two copies of @codemirror/state (dev-only editor
+  // breakage: dead keymaps, invisible selection, phantom text).
+  optimizeDeps: {
+    include: [
+      "@codemirror/autocomplete",
+      "@codemirror/commands",
+      "@codemirror/language",
+      "@codemirror/lint",
+      "@codemirror/search",
+      "@codemirror/state",
+      "@codemirror/view",
+      "@lezer/common",
+      "@lezer/highlight",
+      "@lezer/lr",
+    ],
   },
 
   plugins: [
