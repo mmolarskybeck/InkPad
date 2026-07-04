@@ -1,10 +1,15 @@
 import {
+  acceptCompletion,
   autocompletion,
+  closeCompletion,
+  moveCompletionSelection,
   snippetCompletion,
+  startCompletion,
   type Completion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
-import type { Extension } from "@codemirror/state";
+import { Prec, type Extension } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import { getSnippetCompletions } from "@/features/snippets/ink-completion-provider";
 import { isDivertTarget, type InkSymbol } from "@/inkLanguage/inkSymbols";
 
@@ -54,6 +59,8 @@ export function createInkDivertCompletionSource(getSymbols: SymbolGetter): Compl
 }
 
 export const inkSnippetCompletionSource: CompletionSource = (context) => {
+  if (!context.explicit) return null;
+
   const line = context.state.doc.lineAt(context.pos);
   const column = context.pos - line.from + 1;
   const completions = getSnippetCompletions(line.text, column);
@@ -79,11 +86,32 @@ export const inkSnippetCompletionSource: CompletionSource = (context) => {
   };
 };
 
+// Replaces @codemirror/autocomplete's default completionKeymap, swapping the
+// Enter -> acceptCompletion binding for Tab -> acceptCompletion (VS Code's
+// `acceptSuggestionOnEnter: off` behavior). Enter must always fall through to
+// insert a newline; Tab accepts the selected completion. All other bindings
+// are mirrored from the package's default completionKeymap.
+const inkCompletionKeymap = Prec.highest(keymap.of([
+  { key: "Ctrl-Space", run: startCompletion },
+  { mac: "Alt-`", run: startCompletion },
+  { mac: "Alt-i", run: startCompletion },
+  { key: "Escape", run: closeCompletion },
+  { key: "ArrowDown", run: moveCompletionSelection(true) },
+  { key: "ArrowUp", run: moveCompletionSelection(false) },
+  { key: "PageDown", run: moveCompletionSelection(true, "page") },
+  { key: "PageUp", run: moveCompletionSelection(false, "page") },
+  { key: "Tab", run: acceptCompletion },
+]));
+
 export function inkCompletions(getSymbols: SymbolGetter): Extension {
-  return autocompletion({
-    override: [
-      createInkDivertCompletionSource(getSymbols),
-      inkSnippetCompletionSource,
-    ],
-  });
+  return [
+    autocompletion({
+      defaultKeymap: false,
+      override: [
+        createInkDivertCompletionSource(getSymbols),
+        inkSnippetCompletionSource,
+      ],
+    }),
+    inkCompletionKeymap,
+  ];
 }

@@ -1,6 +1,9 @@
 import {
+  acceptCompletion,
   CompletionContext,
   hasNextSnippetField,
+  selectedCompletion,
+  startCompletion,
   nextSnippetField,
   type CompletionResult,
   type CompletionSource,
@@ -12,6 +15,7 @@ import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
 import type { InkSymbol } from "@/inkLanguage/inkSymbols";
 import {
   createInkDivertCompletionSource,
+  inkCompletions,
   inkSnippetCompletionSource,
 } from "./completion";
 
@@ -32,6 +36,15 @@ function completionContext(docWithCursor: string, explicit = false) {
 
 function runCompletionSource(source: CompletionSource, docWithCursor: string) {
   const { context } = completionContext(docWithCursor);
+  const result = source(context);
+  if (result instanceof Promise) {
+    throw new Error("Ink completion sources are expected to be synchronous.");
+  }
+  return result;
+}
+
+function runExplicitCompletionSource(source: CompletionSource, docWithCursor: string) {
+  const { context } = completionContext(docWithCursor, true);
   const result = source(context);
   if (result instanceof Promise) {
     throw new Error("Ink completion sources are expected to be synchronous.");
@@ -136,8 +149,13 @@ describe("Ink CodeMirror completions", () => {
     expect(runCompletionSource(inkSnippetCompletionSource, "The knot tightens|")).toBeNull();
   });
 
+  it("only offers snippets for explicit completion", () => {
+    expect(runCompletionSource(inkSnippetCompletionSource, "kn|")).toBeNull();
+    expect(labels(runExplicitCompletionSource(inkSnippetCompletionSource, "kn|"))).toContain("knot");
+  });
+
   it("inserts CodeMirror snippet completions with tab stops", () => {
-    const { context, pos, doc } = completionContext("kn|");
+    const { context, pos, doc } = completionContext("kn|", true);
     const result = inkSnippetCompletionSource(context);
     if (result instanceof Promise) {
       throw new Error("Ink snippet completion source should be synchronous.");
@@ -175,6 +193,40 @@ describe("Ink CodeMirror completions", () => {
     const secondFieldTo = secondFieldFrom + "Story text.".length;
     expect(view.state.selection.main.from).toBe(secondFieldFrom);
     expect(view.state.selection.main.to).toBe(secondFieldTo);
+
+    view.destroy();
+    parent.remove();
+  });
+
+  it("preselects the first completion so Tab can accept it", async () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "-> s",
+        selection: { anchor: "-> s".length },
+        extensions: [
+          inkCompletions(() => [{
+            name: "start",
+            kind: "knot",
+            hasParameters: false,
+            path: "start",
+            fileId: "main.ink",
+            range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 14 },
+          }]),
+        ],
+      }),
+      parent,
+    });
+
+    expect(startCompletion(view)).toBe(true);
+    // Completion sources are queried asynchronously (debounced via setTimeout
+    // even for synchronous sources), so wait for the popup to actually open
+    // before asserting on the selected completion.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(selectedCompletion(view.state)).not.toBeNull();
+    expect(acceptCompletion(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe("-> start");
 
     view.destroy();
     parent.remove();
