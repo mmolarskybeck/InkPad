@@ -3,9 +3,10 @@
 Status: **authoritative spec for Roadmap Phase 3.** Supersedes and absorbs the
 earlier `completions-and-snippets-spec.md` (now removed).
 Owner: @mmolarskybeck
-Last updated: 2026-07-03 — **retargeted from Monaco to CodeMirror 6** after the
+Last updated: 2026-07-04 — **retargeted from Monaco to CodeMirror 6** after the
 editor migration (see `docs/archive/codemirror-migration/Editor Migration Plan.md` / `docs/archive/codemirror-migration/editor-migration-updates.md`)
-and reconciled against the current repo state.
+and reconciled against the current repo state after the first CodeMirror
+completion slice.
 
 > **Read first — timing.** This is still a polish layer on top of the editor.
 > The foundations it depends on (compile, syntax highlighting via the vendored
@@ -30,16 +31,16 @@ Translation table for every Monaco concept this spec previously leaned on:
 | --- | --- | --- |
 | Diagnostics rendering | `IMarkerData` + `setModelMarkers` | `Diagnostic[]` + `setDiagnostics` (`@codemirror/lint`, **installed & wired**) |
 | Severity | `MarkerSeverity.Info` etc. | `Diagnostic.severity: "error" \| "warning" \| "info" \| "hint"` |
-| Completion | `CompletionItemProvider` | `CompletionSource` (`@codemirror/autocomplete`, **not installed yet**) |
-| Snippet tab stops | `${1:name}` insert text | same `${1:name}` syntax, via `snippetCompletion()` / `snippet()` |
+| Completion | `CompletionItemProvider` | `CompletionSource` (`@codemirror/autocomplete`, **installed & wired**) |
+| Snippet tab stops | `${1:name}` insert text | same `${1:name}` syntax, via `snippetCompletion()` / `snippet()` (**wired for desktop snippets**) |
 | Quick fixes | `CodeActionProvider` + lightbulb | `Diagnostic.actions: Action[]` rendered in the lint hover tooltip |
 | Hover info | `HoverProvider` | `hoverTooltip()` (`@codemirror/view`) |
 | Position model | `ITextModel` + 1-based line/column | `EditorState` + document offsets; line/column ↔ offset via `editor/codemirror/coordinates.ts` (exists) |
 | Language services registry | global `monaco.languages.register*` | extensions composed in `buildExtensions()` in `codemirror-editor.tsx`, or support extensions passed to `InkLanguageSupport()` |
 
-**Dependencies to add when Phase 3 starts:** `@codemirror/autocomplete`
-(completion + snippet fields). `fastest-levenshtein` is already installed and
-exact-pinned for quick-fix fuzzy matching.
+**Dependencies:** `@codemirror/autocomplete` is installed for completion +
+snippet fields. `fastest-levenshtein` is installed and exact-pinned for
+quick-fix fuzzy matching.
 
 **New capability the Monaco draft didn't have:** a real error-tolerant syntax
 tree. The vendored Lezer grammar (`editor/codemirror/ink-lang/`, forked from
@@ -66,10 +67,12 @@ This is diagnostics + quick fixes + quick insert + navigation — **not**
 
 ---
 
-## Implementation status (2026-07-03)
+## Implementation status (2026-07-04)
 
-More is built than at the last revision — but one previously-working surface is
-now dormant.
+The core desktop/code-editor slice is now active: diagnostics, quick fixes,
+divert completion, and explicit snippet completion are all wired. The remaining
+v1 gap is mostly navigation/info polish plus mobile parity surfaces for target
+selection and quick fixes.
 
 **Shipped and wired:**
 
@@ -118,18 +121,26 @@ now dormant.
   `client/src/inkLanguage/diagnosticAdapter.ts` recognizes pinned inkjs
   unresolved-divert messages and adds `code: "unresolved-divert"` plus
   `targetName`, with fixture-backed coverage against `missing-divert-target.ink`.
+- **Desktop divert completion**:
+  `editor/codemirror/completion.ts` wires `@codemirror/autocomplete` into
+  `codemirror-editor.tsx`. After `->`, the editor suggests known knot/stitch
+  paths plus `END` and `DONE`, using `isDivertTarget` to exclude function knots.
+- **Desktop snippet completion, explicit-only**:
+  the CodeMirror source adapts the pure `getSnippetCompletions` matcher to
+  `snippetCompletion(snippet.desktopSnippet, ...)`. Snippets only appear for
+  explicit completion (`Ctrl-Space` / command surfaces), and only when the
+  current line is a lone trigger token; prose stays silent.
+- **VS Code-ish completion keymap**:
+  InkPad disables CodeMirror's default completion keymap and replaces it with
+  a custom map where `Tab` accepts the selected completion, `Enter` falls
+  through to insert a newline, arrows move the selection, and `Escape` closes
+  the popup. CodeMirror's snippet-field keymap still lets `Tab` move through
+  snippet placeholders after insertion.
 
-**Dormant (regressed by the migration, by design):**
-
-- **Desktop snippet completion.** The pure, tested matcher
-  `features/snippets/ink-completion-provider.ts` (`getSnippetCompletions`)
-  survives, but its Monaco adapter was deleted and no CodeMirror
-  `CompletionSource` exists. There is **no completion UI of any kind in the
-  editor today** — `@codemirror/autocomplete` is not installed.
-
-**Not yet built:** divert completion, go-to-definition, Ink Info, mobile target
-picker, command palette / desktop accessory surface, the remaining inkjs coded
-diagnostics beyond unresolved diverts.
+**Still open for v1:** go-to-definition, Ink Info hover, mobile divert target
+picker, mobile quick-fix sheet / Problems-panel fix actions, command palette /
+desktop accessory surface, and the remaining fixture-backed inkjs diagnostic
+codes beyond unresolved diverts.
 
 ---
 
@@ -359,41 +370,55 @@ quick fix is also shipped as a CodeMirror lint `Action`, using the pure edit in
 
 ## Completion
 
-**Prerequisite:** `npm i @codemirror/autocomplete`. Nothing renders completion
-today.
+**Status:** installed, wired, and tested for desktop CodeMirror. Completion is
+structural assistance only: divert targets and explicit snippets. It is not
+prose/vocabulary completion.
 
 ### Wiring
 
-Add `autocompletion()` plus two `CompletionSource`s in a new
-`editor/codemirror/completion.ts`, registered either as support extensions via
-`InkLanguageSupport()` (currently returns a bare `LanguageSupport` with no
-support extensions — the natural slot) or as
-`InkLanguage.data.of({ autocomplete: source })` entries composed in
-`buildExtensions()`. `autocompletion()` brings its own keymap (Ctrl+Space,
-arrows, Enter/Tab accept, Escape) by default.
+`editor/codemirror/completion.ts` composes:
 
-### Product decision — Option A (probationary): keep both sources
+- `autocompletion({ defaultKeymap: false, override: [...] })`
+- `createInkDivertCompletionSource(getSymbols)`
+- `inkSnippetCompletionSource`
+- a custom high-priority completion keymap
+
+The extension is registered in `codemirror-editor.tsx` via
+`inkCompletions(() => symbolsRef.current)`, so both completion sources read the
+same tolerant symbol table already used by diagnostics and quick fixes.
+
+Key behavior is deliberate:
+
+- `Ctrl-Space` starts completion.
+- `Tab` accepts the selected popup completion.
+- `Enter` always falls through to normal editor behavior and inserts a newline.
+- Arrow/Page keys move the selected completion.
+- `Escape` closes the popup.
+- After a snippet is inserted, CodeMirror's snippet-field keymap still lets
+  `Tab` / `Shift-Tab` move through snippet placeholders.
+
+This mimics the useful part of VS Code's
+`acceptSuggestionOnEnter: "off"` behavior while preserving Tab-stop navigation
+inside inserted snippets.
+
+### Product decision — keep both sources, but gate snippets explicitly
 
 Two completion sources coexist, distinguished by context:
 
 ```text
-->  context (e.g. "->" or "-> liv")   → symbol / divert-target completions
-lone structural keyword (e.g. "knot") → snippet completions
-prose                                  → nothing (both sources return null)
+->  context (e.g. "->" or "-> liv")       → symbol / divert-target completions
+explicit lone keyword (e.g. Ctrl-Space on "kn") → snippet completions
+prose                                      → nothing (both sources return null)
 ```
 
 The conservative word-alone gate for snippets is already implemented and tested
-as the pure `getSnippetCompletions(lineContent, column)` — the CodeMirror
-source is a thin adapter over it.
+as the pure `getSnippetCompletions(lineContent, column)`. The CodeMirror source
+adds one more product guard: snippets require `context.explicit`.
 
-> **Probationary.** The Monaco-era `quickSuggestions` experiment did not
-> survive the migration; its CodeMirror equivalent is `autocompletion()`'s
-> default activate-on-typing behavior. The trial restarts on those terms: if
-> dogfooding shows lone-keyword snippet popups are noisy or fire on accidental
-> Tab/Enter, **gate the snippet source on `context.explicit`** (Ctrl+Space /
-> palette / accessory bar only) — a one-line change — and reserve
-> as-you-type completion strictly for divert targets. The divert-target source
-> is not probationary; it stays either way.
+This is the conservative outcome of the probationary plan from the older spec.
+It avoids lone-keyword popups while someone is writing prose or pressing Enter,
+and reserves automatic completion energy for the less noisy divert-target case.
+The divert-target source remains non-probationary.
 
 ### Completion v1: divert targets
 
@@ -422,9 +447,8 @@ Map each `getSnippetCompletions` hit to
 `snippetCompletion(snippet.desktopSnippet, { label, detail, info })`. The
 `${1:name}` tab-stop syntax in `ink-snippets.ts` is natively understood by
 `snippet()`; Tab/Shift-Tab move between fields while a snippet is active.
-Verify the field keymap wins over the globally-bound `indentWithTab` while
-fields are active (it should — snippet state adds its own high-precedence
-keymap — but this is a cheap test to write).
+This is now wired and covered by tests that apply a snippet and step through its
+fields.
 
 ### Mobile completion v1: target picker, not the autocomplete tooltip
 
@@ -653,14 +677,14 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 ## Implementation order
 
 ```text
-0. Install @codemirror/autocomplete (fastest-levenshtein is installed)
+0. Install @codemirror/autocomplete (fastest-levenshtein is installed)       ✓ DONE
 1. Error-tolerant symbol scan (knots/stitches + ranges + top-level-content)   ✓ DONE
 2. Missing-starting-divert diagnostic                                          ✓ DONE
    └─ its quick fix = first lint Action; builds the actions pipeline          [done]
-3. Desktop divert completion (knots, stitches, END, DONE)      [symbol table only]
-   └─ CM snippet source rides along: getSnippetCompletions is ready, only the
-      adapter is missing
-4. Symbol resolution → go-to-definition + divert info    [tree + symbol table]
+3. Desktop divert completion (knots, stitches, END, DONE)                    ✓ DONE
+   └─ CM snippet source with explicit-only triggers                           ✓ DONE
+   └─ custom completion keymap: Tab accepts, Enter inserts newline            ✓ DONE
+4. Symbol resolution → go-to-definition + divert info    [tree + symbol table] NEXT
 5. Mobile target picker / quick fix sheet                [symbol table; snippet
                                                           model already feeds the
                                                           shipped accessory bar]
@@ -670,6 +694,65 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 Fast-follows: empty-choice quick fix · more inkjs diagnostic codes · variables/lists in symbols ·
               logic completion · labels/gathers · static keyword tooltips
 ```
+
+---
+
+## Next slices
+
+Prefer slices that turn the existing symbol table into one new writer-visible
+ability at a time. Avoid starting with broad palette/mobile work until the
+shared resolver exists; otherwise those surfaces will each invent their own
+target lookup.
+
+### Recommended next slice: symbol resolution + go-to-definition
+
+Why this is next:
+
+- It is the missing shared primitive for both Ink Info and mobile target actions.
+- It validates the scanner/tree division of labor before more UI depends on it.
+- It is small enough to test well: resolve token under cursor, match symbol,
+  jump to declaration.
+- It is immediately useful for writers reviewing broken or branching stories.
+
+Deliverables:
+
+- Add `editor/codemirror/resolve-at-position.ts`.
+- Implement `resolveSymbolAtPosition(state, pos, symbols)` on top of
+  `identifierWordAt(state, pos)`.
+- Resolve dotted paths and bare names in divert contexts; return `null` for
+  prose and unknown identifiers.
+- Add unit tests for knots, stitches, dotted divert paths, unknown targets, and
+  prose rejection.
+- Add desktop Cmd/Ctrl-click and a keyboard command for go-to-definition.
+- Reuse the existing line reveal / flash machinery in `codemirror-editor.tsx`.
+
+Definition of done:
+
+- Cmd/Ctrl-click on `-> target` jumps to `=== target ===`.
+- Cmd/Ctrl-click on `-> knot.stitch` jumps to `= stitch`.
+- Normal clicks still place the cursor; Alt-drag rectangular selection is not
+  disturbed.
+- Tests cover resolver behavior separately from DOM event behavior.
+
+### Slice after that: Ink Info hover
+
+Build on the resolver rather than doing new token parsing. Start with symbol
+identity for divert targets and a single `Go to definition` action. Static
+keyword teaching (`END`, `DONE`, `VAR`, `*`, `+`) can follow, but it is lower
+leverage than target identity.
+
+### Mobile parity slice: target picker + quick-fix sheet
+
+Do this after the resolver exists. Use the same symbol and fix metadata as
+desktop; only the presentation changes. Keep mobile interactions explicit:
+visible buttons/sheets, no hidden token taps on plain text.
+
+### Diagnostic expansion slice
+
+Add one coded diagnostic at a time, fixture first. The best first candidate is
+empty choice because it has a clear writer problem and a bounded fix, but it
+must start by adding and snapshotting an inkjs fixture under
+`client/src/workers/__fixtures__/inkjs-diagnostics/`.
 
 ---
 
@@ -702,14 +785,14 @@ editor/codemirror/                 — CodeMirror-specific
   coordinates.ts        ✓          // 1-based line/column ↔ document offsets
   diagnostics.ts        ✓          // EditorDiagnostic[] → lint Diagnostic[] (+ missing-start action)
   identifier-occurrences.ts ✓      // identifierWordAt — resolver primitive
-  completion.ts                    // divert + snippet CompletionSources
+  completion.ts         ✓          // divert + explicit snippet CompletionSources
   resolve-at-position.ts           // resolveSymbolAtPosition(state, pos)
   hover.ts                         // Ink Info hoverTooltip
   go-to-definition.ts              // mod-click handler + keymap command
 
 features/snippets/      ✓          // library, pure matching, compile tests
   ink-snippets.ts / ink-snippets.test.ts
-  ink-completion-provider.ts / .test.ts   // pure matcher awaiting its CM adapter
+  ink-completion-provider.ts / .test.ts   // pure matcher feeding CM adapter
 
 lib/ink-compiler.ts     ✓          // the volatile inkjs string layer (wrap with adapter)
 

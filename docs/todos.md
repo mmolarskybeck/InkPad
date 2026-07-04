@@ -1,5 +1,17 @@
 # To Do
 
+## Structural assistance next slices (2026-07-04)
+
+Canonical detail lives in `docs/structural-assistance-spec.md`.
+
+### Recommended next slice
+* **Symbol resolution + go-to-definition** — add `resolveSymbolAtPosition`, then wire Cmd/Ctrl-click and a keyboard command for jumping from `-> target` / `-> knot.stitch` to the target declaration.
+
+### Then
+* **Ink Info hover** — reuse the resolver to show target identity and a Go to definition action.
+* **Mobile target picker + quick-fix sheet** — mobile-visible surfaces for the same symbol/fix data already used on desktop.
+* **Fixture-backed diagnostic expansion** — add one inkjs coded diagnostic at a time, starting with an inkjs fixture; empty choice is the likely first candidate.
+
 ## After naming refactor (2026-07-03)
 
 ### Quick wins
@@ -41,8 +53,9 @@
 ## Features to develop
 * word count, knot count, stitch count
 * Fast-forward on recompile 
-* Inline jump-to-definition (ctrl/alt click on -> diverts)
-* Autocompletions
+* Inline jump-to-definition (Cmd/Ctrl-click on -> diverts)
+* Mobile target picker
+* Quick-fix sheet / Problems-panel fix buttons
 * Quick insert tool / palette
 * Custom project snippets
 * Multi-file INCLUDE support
@@ -73,3 +86,4 @@
 * ~~test why this doesn't work correctly: [https://github.com/nbush/ink_roguelike/blob/master/ink_roguelike.ink](https://github.com/nbush/ink_roguelike/blob/master/ink_roguelike.ink)~~
 	* ~~[[ink rougelike]]~~
 * ~~* [[Performance Accessibility SEO cleanup]]~~
+* ~~Autocompletions: desktop divert targets plus explicit snippet completion~~
