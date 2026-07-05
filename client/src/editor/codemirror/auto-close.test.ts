@@ -2,6 +2,9 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import {
   getInkAutoCloseEdit,
+  getInkBlockCommentAutoCloseEdit,
+  getInkBlockCommentTypeOverPos,
+  getInkChoiceContinuationEdit,
   getInkKnotDeclarationEnterEdit,
   getInkKnotTypeOverPos,
 } from "./auto-close";
@@ -167,5 +170,186 @@ describe("Ink CodeMirror auto-close", () => {
     const { doc, pos } = docWithCursor("=== start ===|");
 
     expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBeNull();
+  });
+
+  it("continues a choice marker on Enter", () => {
+    const { doc, pos } = docWithCursor("* Open the door|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "* Open the door".length,
+      to: "* Open the door".length,
+      insert: "\n* ",
+      selection: "* Open the door\n* ".length,
+    });
+  });
+
+  it("continues a nested choice marker on Enter", () => {
+    const { doc, pos } = docWithCursor("** deeper choice|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "** deeper choice".length,
+      to: "** deeper choice".length,
+      insert: "\n** ",
+      selection: "** deeper choice\n** ".length,
+    });
+  });
+
+  it("continues a space-separated choice marker on Enter", () => {
+    const { doc, pos } = docWithCursor("* * spaced|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "* * spaced".length,
+      to: "* * spaced".length,
+      insert: "\n* * ",
+      selection: "* * spaced\n* * ".length,
+    });
+  });
+
+  it("continues a sticky choice marker on Enter", () => {
+    const { doc, pos } = docWithCursor("+ again|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "+ again".length,
+      to: "+ again".length,
+      insert: "\n+ ",
+      selection: "+ again\n+ ".length,
+    });
+  });
+
+  it("continues a gather marker on Enter", () => {
+    const { doc, pos } = docWithCursor("- gather text|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "- gather text".length,
+      to: "- gather text".length,
+      insert: "\n- ",
+      selection: "- gather text\n- ".length,
+    });
+  });
+
+  it("preserves indentation when continuing a choice marker on Enter", () => {
+    const { doc, pos } = docWithCursor("  * indented|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "  * indented".length,
+      to: "  * indented".length,
+      insert: "\n  * ",
+      selection: "  * indented\n  * ".length,
+    });
+  });
+
+  it("continues only the marker when the choice line has a label", () => {
+    const { doc, pos } = docWithCursor("* (label) text|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: "* (label) text".length,
+      to: "* (label) text".length,
+      insert: "\n* ",
+      selection: "* (label) text\n* ".length,
+    });
+  });
+
+  it("clears an empty choice marker on Enter instead of continuing it", () => {
+    const { doc, pos } = docWithCursor("* |");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: 0,
+      to: "* ".length,
+      insert: "",
+      selection: 0,
+    });
+  });
+
+  it("clears an empty choice marker with no trailing space on Enter", () => {
+    const { doc, pos } = docWithCursor("*|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toEqual({
+      from: 0,
+      to: "*".length,
+      insert: "",
+      selection: 0,
+    });
+  });
+
+  it("does not continue on a bare divert line", () => {
+    const { doc, pos } = docWithCursor("-> somewhere|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toBeNull();
+  });
+
+  it("does not continue when the cursor is mid-line", () => {
+    const { doc, pos } = docWithCursor("* some| text");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toBeNull();
+  });
+
+  it("does not continue on a plain prose line", () => {
+    const { doc, pos } = docWithCursor("just text|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toBeNull();
+  });
+
+  it("does not treat a marker with no space before content as a choice marker", () => {
+    const { doc, pos } = docWithCursor("*bold*|");
+
+    expect(getInkChoiceContinuationEdit(doc, pos)).toBeNull();
+  });
+
+  it("auto-closes a typed block comment opener", () => {
+    const { doc, pos } = docWithCursor("/|");
+
+    expect(getInkBlockCommentAutoCloseEdit(doc, pos, pos, "*")).toEqual({
+      from: 1,
+      to: 1,
+      insert: "*  */",
+      selection: 3,
+    });
+  });
+
+  it("auto-closes an indented block comment opener", () => {
+    const { doc, pos } = docWithCursor("  /|");
+
+    expect(getInkBlockCommentAutoCloseEdit(doc, pos, pos, "*")).toEqual({
+      from: 3,
+      to: 3,
+      insert: "*  */",
+      selection: 5,
+    });
+  });
+
+  it("types over the space after the block comment opener", () => {
+    const { doc, pos } = docWithCursor("/* note| */");
+
+    expect(getInkBlockCommentTypeOverPos(doc, pos, pos, " ")).toBe(pos + 1);
+  });
+
+  it("types over the first * of the block comment closer", () => {
+    const { doc, pos } = docWithCursor("/* note |*/");
+
+    expect(getInkBlockCommentTypeOverPos(doc, pos, pos, "*")).toBe(pos + 1);
+  });
+
+  it("types over the / of the block comment closer", () => {
+    const { doc, pos } = docWithCursor("/* note *|/");
+
+    expect(getInkBlockCommentTypeOverPos(doc, pos, pos, "/")).toBe(pos + 1);
+  });
+
+  it("does not auto-close a block comment inside a line comment", () => {
+    const { doc, pos } = docWithCursor("//|");
+
+    expect(getInkBlockCommentAutoCloseEdit(doc, pos, pos, "*")).toBeNull();
+  });
+
+  it("does not auto-close a block comment when there is content after the cursor", () => {
+    const { doc, pos } = docWithCursor("/| code");
+
+    expect(getInkBlockCommentAutoCloseEdit(doc, pos, pos, "*")).toBeNull();
+  });
+
+  it("does not type over a block comment closer without a preceding opener", () => {
+    const { doc, pos } = docWithCursor("note| */");
+
+    expect(getInkBlockCommentTypeOverPos(doc, pos, pos, " ")).toBeNull();
   });
 });
