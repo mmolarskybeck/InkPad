@@ -24,6 +24,12 @@ export default defineConfig({
     // CodeMirror extensions break silently if two copies of @codemirror/state
     // or @codemirror/view end up in the same page (facets/keymaps from one
     // copy are invisible to a view built from the other).
+    //
+    // @codemirror/view is pinned to 6.43.2 in package.json: the content-DOM
+    // update rewrite in 6.43.3 through (at least) 6.43.5 corrupts the editor
+    // state with this extension stack — deleted empty lines during cursor
+    // motion, and "TilePointer.advance" crashes on full-document replaces.
+    // Re-verify against upstream before bumping past 6.43.2.
     dedupe: [
       "@codemirror/autocomplete",
       "@codemirror/commands",
