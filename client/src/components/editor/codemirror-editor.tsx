@@ -55,6 +55,7 @@ import { inkAutoClose } from "@/editor/codemirror/auto-close";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { inkCompletions } from "@/editor/codemirror/completion";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
+import { inkGoToDefinition } from "@/editor/codemirror/go-to-definition";
 import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkSearch } from "@/components/editor/codemirror-search-panel";
@@ -448,6 +449,25 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     emitControlState(nextState);
   }, [emitControlState]);
 
+  const jumpToLineNumber = useCallback((line: number) => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const offset = lineNumberToOffset(view.state.doc, line);
+    view.dispatch({
+      selection: EditorSelection.cursor(offset),
+      effects: flashLineEffect.of(line),
+      scrollIntoView: true,
+    });
+    view.focus();
+
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => {
+      viewRef.current?.dispatch({ effects: flashLineEffect.of(null) });
+      flashTimerRef.current = null;
+    }, 1200);
+  }, []);
+
   const buildExtensions = useCallback(() => [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -464,6 +484,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     inkSearch({ top: true }),
     inkAutoClose(),
     inkCompletions(() => symbolsRef.current),
+    inkGoToDefinition(
+      () => symbolsRef.current.filter((symbol) => symbol.fileId === fileId),
+      (symbol) => jumpToLineNumber(symbol.range.startLineNumber),
+    ),
     highlightSelectionMatches({ minSelectionLength: 3 }),
     inkBuiltinFunctions,
     inkIdentifierOccurrences,
@@ -503,7 +527,17 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
           blur: () => setMobileZoomLocked(false),
         })
       : [],
-  ], [effectiveFontSize, effectiveTheme, fileName, isMobileLayout, scheduleChangeEmit, updateControlState, wordWrap]);
+  ], [
+    effectiveFontSize,
+    effectiveTheme,
+    fileId,
+    fileName,
+    isMobileLayout,
+    jumpToLineNumber,
+    scheduleChangeEmit,
+    updateControlState,
+    wordWrap,
+  ]);
 
   const createState = useCallback((doc: string, selection?: { from: number; to?: number }) => (
     EditorState.create({
@@ -629,23 +663,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   }, []);
 
   const jumpToLine = useCallback((line: number) => {
-    const view = viewRef.current;
-    if (!view) return;
-
-    const offset = lineNumberToOffset(view.state.doc, line);
-    view.dispatch({
-      selection: EditorSelection.cursor(offset),
-      effects: flashLineEffect.of(line),
-      scrollIntoView: true,
-    });
-    view.focus();
-
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = setTimeout(() => {
-      viewRef.current?.dispatch({ effects: flashLineEffect.of(null) });
-      flashTimerRef.current = null;
-    }, 1200);
-  }, []);
+    jumpToLineNumber(line);
+  }, [jumpToLineNumber]);
 
   const runCommand = useCallback((command: (view: EditorView) => boolean) => {
     const view = viewRef.current;

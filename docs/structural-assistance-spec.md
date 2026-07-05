@@ -681,7 +681,9 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
 3. Desktop divert completion (knots, stitches, END, DONE)                    ✓ DONE
    └─ CM snippet source with explicit-only triggers                           ✓ DONE
    └─ custom completion keymap: Tab accepts, Enter inserts newline            ✓ DONE
-4. Symbol resolution → go-to-definition + divert info    [tree + symbol table] NEXT
+4. Symbol resolution → go-to-definition                                      ✓ DONE
+   └─ resolve-at-position + Cmd/Ctrl-click + F12 / Mod-Enter                 ✓ DONE
+   └─ divert info hover                                  [resolver primitive] NEXT
 5. Mobile target picker / quick fix sheet                [symbol table; snippet
                                                           model already feeds the
                                                           shipped accessory bar]
@@ -701,9 +703,9 @@ ability at a time. Avoid starting with broad palette/mobile work until the
 shared resolver exists; otherwise those surfaces will each invent their own
 target lookup.
 
-### Recommended next slice: symbol resolution + go-to-definition
+### Completed slice: symbol resolution + go-to-definition
 
-Why this is next:
+Why this mattered:
 
 - It is the missing shared primitive for both Ink Info and mobile target actions.
 - It validates the scanner/tree division of labor before more UI depends on it.
@@ -727,16 +729,19 @@ Definition of done:
 
 - Cmd/Ctrl-click on `-> target` jumps to `=== target ===`.
 - Cmd/Ctrl-click on `-> knot.stitch` jumps to `= stitch`.
+- v1 resolves declarations in the active editor file only; cross-file
+  go-to-definition needs file switching and is a follow-up.
 - Normal clicks still place the cursor; Alt-drag rectangular selection is not
   disturbed.
-- Tests cover resolver behavior separately from DOM event behavior.
+- Tests cover resolver behavior; browser smoke covers F12 and modifier-click.
 
-### Slice after that: Ink Info hover
+### Recommended next slice: Ink Info hover
 
-Build on the resolver rather than doing new token parsing. Start with symbol
-identity for divert targets and a single `Go to definition` action. Static
-keyword teaching (`END`, `DONE`, `VAR`, `*`, `+`) can follow, but it is lower
-leverage than target identity.
+Reuse `resolveSymbolAtPosition` to show a quiet hover for resolved divert
+targets and declarations. Keep the first version small: target kind, full path,
+file/local line, and a Go to definition action. Do not add prose or keyword
+tooltips yet. Static keyword teaching (`END`, `DONE`, `VAR`, `*`, `+`) can
+follow, but it is lower leverage than target identity.
 
 ### Mobile parity slice: target picker + quick-fix sheet
 
@@ -783,9 +788,9 @@ editor/codemirror/                 — CodeMirror-specific
   diagnostics.ts        ✓          // EditorDiagnostic[] → lint Diagnostic[] (+ missing-start action)
   identifier-occurrences.ts ✓      // identifierWordAt — resolver primitive
   completion.ts         ✓          // divert + explicit snippet CompletionSources
-  resolve-at-position.ts           // resolveSymbolAtPosition(state, pos)
+  resolve-at-position.ts ✓         // resolveSymbolAtPosition(state, pos)
   hover.ts                         // Ink Info hoverTooltip
-  go-to-definition.ts              // mod-click handler + keymap command
+  go-to-definition.ts   ✓          // mod-click handler + keymap command
 
 features/snippets/      ✓          // library, pure matching, compile tests
   ink-snippets.ts / ink-snippets.test.ts
