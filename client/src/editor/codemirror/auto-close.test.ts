@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getInkAutoCloseEdit,
   getInkKnotDeclarationEnterEdit,
+  getInkKnotTypeOverPos,
 } from "./auto-close";
 
 function docWithCursor(source: string) {
@@ -112,5 +113,59 @@ describe("Ink CodeMirror auto-close", () => {
     const { doc, pos } = docWithCursor("The marker is| ===");
 
     expect(getInkKnotDeclarationEnterEdit(doc, pos)).toBeNull();
+  });
+
+  it("types over the space between the knot name and the closing marker", () => {
+    const { doc, pos } = docWithCursor("=== start| ===");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, " ")).toBe(pos + 1);
+  });
+
+  it("types over the first = of the closing marker", () => {
+    const { doc, pos } = docWithCursor("=== start |===");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBe(pos + 1);
+  });
+
+  it("types over the second = of the closing marker", () => {
+    const { doc, pos } = docWithCursor("=== start =|==");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBe(pos + 1);
+  });
+
+  it("types over the third = of the closing marker", () => {
+    const { doc, pos } = docWithCursor("=== start ==|=");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBe(pos + 1);
+  });
+
+  it("does not type over when the typed character does not match the character at the cursor", () => {
+    const { doc, pos } = docWithCursor("=== start| ===");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBeNull();
+  });
+
+  it("does not type over before a knot name has been typed", () => {
+    const { doc, pos } = docWithCursor("=== | ===");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, " ")).toBeNull();
+  });
+
+  it("does not type over in a prose line", () => {
+    const { doc, pos } = docWithCursor("The marker is| ===");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, " ")).toBeNull();
+  });
+
+  it("does not type over when replacing a selection", () => {
+    const { doc } = docWithCursor("=== start| ===");
+
+    expect(getInkKnotTypeOverPos(doc, 0, 5, " ")).toBeNull();
+  });
+
+  it("does not type over at the end of a line with nothing after the cursor", () => {
+    const { doc, pos } = docWithCursor("=== start ===|");
+
+    expect(getInkKnotTypeOverPos(doc, pos, pos, "=")).toBeNull();
   });
 });

@@ -58,6 +58,26 @@ export function getInkAutoCloseEdit(
   return null;
 }
 
+export function getInkKnotTypeOverPos(
+  doc: Text,
+  from: number,
+  to: number,
+  text: string,
+): number | null {
+  if (from !== to) return null;
+  if (text !== "=" && text !== " ") return null;
+  if (doc.sliceString(from, from + 1) !== text) return null;
+
+  const line = doc.lineAt(from);
+  const beforeCursor = line.text.slice(0, from - line.from);
+  const afterCursor = line.text.slice(from - line.from);
+
+  if (!/^\s*===\s+\S/.test(beforeCursor)) return null;
+  if (!/^ ?=+\s*$/.test(afterCursor)) return null;
+
+  return from + 1;
+}
+
 export function getInkKnotDeclarationEnterEdit(doc: Text, pos: number): InkAutoCloseEdit | null {
   const line = doc.lineAt(pos);
   const beforeCursor = line.text.slice(0, pos - line.from);
@@ -78,6 +98,16 @@ export function getInkKnotDeclarationEnterEdit(doc: Text, pos: number): InkAutoC
 
 export const inkAutoClose = (): Extension => [
   EditorView.inputHandler.of((view, from, to, text) => {
+    const typeOverPos = getInkKnotTypeOverPos(view.state.doc, from, to, text);
+    if (typeOverPos !== null) {
+      view.dispatch({
+        selection: EditorSelection.cursor(typeOverPos),
+        scrollIntoView: true,
+        userEvent: "input.type",
+      });
+      return true;
+    }
+
     const edit = getInkAutoCloseEdit(view.state.doc, from, to, text);
     if (!edit) return false;
 
