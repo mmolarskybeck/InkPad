@@ -17,13 +17,10 @@ completion slice.
 
 ---
 
-## Editor target: CodeMirror 6
+## Editor: CodeMirror 6
 
 The editor is CodeMirror 6 (`client/src/components/editor/codemirror-editor.tsx`).
-All Monaco surfaces named in earlier drafts of this spec are gone:
-`monaco-setup.ts`, the Monarch tokenizer, the `CompletionItemProvider` snippet
-registration, and the `CodeActionProvider` quick-fix adapter
-(`inkLanguage/inkCodeActions.ts`) were all deleted during the migration.
+Migration from the older version using Monaco as an editor is complete.
 
 Translation table for every Monaco concept this spec previously leaned on:
 
