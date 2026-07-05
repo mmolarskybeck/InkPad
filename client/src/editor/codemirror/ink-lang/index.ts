@@ -126,7 +126,10 @@ export const InkLanguage = LRLanguage.define(
                                         "=": t.operator
                                 })
                         ]
-                }), languageData: { commentTokens: { line: "//", block: { open: "/*", close: "*/" } } }
+                }), languageData: {
+                        commentTokens: { line: "//", block: { open: "/*", close: "*/" } },
+                        closeBrackets: { brackets: ["(", "[", "{"] }
+                }
         });
 
 export const InkLanguageSupport = (config: { dialect?: "visualink" } = {}) => {

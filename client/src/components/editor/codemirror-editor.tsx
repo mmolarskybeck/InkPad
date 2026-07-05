@@ -18,6 +18,7 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import {
   bracketMatching,
   foldGutter,
@@ -459,6 +460,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     rectangularSelection(),
     indentOnInput(),
     bracketMatching(),
+    closeBrackets(),
     inkSearch({ top: true }),
     inkAutoClose(),
     inkCompletions(() => symbolsRef.current),
@@ -481,6 +483,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     })),
     keymap.of([
       indentWithTab,
+      ...closeBracketsKeymap,
       ...searchKeymap,
       ...historyKeymap,
       ...foldKeymap,
