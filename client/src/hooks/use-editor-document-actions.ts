@@ -556,20 +556,44 @@ export function useEditorDocumentActions({
     }
   }, [setRecentFiles, toast]);
 
-  const handleConfirmDeleteLocalFile = useCallback(() => {
-    if (!deleteTarget) return;
-    const deletedCurrentFile = deleteTarget === currentDocument.filename;
-    const deleted = FileOperations.deleteFile(deleteTarget);
-    if (!deleted) {
-      toast({ title: "Delete failed", description: `${deleteTarget} is no longer available.`, variant: "destructive" });
-      setDeleteTarget(null);
-      setRecentFiles(FileOperations.getAllFiles());
-      return;
+  const handleDeleteLocalFiles = useCallback((fileNames: string[]) => {
+    const uniqueFileNames = Array.from(new Set(fileNames));
+    if (uniqueFileNames.length === 0) return;
+
+    let deletedCount = 0;
+    const missingFiles: string[] = [];
+    const deletedCurrentFile = uniqueFileNames.includes(currentSaveFileName);
+
+    for (const fileName of uniqueFileNames) {
+      const deleted = FileOperations.deleteFile(fileName);
+      if (deleted) {
+        deletedCount += 1;
+      } else {
+        missingFiles.push(fileName);
+      }
     }
+
     const nextFiles = FileOperations.getAllFiles();
     setRecentFiles(nextFiles);
     setDeleteTarget(null);
-    toast({ title: "Deleted", description: `${deleteTarget} was removed from local saves.` });
+
+    if (missingFiles.length > 0) {
+      toast({
+        title: "Delete failed",
+        description: `${missingFiles.join(", ")} ${missingFiles.length === 1 ? "is" : "are"} no longer available.`,
+        variant: "destructive",
+      });
+    }
+
+    if (deletedCount > 0) {
+      toast({
+        title: deletedCount === 1 ? "Deleted" : "Deleted projects",
+        description: deletedCount === 1
+          ? `${uniqueFileNames.find((fileName) => !missingFiles.includes(fileName))} was removed.`
+          : `${deletedCount} projects were removed.`,
+      });
+    }
+
     if (deletedCurrentFile) {
       const nextFile = nextFiles[0];
       if (nextFile) {
@@ -581,11 +605,15 @@ export function useEditorDocumentActions({
   }, [
     applyLoadedFile,
     createNewDocument,
-    currentDocument.filename,
-    deleteTarget,
+    currentSaveFileName,
     setRecentFiles,
     toast,
   ]);
+
+  const handleConfirmDeleteLocalFile = useCallback(() => {
+    if (!deleteTarget) return;
+    handleDeleteLocalFiles([deleteTarget]);
+  }, [deleteTarget, handleDeleteLocalFiles]);
 
   return {
     pendingAction,
@@ -611,6 +639,7 @@ export function useEditorDocumentActions({
     handleConfirmFileAction,
     handleRenameCurrentDocument,
     handleDuplicateLocalFile,
+    handleDeleteLocalFiles,
     handleConfirmDeleteLocalFile,
   };
 }

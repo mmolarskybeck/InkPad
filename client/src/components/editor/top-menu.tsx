@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Archive, Copy, PenTool, File, FilePlus2, FolderOpen, Save, Play, Settings, Clock, Menu } from "lucide-react";
+import { Archive, ChevronDown, PenTool, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportDialog } from "./story-export-dialog";
 import { PlayableHtmlExportDialog } from "./playable-html-export-dialog";
@@ -149,7 +149,7 @@ export function TopMenu({
       </DropdownMenuItem>
       <DropdownMenuItem onClick={onManageSaves} className="cursor-pointer">
         <Archive className="w-4 h-4" />
-        Manage local saves...
+        Manage Projects...
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuLabel className="flex items-center gap-2 text-text-secondary">
@@ -157,7 +157,7 @@ export function TopMenu({
         Recent
       </DropdownMenuLabel>
       {recentFiles.length === 0 ? (
-        <DropdownMenuItem disabled>No saved local drafts</DropdownMenuItem>
+        <DropdownMenuItem disabled>No saved projects</DropdownMenuItem>
       ) : (
         recentFiles.slice(0, 8).map((file) => (
           <DropdownMenuItem
@@ -276,25 +276,29 @@ export function TopMenu({
             {renderRecentFilesMenu()}
           </DropdownMenu>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSave}
-            className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-          >
-            <Save className="h-3.5 w-3.5" />
-            Save
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSaveAs}
-            className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Save As
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save
+                <ChevronDown className="h-3.5 w-3.5 text-text-secondary" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40 bg-panel-bg border-border-color">
+              <DropdownMenuItem onClick={onSave} className="cursor-pointer">
+                <Save className="h-4 w-4" />
+                Save
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onSaveAs} className="cursor-pointer">
+                <SaveAll className="h-4 w-4" />
+                Save As...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="mx-1 h-4 w-px bg-border-color" />
           
@@ -415,14 +419,14 @@ export function TopMenu({
                 </SheetClose>
                 <SheetClose asChild>
                   <Button variant="ghost" onClick={onSaveAs} className="justify-start gap-2">
-                    <Copy className="h-4 w-4" />
-                    Save As
+                    <SaveAll className="h-4 w-4" />
+                    Save As...
                   </Button>
                 </SheetClose>
                 <SheetClose asChild>
                   <Button variant="ghost" onClick={onManageSaves} className="justify-start gap-2">
                     <Archive className="h-4 w-4" />
-                    Local saves
+                    Manage Projects...
                   </Button>
                 </SheetClose>
               </div>

@@ -832,6 +832,7 @@ export default function Editor() {
     handleConfirmFileAction,
     handleRenameCurrentDocument,
     handleDuplicateLocalFile,
+    handleDeleteLocalFiles,
     handleConfirmDeleteLocalFile,
   } = useEditorDocumentActions({
     currentDocument,
@@ -1130,6 +1131,109 @@ export default function Editor() {
     }
     void persistProject(next, false);
   }, [getLiveProject, persistProject]);
+
+  const handleRenameManagedProject = useCallback(async (fileName: string, requestedName: string) => {
+    const trimmed = requestedName.trim();
+    if (!trimmed) {
+      throw new Error("Project name cannot be empty.");
+    }
+
+    if (fileName === localSaveFileName) {
+      const live = getLiveProject();
+      const pinned = pinProjectName(live, trimmed);
+      let next = reconcileProjectNaming(pinned, "");
+      const nextStorageName = getProjectStorageName(next);
+      if (FileOperations.getAvailableFileName(nextStorageName, fileName) !== nextStorageName) {
+        throw new Error(`${nextStorageName} already exists.`);
+      }
+
+      const previousEntryFile = live.entryFile;
+      const content = JSON.stringify(next, null, 2);
+      await persistSaveContent(nextStorageName, content, {
+        title: trimmed,
+        author: currentDocument.author,
+        htmlExport: currentDocument.htmlExport,
+        storyTypeface: currentDocument.storyTypeface,
+        previewMode: currentDocument.previewMode,
+      });
+      setCurrentProject(next);
+      if (next.entryFile !== previousEntryFile) {
+        setActiveFileId(next.entryFile);
+        setCurrentDocument((document) => ({
+          ...document,
+          filename: next.entryFile,
+          title: trimmed,
+          updatedAt: Date.now(),
+          lastSavedAt: Date.now(),
+        }));
+        FileOperations.clearRecoveryDraft(previousEntryFile);
+      } else {
+        setCurrentDocument((document) => ({
+          ...document,
+          title: trimmed,
+          updatedAt: Date.now(),
+          lastSavedAt: Date.now(),
+        }));
+      }
+      autosave.markSaved(nextStorageName, content);
+      toast({ title: "Renamed", description: `${fileName} is now ${nextStorageName}.` });
+      return;
+    }
+
+    const stored = FileOperations.loadFile(fileName);
+    if (!stored) {
+      throw new Error(`${fileName} is no longer available.`);
+    }
+
+    const storedProject = tryParseStoredProject(stored.content);
+    if (storedProject) {
+      const nextProject = reconcileProjectNaming(pinProjectName(storedProject, trimmed), "");
+      const nextStorageName = getProjectStorageName(nextProject);
+      if (FileOperations.getAvailableFileName(nextStorageName, fileName) !== nextStorageName) {
+        throw new Error(`${nextStorageName} already exists.`);
+      }
+      await FileOperations.saveFile(nextStorageName, JSON.stringify(nextProject, null, 2), {
+        ...stored.settings,
+        title: trimmed,
+      });
+      if (nextStorageName !== fileName) {
+        FileOperations.deleteFile(fileName);
+      }
+      setRecentFiles(FileOperations.getAllFiles());
+      toast({ title: "Renamed", description: `${fileName} is now ${nextStorageName}.` });
+      return;
+    }
+
+    const extension = fileName.toLowerCase().endsWith(".inkpad") ? ".inkpad" : ".ink";
+    const nextFileName = getFilename(trimmed, extension);
+    if (FileOperations.getAvailableFileName(nextFileName, fileName) !== nextFileName) {
+      throw new Error(`${nextFileName} already exists.`);
+    }
+    const renamed = await FileOperations.renameFile(fileName, nextFileName, true);
+    if (!renamed) {
+      throw new Error(`${fileName} could not be renamed.`);
+    }
+    const renamedFile = FileOperations.loadFile(nextFileName);
+    if (renamedFile) {
+      await FileOperations.saveFile(nextFileName, renamedFile.content, {
+        ...renamedFile.settings,
+        title: trimmed,
+      });
+    }
+    setRecentFiles(FileOperations.getAllFiles());
+    toast({ title: "Renamed", description: `${fileName} is now ${nextFileName}.` });
+  }, [
+    autosave,
+    currentDocument.author,
+    currentDocument.htmlExport,
+    currentDocument.previewMode,
+    currentDocument.storyTypeface,
+    getLiveProject,
+    localSaveFileName,
+    persistSaveContent,
+    setRecentFiles,
+    toast,
+  ]);
 
   const handleAddProjectFile = useCallback(() => {
     setIsAddProjectFileOpen(true);
@@ -1847,6 +1951,11 @@ export default function Editor() {
                   inputClassName="h-7 font-mono text-[0.8125rem]"
                   textClassName={cn("font-mono text-[0.8125rem]", isActive && "font-medium")}
                 />
+                {isEntry && (
+                  <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-blue">
+                    entry
+                  </span>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -2090,9 +2199,10 @@ export default function Editor() {
         storageAvailable={storageAvailable}
         onOpenChange={setIsLocalSavesOpen}
         onOpenFile={handleOpenManagedFile}
-        onRenameFile={(fileName) => openFileActionDialog("rename", fileName)}
+        onRenameProject={handleRenameManagedProject}
         onDuplicateFile={handleDuplicateLocalFile}
         onDeleteFile={setDeleteTarget}
+        onDeleteFiles={handleDeleteLocalFiles}
         onExport={exportInk}
       />
 
@@ -2131,11 +2241,11 @@ export default function Editor() {
       }}>
         <AlertDialogContent className="bg-panel-bg border-border-color text-text-primary">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete local save?</AlertDialogTitle>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
             <AlertDialogDescription className="text-text-secondary">
               {deleteTarget
-                ? `${deleteTarget} will be removed from this browser. This cannot be undone.`
-                : "This local save will be removed from this browser."}
+                ? `${deleteTarget} and its included Ink files will be removed from this browser. This cannot be undone.`
+                : "This project will be removed from this browser. This cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
