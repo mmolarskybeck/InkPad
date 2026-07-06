@@ -5,7 +5,9 @@ import type { InkCompilerError } from "@/lib/ink-compiler";
 import { compileInkProject } from "@/workers/compile-ink-project";
 import {
   adaptCompilerDiagnostic,
+  EMPTY_CHOICE_CODE,
   getUnresolvedDivertTarget,
+  isEmptyChoiceDiagnostic,
   UNRESOLVED_DIVERT_CODE,
 } from "./diagnosticAdapter";
 
@@ -22,6 +24,16 @@ describe("getUnresolvedDivertTarget", () => {
 
   it("ignores unrelated compiler messages", () => {
     expect(getUnresolvedDivertTarget("Cannot locate chapters/missing.ink.")).toBeNull();
+  });
+});
+
+describe("isEmptyChoiceDiagnostic", () => {
+  it("recognizes pinned inkjs empty-choice messages", () => {
+    expect(isEmptyChoiceDiagnostic("Choice is completely empty. Interpretting as a default fallback choice. Add a divert arrow to remove this warning: * ->")).toBe(true);
+  });
+
+  it("ignores unrelated compiler messages", () => {
+    expect(isEmptyChoiceDiagnostic("Divert target not found: '-> missing_target'")).toBe(false);
   });
 });
 
@@ -49,6 +61,31 @@ describe("adaptCompilerDiagnostic", () => {
     expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
       code: UNRESOLVED_DIVERT_CODE,
       targetName: "missing_target",
+    });
+  });
+
+  it("adds empty-choice metadata from a fixture-backed compiler diagnostic", () => {
+    const response = compileInkProject({
+      type: "compile",
+      requestId: "adapter-empty-choice",
+      entryFile: "empty-choice.ink",
+      files: {
+        "empty-choice.ink": readFixture("empty-choice.ink"),
+      },
+    });
+
+    expect(response.type).toBe("compile-success");
+    if (response.type !== "compile-success") return;
+
+    const diagnostic: InkCompilerError = {
+      line: response.warnings[0].line ?? 1,
+      fileId: response.warnings[0].fileId,
+      message: response.warnings[0].message,
+      type: response.warnings[0].type,
+    };
+
+    expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
+      code: EMPTY_CHOICE_CODE,
     });
   });
 

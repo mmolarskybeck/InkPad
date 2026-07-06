@@ -2,12 +2,13 @@ import type { EditorState } from "@codemirror/state";
 import { isolateHistory } from "@codemirror/commands";
 import type { Action, Diagnostic } from "@codemirror/lint";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
-import { UNRESOLVED_DIVERT_CODE } from "@/inkLanguage/diagnosticAdapter";
+import { EMPTY_CHOICE_CODE, UNRESOLVED_DIVERT_CODE } from "@/inkLanguage/diagnosticAdapter";
 import { findClosestDivertTarget } from "@/inkLanguage/fuzzyMatch";
 import { MISSING_STARTING_DIVERT_CODE } from "@/inkLanguage/inkDiagnostics";
 import type { InkSymbol } from "@/inkLanguage/inkSymbols";
 import {
   canCreateMissingKnot,
+  getAddEmptyChoicePlaceholderEdit,
   getCreateMissingKnotEdit,
   getMissingStartingDivertEdit,
 } from "@/inkLanguage/quickFixes";
@@ -136,11 +137,48 @@ function getUnresolvedDivertActions(
   return actions.length > 0 ? actions : undefined;
 }
 
+function getEmptyChoiceActions(
+  state: EditorState,
+  diagnostic: EditorDiagnostic,
+): readonly Action[] | undefined {
+  if (!("code" in diagnostic) || diagnostic.code !== EMPTY_CHOICE_CODE) {
+    return undefined;
+  }
+
+  const existingEdit = getAddEmptyChoicePlaceholderEdit(
+    state.doc.toString(),
+    getDiagnosticLine(diagnostic),
+  );
+  if (!existingEdit) return undefined;
+
+  return [{
+    name: "Add placeholder choice text",
+    apply(view) {
+      const edit = getAddEmptyChoicePlaceholderEdit(
+        view.state.doc.toString(),
+        getDiagnosticLine(diagnostic),
+      );
+      if (!edit) return;
+
+      view.dispatch({
+        changes: edit,
+        selection: { anchor: edit.from + edit.insert.length },
+        scrollIntoView: true,
+        annotations: isolateHistory.of("full"),
+        userEvent: "input.quickfix",
+      });
+      view.focus();
+    },
+  }];
+}
+
 function getDiagnosticActions(
+  state: EditorState,
   diagnostic: EditorDiagnostic,
   options: CodeMirrorDiagnosticOptions,
 ): readonly Action[] | undefined {
   return getMissingStartingDivertActions(diagnostic)
+    ?? getEmptyChoiceActions(state, diagnostic)
     ?? getUnresolvedDivertActions(diagnostic, options.symbols ?? []);
 }
 
@@ -159,7 +197,7 @@ export function toCodeMirrorDiagnostics(
       const line = state.doc.line(Math.min(Math.max(lineNumber, 1), state.doc.lines));
       const to = Math.max(from, Math.min(lineNumberToOffset(state.doc, lineNumber, endColumn), line.to));
       const severity = getEditorDiagnosticSeverity(diagnostic);
-      const actions = getDiagnosticActions(diagnostic, options);
+      const actions = getDiagnosticActions(state, diagnostic, options);
 
       return {
         from,

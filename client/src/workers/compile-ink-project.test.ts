@@ -115,6 +115,7 @@ describe("compileInkProject", () => {
   it("snapshots normalized inkjs diagnostic messages from fixture programs", () => {
     const responses = [
       compileFixture("missing-divert-target.ink"),
+      compileFixture("empty-choice.ink"),
       compileFixture("todo-author-warning.ink"),
       compileFixture("include-missing-target.ink"),
       compileFixture("included-file-error.ink", {
@@ -148,6 +149,18 @@ describe("compileInkProject", () => {
           ],
           "requestId": "fixture-missing-divert-target.ink",
           "type": "compile-error",
+        },
+        {
+          "requestId": "fixture-empty-choice.ink",
+          "type": "compile-success",
+          "warnings": [
+            {
+              "fileId": "empty-choice.ink",
+              "line": 2,
+              "message": "Choice is completely empty. Interpretting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
+              "type": "warning",
+            },
+          ],
         },
         {
           "requestId": "fixture-todo-author-warning.ink",

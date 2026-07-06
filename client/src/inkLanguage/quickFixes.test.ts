@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canCreateMissingKnot,
+  getAddEmptyChoicePlaceholderEdit,
   getCreateMissingKnotEdit,
   getMissingStartingDivertEdit,
 } from "./quickFixes";
@@ -36,5 +37,27 @@ describe("getCreateMissingKnotEdit", () => {
     expect(canCreateMissingKnot("missing_target")).toBe(true);
     expect(canCreateMissingKnot("chapter.missing_target")).toBe(false);
     expect(getCreateMissingKnotEdit("-> chapter.missing_target", "chapter.missing_target")).toBeNull();
+  });
+});
+
+describe("getAddEmptyChoicePlaceholderEdit", () => {
+  it("inserts placeholder text after an empty choice marker", () => {
+    expect(getAddEmptyChoicePlaceholderEdit("=== start ===\n* \n-> END\n", 2)).toEqual({
+      from: 16,
+      to: 16,
+      insert: "Choice text",
+    });
+  });
+
+  it("adds a separating space when the empty choice marker has no trailing space", () => {
+    expect(getAddEmptyChoicePlaceholderEdit("=== start ===\n*\n-> END\n", 2)).toEqual({
+      from: 15,
+      to: 15,
+      insert: " Choice text",
+    });
+  });
+
+  it("does not edit non-empty choice lines", () => {
+    expect(getAddEmptyChoicePlaceholderEdit("=== start ===\n* Already visible\n-> END\n", 2)).toBeNull();
   });
 });

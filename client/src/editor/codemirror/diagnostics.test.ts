@@ -201,4 +201,45 @@ describe("toCodeMirrorDiagnostics", () => {
 
     expect(diagnostic.actions).toBeUndefined();
   });
+
+  it("attaches and applies placeholder actions for empty choice diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n* \n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Choice is completely empty. Interpretting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
+      type: "warning",
+      code: "empty-choice",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Add placeholder choice text"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("=== start ===\n* Choice text\n-> END\n");
+    expect(view.state.selection.main.from).toBe("=== start ===\n* Choice text".length);
+    view.destroy();
+    parent.remove();
+  });
+
+  it("does not attach placeholder actions when an empty choice diagnostic no longer points at an empty choice", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n* Already visible\n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Choice is completely empty. Interpretting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
+      type: "warning",
+      code: "empty-choice",
+    }], { activeFileId: "main.ink" });
+
+    expect(diagnostic.actions).toBeUndefined();
+  });
 });
