@@ -107,6 +107,12 @@ const LazyCodeMirrorEditor = lazy(() =>
 
 const PHONE_MEDIA_QUERY = "(max-width: 768px)";
 const PROJECT_FILES_DRAG_THRESHOLD = 28;
+const PROJECT_FILES_COLLAPSED_WIDTH = 44;
+const PROJECT_FILES_DEFAULT_WIDTH = 224;
+const PROJECT_FILES_MIN_WIDTH = 176;
+const PROJECT_FILES_MAX_WIDTH = 352;
+const PROJECT_FILES_COLLAPSE_SNAP_WIDTH = 128;
+const PROJECT_FILES_CLICK_DRAG_TOLERANCE = 4;
 
 function isPhoneViewport() {
   if (typeof window === "undefined") {
@@ -118,6 +124,10 @@ function isPhoneViewport() {
 
 function loadCodeMirrorEditor() {
   return import("@/components/editor/codemirror-editor");
+}
+
+function clampProjectFilesPaneWidth(width: number) {
+  return Math.min(PROJECT_FILES_MAX_WIDTH, Math.max(PROJECT_FILES_MIN_WIDTH, width));
 }
 
 function prefetchCodeMirrorEditor() {
@@ -399,6 +409,7 @@ export default function Editor() {
   const [isProjectFilesCollapsed, setIsProjectFilesCollapsed] = useState(() => (
     Object.keys(startupStateRef.current?.project.files ?? {}).length <= 1
   ));
+  const [projectFilesPaneWidth, setProjectFilesPaneWidth] = useState(PROJECT_FILES_DEFAULT_WIDTH);
   const title = currentDocument.title ?? getDisplayTitleFromFilename(currentDocument.filename);
   const [recentFiles, setRecentFiles] = useState<StoredInkDocument[]>(() => {
     try { return FileOperations.getAllFiles(); } catch { return []; }
@@ -430,8 +441,9 @@ export default function Editor() {
   const projectFilesHandleDragRef = useRef<{
     pointerId: number | null;
     startX: number;
+    startWidth: number;
     startCollapsed: boolean;
-    crossedThreshold: boolean;
+    hasDragged: boolean;
   } | null>(null);
   const projectFilesHandleCleanupRef = useRef<(() => void) | null>(null);
   const suppressProjectFilesHandleClickRef = useRef(false);
@@ -1511,18 +1523,30 @@ export default function Editor() {
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
   const updateProjectFilesHandleDrag = useCallback((clientX: number) => {
     const drag = projectFilesHandleDragRef.current;
-    if (!drag || drag.crossedThreshold) return;
+    if (!drag) return;
 
     const deltaX = clientX - drag.startX;
-    if (drag.startCollapsed && deltaX > PROJECT_FILES_DRAG_THRESHOLD) {
-      drag.crossedThreshold = true;
+    if (Math.abs(deltaX) > PROJECT_FILES_CLICK_DRAG_TOLERANCE) {
+      drag.hasDragged = true;
       suppressProjectFilesHandleClickRef.current = true;
-      setIsProjectFilesCollapsed(false);
-    } else if (!drag.startCollapsed && deltaX < -PROJECT_FILES_DRAG_THRESHOLD) {
-      drag.crossedThreshold = true;
-      suppressProjectFilesHandleClickRef.current = true;
-      setIsProjectFilesCollapsed(true);
     }
+
+    if (drag.startCollapsed) {
+      if (deltaX <= PROJECT_FILES_DRAG_THRESHOLD) return;
+
+      setIsProjectFilesCollapsed(false);
+      setProjectFilesPaneWidth(clampProjectFilesPaneWidth(PROJECT_FILES_MIN_WIDTH + deltaX - PROJECT_FILES_DRAG_THRESHOLD));
+      return;
+    }
+
+    const nextWidth = drag.startWidth + deltaX;
+    if (nextWidth <= PROJECT_FILES_COLLAPSE_SNAP_WIDTH) {
+      setIsProjectFilesCollapsed(true);
+      return;
+    }
+
+    setIsProjectFilesCollapsed(false);
+    setProjectFilesPaneWidth(clampProjectFilesPaneWidth(nextWidth));
   }, []);
 
   const finishProjectFilesHandleDrag = useCallback(() => {
@@ -1531,7 +1555,7 @@ export default function Editor() {
     projectFilesHandleCleanupRef.current?.();
     projectFilesHandleCleanupRef.current = null;
 
-    if (drag?.crossedThreshold) {
+    if (drag?.hasDragged) {
       window.setTimeout(() => {
         suppressProjectFilesHandleClickRef.current = false;
       }, 0);
@@ -1543,10 +1567,11 @@ export default function Editor() {
     projectFilesHandleDragRef.current = {
       pointerId,
       startX,
+      startWidth: isProjectFilesCollapsed ? PROJECT_FILES_COLLAPSED_WIDTH : projectFilesPaneWidth,
       startCollapsed: isProjectFilesCollapsed,
-      crossedThreshold: false,
+      hasDragged: false,
     };
-  }, [isProjectFilesCollapsed]);
+  }, [isProjectFilesCollapsed, projectFilesPaneWidth]);
 
   const handleProjectFilesHandlePointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     beginProjectFilesHandleDrag(event.clientX, event.pointerId);
@@ -1700,7 +1725,10 @@ export default function Editor() {
     </DropdownMenuContent>
   );
   const projectFilesPane = (
-    <aside className={`${isProjectFilesCollapsed ? "flex w-11 flex-col items-center" : "flex w-56 flex-col"} relative shrink-0 border-border-color bg-panel-bg`}>
+    <aside
+      className={`${isProjectFilesCollapsed ? "flex flex-col items-center" : "flex flex-col"} relative shrink-0 border-border-color bg-panel-bg`}
+      style={{ width: isProjectFilesCollapsed ? PROJECT_FILES_COLLAPSED_WIDTH : projectFilesPaneWidth }}
+    >
       <button
         type="button"
         onPointerDown={handleProjectFilesHandlePointerDown}
@@ -1709,7 +1737,7 @@ export default function Editor() {
         onPointerCancel={handleProjectFilesHandlePointerEnd}
         onMouseDown={handleProjectFilesHandleMouseDown}
         onClick={handleProjectFilesHandleClick}
-        aria-label={isProjectFilesCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag or click to hide files"}
+        aria-label={isProjectFilesCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag to resize or click to hide files"}
         aria-expanded={!isProjectFilesCollapsed}
         className="group absolute inset-y-0 -right-1 z-20 flex w-2 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
       >
