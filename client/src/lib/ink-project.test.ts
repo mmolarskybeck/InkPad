@@ -322,6 +322,22 @@ describe("InkProject", () => {
       expect(project.files["start.ink"].content).toBe("INCLUDE chapter-one.ink\n\n-> DONE");
     });
 
+    it("renames files to project-relative paths and rewrites matching INCLUDE references", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "INCLUDE chapter.ink\n-> DONE",
+      });
+      project = { ...project, files: { ...project.files, "chapter.ink": { content: "Chapter text" } } };
+
+      project = renameProjectFile(project, "chapter.ink", "chapters/one.ink");
+
+      expect(project.files["chapters/one.ink"]).toEqual({ content: "Chapter text" });
+      expect(project.files["chapter.ink"]).toBeUndefined();
+      expect(project.files["start.ink"].content).toBe("INCLUDE chapters/one.ink\n-> DONE");
+    });
+
     it("resolves collisions when renaming a file to a name already in use", () => {
       let project = createSingleFileProject({
         id: "project-1",

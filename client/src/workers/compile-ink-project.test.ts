@@ -42,6 +42,24 @@ describe("compileInkProject", () => {
     expect(story.Continue().trim()).toBe("Included works.");
   });
 
+  it("compiles a project-root INCLUDE for a path-shaped file name", () => {
+    const response = compileInkProject({
+      type: "compile",
+      requestId: "path-include-test",
+      entryFile: "main.ink",
+      files: {
+        "main.ink": "INCLUDE chapters/one.ink\n-> chapter",
+        "chapters/one.ink": "=== chapter ===\nIncluded path works.\n-> END",
+      },
+    });
+
+    expect(response.type).toBe("compile-success");
+    if (response.type !== "compile-success") return;
+
+    const story = new Story(response.storyJson);
+    expect(story.Continue().trim()).toBe("Included path works.");
+  });
+
   it("can ignore unresolved INCLUDE directives for the current single-file editor", () => {
     const response = compileInkProject({
       type: "compile",

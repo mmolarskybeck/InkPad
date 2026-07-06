@@ -96,7 +96,7 @@ InkPad’s next planned work keeps the app local-first and account-free:
 - Shareable, immutable project snapshot links
 - Simple multi-file projects using Ink’s built-in `INCLUDE` support and a portable `.inkpad` format
 
-The editor now includes a compact multi-file project rail, strict `INCLUDE` resolution against project files, and full-project `.inkpad` export. Richer file management is still being built incrementally.
+The editor now includes a compact multi-file project rail, strict `INCLUDE` resolution against project files, project-relative paths such as `chapters/one.ink`, and full-project `.inkpad` export. Richer file management is still being built incrementally.
 
 See [docs/roadmap.md](./docs/roadmap.md) for the phased implementation checklist.
 

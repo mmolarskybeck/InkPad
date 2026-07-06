@@ -36,8 +36,8 @@ const actionCopy = {
   },
   "add-file": {
     title: "Add Ink File",
-    description: "Create a project-relative Ink file for INCLUDE.",
-    label: "File path",
+    description: "Create a project-relative path for INCLUDE, like chapters/opening.ink.",
+    label: "Project path",
     confirm: "Add file",
   },
 } satisfies Record<FileActionMode, {

@@ -52,7 +52,7 @@ import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } fr
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, MoreHorizontal, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -96,7 +96,7 @@ import {
 } from "@/lib/ink-project";
 import {
   hasCaseInsensitiveInkProjectPathCollision,
-  normalizeInkProjectPath,
+  normalizeInkProjectFilePath,
 } from "@/lib/ink-project-paths";
 
 const LazyCodeMirrorEditor = lazy(() =>
@@ -722,7 +722,10 @@ export default function Editor() {
       throw new Error(`${fileId} is not part of this project.`);
     }
 
-    const requested = getFilename(requestedName.trim().replace(/\.ink$/i, ""), ".ink");
+    const requested = normalizeInkProjectFilePath(requestedName);
+    if (!requested) {
+      throw new Error(`${requestedName} is not a valid project file path.`);
+    }
     const isSingleFile = Object.keys(live.files).length === 1;
     // For a one-file project the file name is also the local-save key, so it
     // must not collide with another save.
@@ -1121,7 +1124,7 @@ export default function Editor() {
   }, []);
 
   const handleConfirmAddProjectFile = useCallback((requestedPath: string) => {
-    const normalizedPath = normalizeInkProjectPath(requestedPath.replace(/\.ink$/i, "") + ".ink");
+    const normalizedPath = normalizeInkProjectFilePath(requestedPath);
     if (!normalizedPath) {
       toast({
         title: "Could not add file",
@@ -1816,22 +1819,6 @@ export default function Editor() {
                   inputClassName="h-7 font-mono text-[0.8125rem]"
                   textClassName={cn("font-mono text-[0.8125rem]", isActive && "font-medium")}
                 />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        requestInlineProjectFileRename(fileId);
-                      }}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary opacity-0 transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg group-hover:opacity-100"
-                      aria-label={`Rename file ${fileId}`}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Rename file</TooltipContent>
-                </Tooltip>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -1844,6 +1831,16 @@ export default function Editor() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44 border-border-color bg-panel-bg">
+                    <DropdownMenuItem
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        requestInlineProjectFileRename(fileId);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Rename
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={(event) => {
                         event.stopPropagation();

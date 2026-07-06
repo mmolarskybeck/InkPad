@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasCaseInsensitiveInkProjectPathCollision,
   isNormalizedInkProjectPath,
+  normalizeInkProjectFilePath,
   normalizeInkProjectPath,
 } from "./ink-project-paths";
 
@@ -15,6 +16,13 @@ describe("ink project paths", () => {
     expect(normalizeInkProjectPath("cafe\u0301.ink")).toBe("caf\u00e9.ink");
   });
 
+  it("normalizes user-entered Ink file paths with an extension", () => {
+    expect(normalizeInkProjectFilePath("chapters\\opening")).toBe("chapters/opening.ink");
+    expect(normalizeInkProjectFilePath("chapters/opening.ink")).toBe("chapters/opening.ink");
+    expect(normalizeInkProjectFilePath("chapters/opening.INK")).toBe("chapters/opening.ink");
+    expect(normalizeInkProjectFilePath("")).toBeNull();
+  });
+
   it("rejects absolute paths and parent traversal", () => {
     expect(normalizeInkProjectPath("/story.ink")).toBeNull();
     expect(normalizeInkProjectPath("C:\\story.ink")).toBeNull();
@@ -22,6 +30,7 @@ describe("ink project paths", () => {
     expect(normalizeInkProjectPath("https://example.com/story.ink")).toBeNull();
     expect(normalizeInkProjectPath("../story.ink")).toBeNull();
     expect(normalizeInkProjectPath("chapters/../story.ink")).toBeNull();
+    expect(normalizeInkProjectFilePath("chapters/../story")).toBeNull();
   });
 
   it("checks that stored paths are already normalized", () => {

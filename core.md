@@ -82,7 +82,7 @@ The worker request contract is:
 }
 ```
 
-Single-file calls are wrapped into that shape. The worker compiles the entry source with an `inkjs.JsonFileHandler`, allowing exact-name `INCLUDE` resolution from the virtual file map.
+Single-file calls are wrapped into that shape. The worker compiles the entry source with an `inkjs.JsonFileHandler`, allowing exact project-relative `INCLUDE` resolution from the virtual file map.
 
 The worker still sends `storyJson` as a JSON string. Sender and receiver must change together if that representation changes.
 
@@ -185,12 +185,13 @@ Completed work:
 - [x] Existing local single-file saves migrate safely (legacy schema-v1 → v2 with explicit pin defaults).
 - [x] Create, duplicate, and delete file operations are available from the project file rail.
 - [x] File rename updates INCLUDE references across the project.
+- [x] Project file paths can include `/`, e.g. `chapters/one.ink`, and resolve via exact project-root `INCLUDE chapters/one.ink`.
 
 Remaining work for Phase 5 (see [docs/roadmap.md](./docs/roadmap.md)):
 
 - [ ] `.inkpad` import support (export is complete)
 - [ ] Mobile file-rail UX for phones
-- [ ] Relative-path semantics (currently only exact-name INCLUDE is supported)
+- [ ] Folder/tree ergonomics for path-shaped file names, without introducing separate folder objects.
 
 ## Verification
 

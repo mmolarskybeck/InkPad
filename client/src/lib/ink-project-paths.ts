@@ -30,6 +30,14 @@ export function normalizeInkProjectPath(path: string): string | null {
   return segments.length > 0 ? segments.join("/") : null;
 }
 
+export function normalizeInkProjectFilePath(path: string): string | null {
+  const trimmed = path.trim();
+  if (!trimmed) return null;
+
+  const withExtension = trimmed.replace(/\.ink$/i, "") + ".ink";
+  return normalizeInkProjectPath(withExtension);
+}
+
 export function isNormalizedInkProjectPath(path: string): boolean {
   return normalizeInkProjectPath(path) === path;
 }
