@@ -106,11 +106,9 @@ vite.config.ts.*
 .codex
 .claude
 .github
-
+.agents
+.impeccable
 
 # Dev notes
-docs/core.md
-docs/devnotes.md
-docs/roadmap.md
 PRODUCT.md
-resources
+
