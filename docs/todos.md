@@ -18,7 +18,6 @@ Canonical detail lives in `docs/structural-assistance-spec.md`.
 
 ### Quick wins
 * **Export dialog inline rename** — wire the suggested-name input to `pinExportNameBase()` so users can edit the `.inkpad` name in the export dialog, not just in Save As. (20 min)
-* **Mobile file-rail rename** — add rename action to mobile file tab dropdown or modal, matching desktop pencil-icon affordance. (Roadmap Phase 5)
 * **`.inkpad` import** — wire load path to detect and parse `.inkpad` files as multi-file projects. (Roadmap Phase 5)
 
 ### Documentation

@@ -61,19 +61,29 @@ This is the working implementation checklist. It favors small, testable slices a
 
 > Authoritative design: [`structural-assistance-spec.md`](./structural-assistance-spec.md) (symbol table, completion, diagnostics, quick fixes, go-to-definition, Ink Info, snippets). Deferred until the core editor (compile, highlighting, save/load/export) is stable.
 >
-> Status note: the tolerant symbol table, missing-start diagnostic, mobile snippet drawer, and unresolved-divert quick fixes are already shipped. The next user-visible slice is desktop CodeMirror completion, followed by go-to-definition and Ink Info.
+> Status note: the desktop structural-assistance core is now shipped: tolerant symbols, missing-start and unresolved-divert diagnostics, quick fixes, divert/snippet completion, auto-close helpers, go-to-definition, and Ink Info hover. The next recommended slice is mobile target picker + quick-fix sheet; if mobile is deferred, grow fixture-backed diagnostics next.
 
 - [x] Define the shared tolerant symbol-table result used by completions and quick fixes
 - [x] Index knots, stitches, and function knots with source locations
 - [ ] Extend the index to variables and lists
-- [ ] Make the index readable by the CodeMirror editor (e.g. a `@codemirror/autocomplete` source) without coupling it to React render state
-- [ ] Install `@codemirror/autocomplete` and register an Ink completion provider
-- [ ] Add divert completion for known knots and stitches
+- [x] Make the index readable by the CodeMirror editor without coupling it to React render state
+- [x] Install `@codemirror/autocomplete` and register Ink completion sources
+- [x] Add divert completion for known knots and stitches
+- [x] Add explicit desktop snippet completion backed by the shared snippet library
 - [ ] Add variable/list completion in relevant contexts
 - [x] Keep the shared snippet library and mobile insertion surfaces in place
-- [ ] Add a desktop code snippet panel using static built-in snippets first
+- [x] Add desktop access to static built-in snippets through explicit completion
 - [ ] Decide whether custom snippets belong in user preferences
-- [ ] Add completion tests for incomplete and invalid Ink source
+- [x] Add completion tests for incomplete and invalid Ink source
+- [x] Add choice/gather Enter continuation
+- [x] Add Ink-aware auto-close/type-over for knot declarations and block comments
+- [x] Add symbol resolution for divert targets and declarations
+- [x] Add desktop go-to-definition for active-file diverts and declarations
+- [x] Add Ink Info hover with concise target/declaration identity and Go to definition
+- [ ] Add mobile target picker for known knots and stitches
+- [ ] Add mobile quick-fix sheet / Problems-panel fix buttons
+- [ ] Add fixture-backed diagnostic expansion, starting with empty-choice if the inkjs diagnostic is stable
+- [ ] Add cross-file go-to-definition after file-switching behavior is explicit
 
 ## Phase 4: Shareable project snapshots
 
