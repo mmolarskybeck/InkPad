@@ -56,6 +56,7 @@ import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { inkCompletions } from "@/editor/codemirror/completion";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkGoToDefinition } from "@/editor/codemirror/go-to-definition";
+import { inkInfoHover } from "@/editor/codemirror/hover";
 import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkSearch } from "@/components/editor/codemirror-search-panel";
@@ -258,6 +259,71 @@ function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout:
       backgroundColor: "var(--panel-bg)",
       border: "1px solid var(--border-color)",
       color: "var(--text-primary)",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip": {
+      minWidth: "168px",
+      maxWidth: "260px",
+      padding: "8px 9px",
+      fontFamily: "var(--font-sans, Inter), sans-serif",
+      fontSize: "12px",
+      lineHeight: "1.4",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-label": {
+      color: "var(--text-primary)",
+      fontSize: "12px",
+      fontWeight: "600",
+      marginBottom: "4px",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-path": {
+      minWidth: "0",
+      color: "var(--text-emphasis)",
+      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+      fontSize: "12px",
+      fontWeight: "600",
+      marginBottom: "7px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-footer": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "10px",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-location": {
+      minWidth: "0",
+      color: "var(--text-secondary)",
+      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+      fontSize: "11px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-action": {
+      display: "inline-flex",
+      alignItems: "center",
+      flexShrink: "0",
+      minHeight: "24px",
+      border: "1px solid var(--border-color)",
+      borderRadius: "4px",
+      backgroundColor: "transparent",
+      color: "var(--accent-blue)",
+      cursor: "pointer",
+      font: "inherit",
+      fontSize: "12px",
+      fontWeight: "500",
+      padding: "2px 7px",
+      transition: "background-color 150ms ease, border-color 150ms ease, color 150ms ease",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-action:hover": {
+      backgroundColor: "color-mix(in srgb, var(--accent-blue) 14%, transparent)",
+      borderColor: "color-mix(in srgb, var(--accent-blue) 50%, var(--border-color))",
+      color: "var(--text-emphasis)",
+    },
+    ".cm-tooltip .cm-inkInfoTooltip-action:focus-visible": {
+      outline: "2px solid var(--ring)",
+      outlineOffset: "2px",
     },
     ".cm-diagnostic-error": {
       borderLeftColor: "var(--error)",
@@ -468,6 +534,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     }, 1200);
   }, []);
 
+  const getActiveFileSymbols = useCallback(
+    () => symbolsRef.current.filter((symbol) => symbol.fileId === fileId),
+    [fileId],
+  );
+
   const buildExtensions = useCallback(() => [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -485,7 +556,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     inkAutoClose(),
     inkCompletions(() => symbolsRef.current),
     inkGoToDefinition(
-      () => symbolsRef.current.filter((symbol) => symbol.fileId === fileId),
+      getActiveFileSymbols,
+      (symbol) => jumpToLineNumber(symbol.range.startLineNumber),
+    ),
+    inkInfoHover(
+      getActiveFileSymbols,
       (symbol) => jumpToLineNumber(symbol.range.startLineNumber),
     ),
     highlightSelectionMatches({ minSelectionLength: 3 }),
@@ -530,8 +605,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   ], [
     effectiveFontSize,
     effectiveTheme,
-    fileId,
     fileName,
+    getActiveFileSymbols,
     isMobileLayout,
     jumpToLineNumber,
     scheduleChangeEmit,

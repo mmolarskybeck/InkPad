@@ -6,6 +6,7 @@ import { isDivertTarget, type InkSymbol } from "@/inkLanguage/inkSymbols";
 
 export interface ResolvedInkSymbol {
   symbol: InkSymbol;
+  context: "divert" | "declaration";
   /** The source/reference range that was resolved, usually the whole divert path. */
   from: number;
   to: number;
@@ -101,12 +102,12 @@ export function resolveSymbolAtPosition(
     const text = state.doc.sliceString(pathNode.from, pathNode.to);
     const target = text.replace(/\(.*/, "").trim();
     const symbol = resolveDivertTarget(state, target, word.from, symbols);
-    return symbol ? { symbol, from: pathNode.from, to: pathNode.to, text } : null;
+    return symbol ? { symbol, context: "divert", from: pathNode.from, to: pathNode.to, text } : null;
   }
 
   if (RESOLVABLE_DECLARATION_NODE_NAMES.has(node.name)) {
     const symbol = resolveDeclaration(state, word, node.name, symbols);
-    return symbol ? { symbol, from: word.from, to: word.to, text: word.text } : null;
+    return symbol ? { symbol, context: "declaration", from: word.from, to: word.to, text: word.text } : null;
   }
 
   return null;

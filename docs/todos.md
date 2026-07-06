@@ -5,11 +5,11 @@
 Canonical detail lives in `docs/structural-assistance-spec.md`.
 
 ### Recommended next slice
-* **Ink Info hover** — reuse the resolver to show target identity and a Go to definition action.
+* **Mobile target picker + quick-fix sheet** — mobile-visible surfaces for the same symbol/fix data already used on desktop.
 
 ### Then
-* **Mobile target picker + quick-fix sheet** — mobile-visible surfaces for the same symbol/fix data already used on desktop.
 * **Fixture-backed diagnostic expansion** — add one inkjs coded diagnostic at a time, starting with an inkjs fixture; empty choice is the likely first candidate.
+* ~~**Ink Info hover** — reuse the resolver to show target identity and a Go to definition action.~~
 * ~~**Symbol resolution + go-to-definition** — add `resolveSymbolAtPosition`, then wire Cmd/Ctrl-click and a keyboard command for jumping from `-> target` / `-> knot.stitch` to the target declaration.~~
 * ~~**Choice/gather continuation on Enter** — pressing Enter at the end of `* Some choice` inserts a matching marker (`* `, `** `, `+ `, …) on the next line, markdown-list style; Enter on an empty marker clears it instead. Same custom-keymap pattern as the knot Enter handler in `auto-close.ts`.~~
 * ~~**Block comment auto-close** — typing `/*` inserts ` */` with type-over, reusing the input-handler pattern in `auto-close.ts` (CodeMirror's `closeBrackets` only handles single-character pairs).~~

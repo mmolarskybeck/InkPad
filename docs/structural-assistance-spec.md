@@ -683,10 +683,10 @@ No desktop-only path to any fix. Two CodeMirror-specific notes:
    └─ custom completion keymap: Tab accepts, Enter inserts newline            ✓ DONE
 4. Symbol resolution → go-to-definition                                      ✓ DONE
    └─ resolve-at-position + Cmd/Ctrl-click + F12 / Mod-Enter                 ✓ DONE
-   └─ divert info hover                                  [resolver primitive] NEXT
+   └─ divert info hover                                                       ✓ DONE
 5. Mobile target picker / quick fix sheet                [symbol table; snippet
                                                           model already feeds the
-                                                          shipped accessory bar]
+                                                          shipped accessory bar] NEXT
 6. inkjs diagnostic adapter (pinned version ✓ + grow existing fixtures)  [partial: unresolved-divert done]
 7. Unresolved-divert quick fixes (closest-match + create)                  ✓ DONE
 
@@ -735,13 +735,25 @@ Definition of done:
   disturbed.
 - Tests cover resolver behavior; browser smoke covers F12 and modifier-click.
 
-### Recommended next slice: Ink Info hover
+### Completed slice: Ink Info hover
 
 Reuse `resolveSymbolAtPosition` to show a quiet hover for resolved divert
 targets and declarations. Keep the first version small: target kind, full path,
 file/local line, and a Go to definition action. Do not add prose or keyword
 tooltips yet. Static keyword teaching (`END`, `DONE`, `VAR`, `*`, `+`) can
 follow, but it is lower leverage than target identity.
+
+Definition of done:
+
+- Hovering a resolved divert target or declaration shows kind, full path, and
+  active-file line.
+- Divert hovers use relationship-first copy: `Divert to knot` /
+  `Divert to stitch`; declarations stay terse (`Knot declaration`,
+  `Stitch in start`).
+- The hover includes a Go to definition action using the same jump behavior.
+- Hover stays silent for prose, unknown targets, `END`, `DONE`, and function
+  knots.
+- v1 is active-file only, matching go-to-definition.
 
 ### Mobile parity slice: target picker + quick-fix sheet
 
@@ -789,7 +801,7 @@ editor/codemirror/                 — CodeMirror-specific
   identifier-occurrences.ts ✓      // identifierWordAt — resolver primitive
   completion.ts         ✓          // divert + explicit snippet CompletionSources
   resolve-at-position.ts ✓         // resolveSymbolAtPosition(state, pos)
-  hover.ts                         // Ink Info hoverTooltip
+  hover.ts              ✓          // Ink Info hoverTooltip
   go-to-definition.ts   ✓          // mod-click handler + keymap command
 
 features/snippets/      ✓          // library, pure matching, compile tests
