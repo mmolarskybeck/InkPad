@@ -282,7 +282,7 @@ export function LocalSavesDialog({
                 </div>
               </div>
               {files.length > 0 && (
-                <div className="relative w-full shrink-0 sm:w-64 md:w-72">
+                <div className="relative w-full shrink-0 sm:mr-12 sm:w-[21rem] md:w-[24rem]">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary" />
                   <Input
                     value={searchQuery}
