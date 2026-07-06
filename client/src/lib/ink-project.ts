@@ -245,6 +245,50 @@ export function renameProjectFile(
   return renamed;
 }
 
+function getProjectFileCopyName(fileName: string): string {
+  const slashIndex = fileName.lastIndexOf("/");
+  const directory = slashIndex === -1 ? "" : `${fileName.slice(0, slashIndex + 1)}`;
+  const baseName = slashIndex === -1 ? fileName : fileName.slice(slashIndex + 1);
+  const match = baseName.match(/^(.*?)(\.[^./]+)?$/);
+  const base = match?.[1] || baseName;
+  const ext = match?.[2] ?? "";
+  return `${directory}${base}-copy${ext}`;
+}
+
+export function duplicateProjectFile(project: InkProject, fileName: string): InkProject {
+  const sourceFile = project.files[fileName];
+  if (!sourceFile) return project;
+
+  const requestedName = getProjectFileCopyName(fileName);
+  const copyName = getAvailableProjectFileName(project.files, requestedName);
+
+  return {
+    ...project,
+    files: {
+      ...project.files,
+      [copyName]: { content: sourceFile.content },
+    },
+  };
+}
+
+export function deleteProjectFile(project: InkProject, fileName: string): InkProject {
+  if (
+    fileName === project.entryFile
+    || !Object.prototype.hasOwnProperty.call(project.files, fileName)
+    || Object.keys(project.files).length <= 1
+  ) {
+    return project;
+  }
+
+  const files: Record<string, InkProjectFile> = Object.fromEntries(
+    Object.entries(project.files).filter(([candidate]) => candidate !== fileName),
+  );
+  return {
+    ...project,
+    files,
+  };
+}
+
 export function pinProjectName(project: InkProject, nextName: string): InkProject {
   const trimmed = nextName.trim() || project.name;
   if (project.nameIsExplicit && project.name === trimmed) return project;

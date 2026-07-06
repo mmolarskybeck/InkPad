@@ -52,7 +52,7 @@ import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } fr
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, ChevronLeft, ChevronRight, File, FilePlus2, FileText, Pencil, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -85,6 +85,8 @@ import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import { getEditorDiagnosticLine } from "@/types/editor-diagnostic";
 import {
   createSingleFileProject,
+  deleteProjectFile,
+  duplicateProjectFile,
   getProjectStorageName,
   parseInkProject,
   pinProjectName,
@@ -413,6 +415,7 @@ export default function Editor() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddProjectFileOpen, setIsAddProjectFileOpen] = useState(false);
   const [inlineRenameRequest, setInlineRenameRequest] = useState<{ fileId: string; key: number } | null>(null);
+  const [projectDeleteTarget, setProjectDeleteTarget] = useState<string | null>(null);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
   const [storySessionKey, setStorySessionKey] = useState(0);
   const [editorControlState, setEditorControlState] = useState<CodeMirrorEditorControlState>({
@@ -1179,6 +1182,126 @@ export default function Editor() {
     toast,
   ]);
 
+  const handleDuplicateProjectFile = useCallback(async (fileId: string) => {
+    const live = getLiveProject();
+    if (!Object.prototype.hasOwnProperty.call(live.files, fileId)) {
+      toast({
+        title: "Duplicate failed",
+        description: `${fileId} is not part of this project.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextProject = duplicateProjectFile(live, fileId);
+    const newFileId = Object.keys(nextProject.files)
+      .find((name) => !Object.prototype.hasOwnProperty.call(live.files, name));
+    if (!newFileId) {
+      toast({
+        title: "Duplicate failed",
+        description: `${fileId} could not be duplicated.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextSource = getProjectFileSource(nextProject, newFileId);
+    setCurrentProject(nextProject);
+    setActiveFileId(newFileId);
+    setEditorBufferKey((key) => key + 1);
+    resetBufferedSource(nextSource);
+    setCurrentDocument((document) => ({
+      ...document,
+      filename: newFileId,
+      source: nextSource,
+      updatedAt: Date.now(),
+    }));
+    compileLive(getProjectCompileInput(nextProject));
+    setIsProjectFilesCollapsed(false);
+    setMobileTab("code");
+    window.setTimeout(() => editorRef.current?.layout(), 0);
+    await persistProject(nextProject, false);
+    toast({ title: "Duplicated", description: `${fileId} copied to ${newFileId}.` });
+  }, [
+    compileLive,
+    getLiveProject,
+    persistProject,
+    resetBufferedSource,
+    toast,
+  ]);
+
+  const handleRequestDeleteProjectFile = useCallback((fileId: string) => {
+    const live = getLiveProject();
+    if (fileId === live.entryFile) {
+      toast({
+        title: "Entry file cannot be deleted",
+        description: "Rename or edit the entry file instead, or delete another project file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (Object.keys(live.files).length <= 1) {
+      toast({
+        title: "File cannot be deleted",
+        description: "A project needs at least one Ink file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setProjectDeleteTarget(fileId);
+  }, [getLiveProject, toast]);
+
+  const handleConfirmDeleteProjectFile = useCallback(async () => {
+    if (!projectDeleteTarget) return;
+
+    const fileId = projectDeleteTarget;
+    const live = getLiveProject();
+    const nextProject = deleteProjectFile(live, fileId);
+    if (nextProject === live) {
+      setProjectDeleteTarget(null);
+      toast({
+        title: "Delete failed",
+        description: fileId === live.entryFile
+          ? "The project entry file cannot be deleted."
+          : `${fileId} could not be deleted.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextActiveFileId = fileId === activeFileId
+      ? nextProject.entryFile
+      : activeFileId;
+    const nextSource = getProjectFileSource(nextProject, nextActiveFileId);
+
+    setProjectDeleteTarget(null);
+    setCurrentProject(nextProject);
+    setActiveFileId(nextActiveFileId);
+    if (nextActiveFileId !== activeFileId) {
+      setEditorBufferKey((key) => key + 1);
+    }
+    resetBufferedSource(nextSource);
+    setCurrentDocument((document) => ({
+      ...document,
+      filename: nextActiveFileId,
+      source: nextSource,
+      updatedAt: Date.now(),
+    }));
+    FileOperations.clearRecoveryDraft(fileId);
+    compileLive(getProjectCompileInput(nextProject));
+    setIsProjectFilesCollapsed(Object.keys(nextProject.files).length <= 1);
+    await persistProject(nextProject, false);
+    toast({ title: "Deleted", description: `${fileId} removed from this project.` });
+  }, [
+    activeFileId,
+    compileLive,
+    getLiveProject,
+    persistProject,
+    projectDeleteTarget,
+    resetBufferedSource,
+    toast,
+  ]);
+
   const handleNavigateToKnot = useCallback((knotName: string) => {
     trackNavigatorUsed("knot");
 
@@ -1550,6 +1673,23 @@ export default function Editor() {
         <FilePlus2 className="h-4 w-4" />
         New ink file
       </DropdownMenuItem>
+      {projectFileIds.length > 0 && (
+        <>
+          <DropdownMenuSeparator className="bg-border-color" />
+          <DropdownMenuItem onClick={() => handleDuplicateProjectFile(activeFileId)} className="cursor-pointer">
+            <Copy className="h-4 w-4" />
+            Duplicate current file
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => handleRequestDeleteProjectFile(activeFileId)}
+            className="cursor-pointer text-error focus:text-error"
+            disabled={activeFileId === currentProject.entryFile}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete current file
+          </DropdownMenuItem>
+        </>
+      )}
       <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
         <File className="h-4 w-4" />
         New project
@@ -1692,6 +1832,41 @@ export default function Editor() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Rename file</TooltipContent>
                 </Tooltip>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(event) => event.stopPropagation()}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary opacity-0 transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg group-hover:opacity-100 data-[state=open]:opacity-100"
+                      aria-label={`More actions for ${fileId}`}
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 border-border-color bg-panel-bg">
+                    <DropdownMenuItem
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleDuplicateProjectFile(fileId);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRequestDeleteProjectFile(fileId);
+                      }}
+                      className="cursor-pointer text-error focus:text-error"
+                      disabled={isEntry}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           );
@@ -1895,6 +2070,34 @@ export default function Editor() {
         onDeleteFile={setDeleteTarget}
         onExport={exportInk}
       />
+
+      <AlertDialog open={projectDeleteTarget !== null} onOpenChange={(open) => {
+        if (!open) {
+          setProjectDeleteTarget(null);
+        }
+      }}>
+        <AlertDialogContent className="bg-panel-bg border-border-color text-text-primary">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project file?</AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary">
+              {projectDeleteTarget
+                ? `${projectDeleteTarget} will be removed from this InkPad project. This cannot be undone.`
+                : "This file will be removed from this InkPad project."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="ghost" onClick={() => setProjectDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDeleteProjectFile}
+              className="bg-error text-editor-bg hover:brightness-110"
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => {
         if (!open) {

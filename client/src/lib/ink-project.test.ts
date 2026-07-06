@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createSingleFileProject,
+  deleteProjectFile,
+  duplicateProjectFile,
   getProjectStorageName,
   isInkProject,
   parseInkProject,
@@ -349,6 +351,77 @@ describe("InkProject", () => {
       expect(project.exportNameBase).toBe("custom-bundle");
       expect(project.exportNameIsExplicit).toBe(true);
       expect(project.entryFile).toBe("draft.ink");
+    });
+  });
+
+  describe("duplicateProjectFile / deleteProjectFile", () => {
+    it("duplicates a project file next to the original", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "Hello",
+      });
+      project = {
+        ...project,
+        files: {
+          ...project.files,
+          "chapters/opening.ink": { content: "Opening text" },
+        },
+      };
+
+      project = duplicateProjectFile(project, "chapters/opening.ink");
+
+      expect(project.files["chapters/opening-copy.ink"]).toEqual({ content: "Opening text" });
+      expect(project.entryFile).toBe("start.ink");
+    });
+
+    it("resolves duplicate file name collisions", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "Hello",
+      });
+      project = {
+        ...project,
+        files: {
+          ...project.files,
+          "chapter.ink": { content: "Chapter" },
+          "chapter-copy.ink": { content: "First copy" },
+        },
+      };
+
+      project = duplicateProjectFile(project, "chapter.ink");
+
+      expect(project.files["chapter-copy 2.ink"]).toEqual({ content: "Chapter" });
+    });
+
+    it("deletes a non-entry project file", () => {
+      let project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "INCLUDE chapter.ink",
+      });
+      project = { ...project, files: { ...project.files, "chapter.ink": { content: "Chapter" } } };
+
+      project = deleteProjectFile(project, "chapter.ink");
+
+      expect(project.files["chapter.ink"]).toBeUndefined();
+      expect(project.files["start.ink"]).toEqual({ content: "INCLUDE chapter.ink" });
+      expect(project.entryFile).toBe("start.ink");
+    });
+
+    it("does not delete the entry file", () => {
+      const project = createSingleFileProject({
+        id: "project-1",
+        name: "My Journey",
+        fileName: "start.ink",
+        content: "Hello",
+      });
+
+      expect(deleteProjectFile(project, "start.ink")).toBe(project);
     });
   });
 

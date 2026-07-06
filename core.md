@@ -183,11 +183,11 @@ Completed work:
 - [x] Compiler diagnostics include filenames and line numbers.
 - [x] Entry-file rename behavior is defined and tested (pins the file name).
 - [x] Existing local single-file saves migrate safely (legacy schema-v1 → v2 with explicit pin defaults).
+- [x] Create, duplicate, and delete file operations are available from the project file rail.
 - [x] File rename updates INCLUDE references across the project.
 
 Remaining work for Phase 5 (see [docs/roadmap.md](./docs/roadmap.md)):
 
-- [ ] Create, duplicate, and delete file operations
 - [ ] `.inkpad` import support (export is complete)
 - [ ] Mobile file-rail UX for phones
 - [ ] Relative-path semantics (currently only exact-name INCLUDE is supported)
