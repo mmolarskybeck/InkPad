@@ -56,7 +56,7 @@ interface SettingsSheetProps {
   onJumpToTagLine: (field: MetadataField) => void;
 }
 
-const GITHUB_URL = "https://github.com/mmolarskybeck/InkPad";
+const GITHUB_URL = "https://github.com/mmolarskybeck/inkpad";
 const ISSUES_URL = `${GITHUB_URL}/issues/new/choose`;
 const NOTICES_URL = `${GITHUB_URL}/blob/main/THIRD_PARTY_NOTICES.md`;
 

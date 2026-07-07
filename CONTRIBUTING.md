@@ -69,8 +69,8 @@ Prerequisites:
 Clone the repository:
 
 ```bash
-git clone https://github.com/mmolarskybeck/InkPad.git
-cd InkPad
+git clone https://github.com/mmolarskybeck/inkpad.git
+cd inkpad
 ```
 
 Install dependencies:
