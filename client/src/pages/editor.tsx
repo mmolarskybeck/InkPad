@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, Ref } from "react";
+import type { Ref } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { TopMenu } from "@/components/editor/top-menu";
 import type {
@@ -13,7 +13,10 @@ import { VariableInspector } from "@/components/editor/variable-inspector";
 import { FileActionDialog } from "@/components/editor/file-action-dialog";
 import { LocalSavesDialog } from "@/components/editor/local-saves-dialog";
 import { SettingsSheet } from "@/components/editor/settings-sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  ProjectFilesPane,
+  PROJECT_FILES_DEFAULT_WIDTH,
+} from "@/components/editor/project-files-pane";
 import {
   EditorWorkspace,
   type FocusedPanel,
@@ -21,13 +24,10 @@ import {
   type MobileTab,
 } from "@/components/editor/editor-workspace";
 import { Button } from "@/components/ui/button";
-import { EditableTitle } from "@/components/ui/editable-title";
 import {
-  DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -50,9 +50,8 @@ import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
-import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, MoreHorizontal, Trash2, X } from "lucide-react";
+import { AlertTriangle, Copy, File, FilePlus2, FileText, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -106,13 +105,6 @@ const LazyCodeMirrorEditor = lazy(() =>
 );
 
 const PHONE_MEDIA_QUERY = "(max-width: 768px)";
-const PROJECT_FILES_DRAG_THRESHOLD = 28;
-const PROJECT_FILES_COLLAPSED_WIDTH = 44;
-const PROJECT_FILES_DEFAULT_WIDTH = 224;
-const PROJECT_FILES_MIN_WIDTH = 176;
-const PROJECT_FILES_MAX_WIDTH = 352;
-const PROJECT_FILES_COLLAPSE_SNAP_WIDTH = 128;
-const PROJECT_FILES_CLICK_DRAG_TOLERANCE = 4;
 
 function isPhoneViewport() {
   if (typeof window === "undefined") {
@@ -124,10 +116,6 @@ function isPhoneViewport() {
 
 function loadCodeMirrorEditor() {
   return import("@/components/editor/codemirror-editor");
-}
-
-function clampProjectFilesPaneWidth(width: number) {
-  return Math.min(PROJECT_FILES_MAX_WIDTH, Math.max(PROJECT_FILES_MIN_WIDTH, width));
 }
 
 function prefetchCodeMirrorEditor() {
@@ -438,21 +426,8 @@ export default function Editor() {
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
   const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
   const previousProjectIdRef = useRef(currentProject.id);
-  const projectFilesHandleDragRef = useRef<{
-    pointerId: number | null;
-    startX: number;
-    startWidth: number;
-    startCollapsed: boolean;
-    hasDragged: boolean;
-  } | null>(null);
-  const projectFilesHandleCleanupRef = useRef<(() => void) | null>(null);
-  const suppressProjectFilesHandleClickRef = useRef(false);
   const isMobile = useIsMobile();
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile);
-
-  useEffect(() => () => {
-    projectFilesHandleCleanupRef.current?.();
-  }, []);
 
   useEffect(() => {
     if (
@@ -1625,154 +1600,6 @@ export default function Editor() {
   }, []);
 
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
-  const updateProjectFilesHandleDrag = useCallback((clientX: number) => {
-    const drag = projectFilesHandleDragRef.current;
-    if (!drag) return;
-
-    const deltaX = clientX - drag.startX;
-    if (Math.abs(deltaX) > PROJECT_FILES_CLICK_DRAG_TOLERANCE) {
-      drag.hasDragged = true;
-      suppressProjectFilesHandleClickRef.current = true;
-    }
-
-    if (drag.startCollapsed) {
-      if (deltaX <= PROJECT_FILES_DRAG_THRESHOLD) return;
-
-      setIsProjectFilesCollapsed(false);
-      setProjectFilesPaneWidth(clampProjectFilesPaneWidth(PROJECT_FILES_MIN_WIDTH + deltaX - PROJECT_FILES_DRAG_THRESHOLD));
-      return;
-    }
-
-    const nextWidth = drag.startWidth + deltaX;
-    if (nextWidth <= PROJECT_FILES_COLLAPSE_SNAP_WIDTH) {
-      setIsProjectFilesCollapsed(true);
-      return;
-    }
-
-    setIsProjectFilesCollapsed(false);
-    setProjectFilesPaneWidth(clampProjectFilesPaneWidth(nextWidth));
-  }, []);
-
-  const finishProjectFilesHandleDrag = useCallback(() => {
-    const drag = projectFilesHandleDragRef.current;
-    projectFilesHandleDragRef.current = null;
-    projectFilesHandleCleanupRef.current?.();
-    projectFilesHandleCleanupRef.current = null;
-
-    if (drag?.hasDragged) {
-      window.setTimeout(() => {
-        suppressProjectFilesHandleClickRef.current = false;
-      }, 0);
-    }
-  }, []);
-
-  const beginProjectFilesHandleDrag = useCallback((startX: number, pointerId: number | null) => {
-    projectFilesHandleCleanupRef.current?.();
-    projectFilesHandleDragRef.current = {
-      pointerId,
-      startX,
-      startWidth: isProjectFilesCollapsed ? PROJECT_FILES_COLLAPSED_WIDTH : projectFilesPaneWidth,
-      startCollapsed: isProjectFilesCollapsed,
-      hasDragged: false,
-    };
-  }, [isProjectFilesCollapsed, projectFilesPaneWidth]);
-
-  const handleProjectFilesHandlePointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    beginProjectFilesHandleDrag(event.clientX, event.pointerId);
-    event.currentTarget.setPointerCapture(event.pointerId);
-
-    const handleWindowPointerMove = (moveEvent: PointerEvent) => {
-      const drag = projectFilesHandleDragRef.current;
-      if (!drag || drag.pointerId !== moveEvent.pointerId) return;
-      updateProjectFilesHandleDrag(moveEvent.clientX);
-    };
-    const handleWindowPointerEnd = (endEvent: PointerEvent) => {
-      const drag = projectFilesHandleDragRef.current;
-      if (!drag || drag.pointerId !== endEvent.pointerId) return;
-      finishProjectFilesHandleDrag();
-    };
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerEnd);
-    window.addEventListener("pointercancel", handleWindowPointerEnd);
-    projectFilesHandleCleanupRef.current = () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerEnd);
-      window.removeEventListener("pointercancel", handleWindowPointerEnd);
-    };
-  }, [beginProjectFilesHandleDrag, finishProjectFilesHandleDrag, updateProjectFilesHandleDrag]);
-
-  const handleProjectFilesHandlePointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = projectFilesHandleDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    updateProjectFilesHandleDrag(event.clientX);
-  }, [updateProjectFilesHandleDrag]);
-
-  const handleProjectFilesHandlePointerEnd = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = projectFilesHandleDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    finishProjectFilesHandleDrag();
-  }, [finishProjectFilesHandleDrag]);
-
-  const handleProjectFilesHandleMouseDown = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || projectFilesHandleDragRef.current) return;
-
-    beginProjectFilesHandleDrag(event.clientX, null);
-    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
-      updateProjectFilesHandleDrag(moveEvent.clientX);
-    };
-    const handleWindowMouseEnd = () => {
-      finishProjectFilesHandleDrag();
-    };
-
-    window.addEventListener("mousemove", handleWindowMouseMove);
-    window.addEventListener("mouseup", handleWindowMouseEnd);
-    projectFilesHandleCleanupRef.current = () => {
-      window.removeEventListener("mousemove", handleWindowMouseMove);
-      window.removeEventListener("mouseup", handleWindowMouseEnd);
-    };
-  }, [beginProjectFilesHandleDrag, finishProjectFilesHandleDrag, updateProjectFilesHandleDrag]);
-
-  const handleProjectFilesHandleClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (suppressProjectFilesHandleClickRef.current) {
-      event.preventDefault();
-      suppressProjectFilesHandleClickRef.current = false;
-      return;
-    }
-
-    setIsProjectFilesCollapsed((collapsed) => !collapsed);
-  }, []);
-
-  const projectNewMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={`${isMobile ? "h-8 w-8 rounded-md border border-border-color/70 bg-editor-bg/70" : isProjectFilesCollapsed ? "h-8 w-8" : "h-7 w-7"} p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis`}
-          aria-label="New file or project"
-        >
-          <FilePlus2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-52 border-border-color bg-panel-bg">
-        <DropdownMenuItem onClick={handleAddProjectFile} className="cursor-pointer">
-          <FilePlus2 className="h-4 w-4" />
-          New ink file
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
-          <File className="h-4 w-4" />
-          New project
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
   const mobileCodeTabLabel = projectFileIds.length > 1 ? (
     <span className="font-mono text-[0.75rem]">{activeFileId}</span>
   ) : (
@@ -1828,190 +1655,27 @@ export default function Editor() {
       </DropdownMenuItem>
     </DropdownMenuContent>
   );
-  const projectFilesPane = (
-    <aside
-      className={`${isProjectFilesCollapsed ? "flex flex-col items-center" : "flex flex-col"} relative shrink-0 border-border-color bg-panel-bg`}
-      style={{ width: isProjectFilesCollapsed ? PROJECT_FILES_COLLAPSED_WIDTH : projectFilesPaneWidth }}
-    >
-      <button
-        type="button"
-        onPointerDown={handleProjectFilesHandlePointerDown}
-        onPointerMove={handleProjectFilesHandlePointerMove}
-        onPointerUp={handleProjectFilesHandlePointerEnd}
-        onPointerCancel={handleProjectFilesHandlePointerEnd}
-        onMouseDown={handleProjectFilesHandleMouseDown}
-        onClick={handleProjectFilesHandleClick}
-        aria-label={isProjectFilesCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag to resize or click to hide files"}
-        aria-expanded={!isProjectFilesCollapsed}
-        className="group absolute inset-y-0 -right-1 z-20 flex w-2 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
-      >
-        <span className="h-full w-px bg-border-color transition-colors group-hover:bg-accent-blue group-focus-visible:bg-accent-blue" aria-hidden="true" />
-      </button>
-      {!isMobile && isProjectFilesCollapsed && (
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1.5 py-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsProjectFilesCollapsed(false)}
-                className="h-8 w-8 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
-                aria-label="Show project files"
-                aria-expanded={false}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Show project files</TooltipContent>
-          </Tooltip>
-          {projectNewMenu}
-        </div>
-      )}
-      {!isMobile && (
-        <div className={`${isProjectFilesCollapsed ? "hidden" : "flex"} h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color px-3 pr-4`}>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
-              Files
-            </span>
-            <span className="rounded-sm bg-editor-bg px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums leading-none text-text-secondary">
-              {projectFileCount}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            {projectNewMenu}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsProjectFilesCollapsed(true)}
-                  className="h-7 w-7 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis"
-                  aria-label="Hide project files"
-                  aria-expanded={true}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Hide project files</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      )}
-      <div className={`${isProjectFilesCollapsed ? "hidden" : "min-h-0 flex-1 overflow-auto p-1.5 pr-2.5"}`}>
-        {projectFileIds.map((fileId) => {
-          const isActive = fileId === activeFileId;
-          const isEntry = fileId === currentProject.entryFile;
-          return (
-            <div key={fileId} className="group relative mb-0.5">
-              <div
-                aria-current={isActive ? "page" : undefined}
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest("input")) return;
-                  switchToProjectFile(fileId);
-                }}
-                className={cn(
-                  "flex min-w-0 w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1.5 text-[0.8125rem] text-text-primary transition-colors",
-                  "hover:bg-accent hover:text-text-emphasis",
-                  isActive && "bg-accent text-text-emphasis",
-                )}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        switchToProjectFile(fileId);
-                      }}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
-                      aria-label={`Open ${fileId}`}
-                    >
-                      <FileText className={cn(
-                        "h-3.5 w-3.5",
-                        isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
-                      )} />
-                      {isActive && <span className="sr-only">Current file</span>}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Open file</TooltipContent>
-                </Tooltip>
-                <EditableTitle
-                  title={fileId}
-                  onTitleChange={(nextName) => handleInlineProjectFileRename(fileId, nextName)}
-                  editTrigger="double-click"
-                  editRequestKey={inlineRenameRequest?.fileId === fileId ? inlineRenameRequest.key : undefined}
-                  ariaLabel={`Rename ${fileId}`}
-                  placeholder="File path..."
-                  fallbackTitle={fileId}
-                  normalizeValue={(value) => value.trim() || fileId}
-                  showEditIcon={false}
-                  className="h-7 min-w-0 flex-1 justify-start px-1 hover:bg-transparent md:px-1"
-                  inputClassName="h-7 font-mono text-[0.8125rem]"
-                  textClassName={cn("font-mono text-[0.8125rem]", isActive && "font-medium")}
-                />
-                {isEntry && (
-                  <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-blue">
-                    entry
-                  </span>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={(event) => event.stopPropagation()}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary opacity-0 transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg group-hover:opacity-100 data-[state=open]:opacity-100"
-                      aria-label={`More actions for ${fileId}`}
-                    >
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 border-border-color bg-panel-bg">
-                    <DropdownMenuItem
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        requestInlineProjectFileRename(fileId);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleDuplicateProjectFile(fileId);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleRequestDeleteProjectFile(fileId);
-                      }}
-                      className="cursor-pointer text-error focus:text-error"
-                      disabled={isEntry}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </aside>
-  );
-
   const editorPane = (
     <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
-      {!isMobile && projectFilesPane}
+      {!isMobile && (
+        <ProjectFilesPane
+          fileIds={projectFileIds}
+          activeFileId={activeFileId}
+          entryFileId={currentProject.entryFile}
+          isCollapsed={isProjectFilesCollapsed}
+          paneWidth={projectFilesPaneWidth}
+          inlineRenameRequest={inlineRenameRequest}
+          onCollapsedChange={setIsProjectFilesCollapsed}
+          onPaneWidthChange={setProjectFilesPaneWidth}
+          onAddProjectFile={handleAddProjectFile}
+          onNewProject={handleNew}
+          onOpenProjectFile={switchToProjectFile}
+          onRenameProjectFile={handleInlineProjectFileRename}
+          onRequestRenameProjectFile={requestInlineProjectFileRename}
+          onDuplicateProjectFile={handleDuplicateProjectFile}
+          onRequestDeleteProjectFile={handleRequestDeleteProjectFile}
+        />
+      )}
       <div className="min-h-0 min-w-0 flex-1">
         <CodeEditorPane
           editorRef={editorRef}

@@ -257,8 +257,8 @@ export function LocalSavesDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[82vh] flex-col overflow-hidden border-border-color bg-panel-bg p-0 text-text-primary sm:max-w-3xl">
           <DialogHeader className="shrink-0 border-b border-border-color px-4 pb-3 pr-12 pt-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   <DialogTitle className="text-text-emphasis">Projects</DialogTitle>
                   {files.length > 0 && (
@@ -266,31 +266,35 @@ export function LocalSavesDialog({
                       {projectCountLabel}
                     </span>
                   )}
-                  {selectedCount > 0 && (
-                    <div className="ml-1 flex min-h-9 items-center gap-1.5 rounded-full border border-error/35 bg-error/8 py-1 pl-3 pr-1.5 text-[0.8125rem] font-medium text-text-emphasis">
-                      <span>{selectedCount} selected</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                        className="inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-error transition-colors hover:bg-error/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
+                {files.length > 0 && (
+                  <div className="relative w-full shrink-0 sm:mr-12 sm:w-[21rem] md:w-[24rem]">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search projects"
+                      aria-label="Search projects"
+                      className="h-8 border-border-color bg-editor-bg pl-8 pr-2 text-[0.8125rem] text-text-primary placeholder:text-text-secondary focus-visible:ring-1 focus-visible:ring-accent-blue focus-visible:ring-offset-0"
+                    />
+                  </div>
+                )}
               </div>
-              {files.length > 0 && (
-                <div className="relative w-full shrink-0 sm:mr-12 sm:w-[21rem] md:w-[24rem]">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search projects"
-                    aria-label="Search projects"
-                    className="h-8 border-border-color bg-editor-bg pl-8 pr-2 text-[0.8125rem] text-text-primary placeholder:text-text-secondary focus-visible:ring-1 focus-visible:ring-accent-blue focus-visible:ring-offset-0"
-                  />
+              {selectedCount > 0 && (
+                <div
+                  className="inline-flex min-h-8 w-fit items-center gap-2 rounded-md border border-error/30 bg-error/8 px-2.5 text-[0.8125rem] text-text-emphasis"
+                  aria-live="polite"
+                >
+                  <span className="font-medium">{selectedCount} selected</span>
+                  <span className="h-4 w-px bg-error/25" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                    className="inline-flex h-7 items-center gap-1.5 rounded px-1.5 font-medium text-error transition-colors hover:bg-error/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete</span>
+                  </button>
                 </div>
               )}
             </div>
