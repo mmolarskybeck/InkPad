@@ -51,7 +51,7 @@ export function StoryExportMenu({
           Export
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[320px] bg-panel-bg border-border-color p-2 shadow-sm">
+      <DropdownMenuContent align="start" className="w-[320px] bg-panel-bg border-border-color p-2 shadow-sm">
         <DropdownMenuLabel className="px-2 pt-1.5 pb-2">
           <div className="text-[0.9375rem] font-semibold text-text-emphasis tracking-tight">Export Story</div>
           <div className="text-[0.8125rem] font-normal text-text-secondary mt-0.5">Choose a format to export.</div>
