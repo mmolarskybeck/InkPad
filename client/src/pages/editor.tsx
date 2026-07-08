@@ -50,6 +50,7 @@ import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
+import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
 import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
@@ -1617,10 +1618,15 @@ export default function Editor() {
             className="cursor-pointer"
             aria-current={isActive ? "page" : undefined}
           >
-            <FileText className={isEntry ? "text-accent-blue" : "text-text-secondary"} />
-            <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{fileId}</span>
+            <FileText className={isActive ? "text-accent-blue" : "text-text-secondary"} />
+            <span className={cn(
+              "min-w-0 flex-1 truncate font-mono text-[0.8125rem] leading-5 tracking-[0.005em] text-text-primary",
+              isActive && "font-medium text-text-emphasis",
+            )}>
+              {fileId}
+            </span>
             {isActive && (
-              <span className="text-[0.75rem] text-text-secondary">Current</span>
+              <span className="text-[0.6875rem] font-medium leading-none text-text-secondary">Current</span>
             )}
           </DropdownMenuItem>
         );

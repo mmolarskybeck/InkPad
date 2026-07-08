@@ -281,7 +281,7 @@ export function ProjectFilesPane({
         isCollapsed ? "hidden" : "flex",
       )}>
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+          <span className="truncate text-[0.6875rem] font-semibold uppercase leading-4 tracking-[0.08em] text-text-secondary">
             Files
           </span>
           <span
@@ -379,10 +379,13 @@ export function ProjectFilesPane({
                   showEditIcon={false}
                   className="h-8 min-w-0 flex-1 justify-start px-1 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg md:px-1"
                   inputClassName="h-8 font-mono text-[0.8125rem]"
-                  textClassName={cn("font-mono text-[0.8125rem] leading-5", isActive && "font-medium")}
+                  textClassName={cn(
+                    "font-mono text-[0.8125rem] leading-5 tracking-[0.005em] text-text-primary",
+                    isActive && "font-medium text-text-emphasis",
+                  )}
                 />
                 {isEntry && (
-                  <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-blue">
+                  <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-accent-blue">
                     entry
                   </span>
                 )}
