@@ -84,16 +84,16 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 border-b border-border-color pb-7 last:border-b-0 last:pb-0">
+    <section className="flex flex-col gap-5 border-b border-border-color pb-8 last:border-b-0 last:pb-0">
       <h2
         className={cn(
-          "text-[0.75rem] font-semibold uppercase tracking-[0.08em]",
-          danger ? "text-error" : "text-text-secondary",
+          "text-[0.875rem] font-semibold tracking-tight",
+          danger ? "text-error" : "text-text-emphasis",
         )}
       >
         {title}
       </h2>
-      <div className="space-y-5">{children}</div>
+      <div className="flex flex-col gap-6">{children}</div>
     </section>
   );
 }
@@ -273,7 +273,7 @@ function MetaField({
               size="sm"
               onClick={handleConfirm}
               className={cn(
-                "h-7 px-2.5 text-[0.75rem]",
+                "h-8 px-3 text-[0.75rem] transition-all duration-200 active:scale-[0.98]",
                 pendingType === "remove"
                   ? "bg-error text-white hover:brightness-110"
                   : "bg-accent-blue text-white hover:brightness-110",
@@ -286,7 +286,7 @@ function MetaField({
             <button
               type="button"
               onClick={handleUndo}
-              className="text-[0.75rem] text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded"
+              className="rounded text-[0.75rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               Undo
             </button>
@@ -386,14 +386,14 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
               size="sm"
               disabled={!canRename}
               onClick={handleRename}
-              className="h-8 px-3 text-[0.75rem] bg-accent-blue text-white hover:brightness-110 disabled:opacity-45"
+              className="h-8 px-3 text-[0.75rem] bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
             >
               {isRenaming ? "Renaming..." : "Rename file"}
             </Button>
             <button
               type="button"
               onClick={() => setDraftName(sourceBaseName)}
-              className="rounded text-[0.75rem] text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="rounded text-[0.75rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               Undo
             </button>
@@ -542,7 +542,7 @@ function StoryThemeSection({
               type="button"
               size="sm"
               onClick={storyAction}
-              className="h-8 w-fit px-3 text-[0.75rem] bg-accent-blue text-white hover:brightness-110"
+              className="h-8 w-fit px-3 text-[0.75rem] bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             >
               {storyActionLabel}
             </Button>
@@ -640,7 +640,7 @@ export function SettingsSheet({
         className="flex w-[92vw] max-w-lg flex-col overflow-hidden border-border-color bg-panel-bg p-0 text-text-primary"
       >
         <SheetHeader className="shrink-0 border-b border-border-color bg-panel-bg px-5 py-5 pr-12 text-left">
-          <SheetTitle className="text-[1.125rem] text-text-emphasis">
+          <SheetTitle className="text-xl font-semibold tracking-tight text-text-emphasis">
             Settings
           </SheetTitle>
           <SheetDescription className="text-[0.8125rem] text-text-secondary">
@@ -871,15 +871,15 @@ export function SettingsSheet({
                   updatePreferences({ wordWrap: !preferences.wordWrap })
                 }
                 className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue",
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg",
                   preferences.wordWrap ? "bg-accent-blue" : "bg-border-color",
                 )}
               >
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
-                    preferences.wordWrap ? "translate-x-5" : "translate-x-0",
+                    "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+                    preferences.wordWrap ? "translate-x-4" : "translate-x-0",
                   )}
                 />
               </button>
@@ -911,15 +911,15 @@ export function SettingsSheet({
                   aria-labelledby="analytics-opt-out-label"
                   onClick={() => handleAnalyticsEnabledChange(!analyticsEnabled)}
                   className={cn(
-                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue",
+                    "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg",
                     analyticsEnabled ? "bg-accent-blue" : "bg-border-color",
                   )}
                 >
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
-                      analyticsEnabled ? "translate-x-5" : "translate-x-0",
+                      "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+                      analyticsEnabled ? "translate-x-4" : "translate-x-0",
                     )}
                   />
                 </button>
@@ -947,7 +947,7 @@ export function SettingsSheet({
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex min-h-11 items-center justify-between rounded-md px-2 text-[0.875rem] text-text-primary hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex min-h-10 items-center justify-between rounded-md px-2 text-[0.875rem] text-text-primary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 {label}
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -962,7 +962,7 @@ export function SettingsSheet({
                 type="button"
                 variant="outline"
                 onClick={() => setIsResetOpen(true)}
-                className="min-h-11 gap-2 border-border-color text-text-primary"
+                className="min-h-10 gap-2 border-border-color text-text-primary transition-all duration-200 active:scale-[0.98]"
               >
                 <RotateCcw className="h-4 w-4" />
                 Reset preferences
@@ -998,7 +998,7 @@ export function SettingsSheet({
                   resetPreferences();
                   setIsResetOpen(false);
                 }}
-                className="bg-error text-white hover:brightness-110"
+                className="bg-error text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
               >
                 Reset preferences
               </Button>
