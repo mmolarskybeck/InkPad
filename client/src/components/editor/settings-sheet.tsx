@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -862,27 +863,12 @@ export function SettingsSheet({
                   Show long lines on multiple visual lines.
                 </p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={preferences.wordWrap}
+              <Switch
+                id="word-wrap-switch"
+                checked={preferences.wordWrap}
                 aria-labelledby="word-wrap-label"
-                onClick={() =>
-                  updatePreferences({ wordWrap: !preferences.wordWrap })
-                }
-                className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg",
-                  preferences.wordWrap ? "bg-accent-blue" : "bg-border-color",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                    preferences.wordWrap ? "translate-x-4" : "translate-x-0",
-                  )}
-                />
-              </button>
+                onCheckedChange={(checked) => updatePreferences({ wordWrap: checked })}
+              />
             </div>
           </SettingsSection>
 
@@ -904,25 +890,12 @@ export function SettingsSheet({
                     personal information.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={analyticsEnabled}
+                <Switch
+                  id="analytics-opt-out-switch"
+                  checked={analyticsEnabled}
                   aria-labelledby="analytics-opt-out-label"
-                  onClick={() => handleAnalyticsEnabledChange(!analyticsEnabled)}
-                  className={cn(
-                    "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg",
-                    analyticsEnabled ? "bg-accent-blue" : "bg-border-color",
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                      analyticsEnabled ? "translate-x-4" : "translate-x-0",
-                    )}
-                  />
-                </button>
+                  onCheckedChange={handleAnalyticsEnabledChange}
+                />
               </div>
             </SettingsSection>
           </div>

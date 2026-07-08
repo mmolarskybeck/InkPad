@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_HTML_EXPORT_APPEARANCE,
   type HtmlExportFont,
@@ -279,26 +280,15 @@ export function PlayableHtmlExportDialog({
                     Adds basic hosting and playback instructions to the ZIP.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
+                <Switch
+                  id="include-readme-switch"
+                  checked={options.includeReadme}
                   aria-labelledby="include-readme-label"
-                  aria-checked={options.includeReadme}
-                  onClick={() => setOptions((current) => ({
+                  onCheckedChange={(checked) => setOptions((current) => ({
                     ...current,
-                    includeReadme: !current.includeReadme,
+                    includeReadme: checked,
                   }))}
-                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg ${
-                    options.includeReadme ? "bg-accent-blue" : "bg-border-color"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                      options.includeReadme ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+                />
               </div>
 
               <div className="flex items-center justify-between gap-4">
@@ -310,23 +300,12 @@ export function PlayableHtmlExportDialog({
                     Reuse this export profile for this InkPad story next time.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
+                <Switch
+                  id="remember-export-switch"
+                  checked={rememberChoices}
                   aria-labelledby="remember-export-label"
-                  aria-checked={rememberChoices}
-                  onClick={() => setRememberChoices((current) => !current)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg ${
-                    rememberChoices ? "bg-accent-blue" : "bg-border-color"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                      rememberChoices ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+                  onCheckedChange={setRememberChoices}
+                />
               </div>
             </div>
           </div>
