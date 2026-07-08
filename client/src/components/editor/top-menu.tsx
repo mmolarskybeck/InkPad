@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Archive, ChevronDown, PenTool, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
-import { StoryExportDialog } from "./story-export-dialog";
+import { StoryExportMenu } from "./story-export-menu";
 import { PlayableHtmlExportDialog } from "./playable-html-export-dialog";
 import type { StoredInkDocument } from "@/lib/file-operations";
 import type {
@@ -302,7 +302,7 @@ export function TopMenu({
 
           <div className="mx-1 h-4 w-px bg-border-color" />
           
-          <StoryExportDialog
+          <StoryExportMenu
             onExportInk={onExportInk}
             onExportProject={onExportProject}
             onExportProjectZip={onExportProjectZip}
