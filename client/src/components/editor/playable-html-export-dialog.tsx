@@ -151,183 +151,192 @@ export function PlayableHtmlExportDialog({
         onOpenAutoFocus={(event) => event.preventDefault()}
         className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto border-border-color bg-panel-bg text-text-primary sm:max-w-lg"
       >
-        <DialogHeader>
-          <DialogTitle className="text-text-emphasis">Export playable HTML</DialogTitle>
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-xl font-semibold tracking-tight text-text-emphasis">Export playable HTML</DialogTitle>
           <DialogDescription className="text-text-secondary">
             Download a standalone web version of this story.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-5 py-1">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="html-export-title" className="text-text-emphasis">Story title</Label>
-              <Input
-                id="html-export-title"
-                value={options.title}
-                onChange={(event) => setOptions((current) => ({
-                  ...current,
-                  title: event.target.value,
-                }))}
-                className="border-border-color bg-editor-bg text-text-emphasis"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="html-export-author" className="text-text-emphasis">Author</Label>
-              <Input
-                id="html-export-author"
-                value={options.author}
-                placeholder="No byline"
-                onChange={(event) => setOptions((current) => ({
-                  ...current,
-                  author: event.target.value,
-                }))}
-                className="border-border-color bg-editor-bg text-text-emphasis"
-              />
-            </div>
-          </div>
-          <p className="text-[0.75rem] leading-5 text-text-secondary">
-            Title and author changes only affect this download. Theme and typeface use the same story appearance values as Settings.
-          </p>
-
-          <div className="rounded-md bg-editor-bg px-3 py-2 text-[0.75rem] text-text-secondary">
-            {replaceFilenameExtension(filename, ".zip")}
-          </div>
-
-          <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-center">
-              <Label htmlFor="html-export-theme" className="text-text-emphasis">Export theme</Label>
-              <Select
-                value={options.theme}
-                onValueChange={(theme) => {
-                  setOptions((current) => ({
+        <div className="flex flex-col gap-8 py-2">
+          {/* Metadata Section */}
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="html-export-title" className="text-text-emphasis">Story title</Label>
+                <Input
+                  id="html-export-title"
+                  value={options.title}
+                  onChange={(event) => setOptions((current) => ({
                     ...current,
-                    theme: theme as HtmlExportTheme,
-                  }));
-                }}
-              >
-                <SelectTrigger id="html-export-theme" aria-label="HTML export theme" className="min-h-11 border-border-color bg-editor-bg">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="sepia">Sepia</SelectItem>
-                  <SelectItem value="high-contrast">High contrast</SelectItem>
-                </SelectContent>
-              </Select>
+                    title: event.target.value,
+                  }))}
+                  className="min-h-10 border-border-color bg-editor-bg text-text-emphasis"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="html-export-author" className="text-text-emphasis">Author</Label>
+                <Input
+                  id="html-export-author"
+                  value={options.author}
+                  placeholder="No byline"
+                  onChange={(event) => setOptions((current) => ({
+                    ...current,
+                    author: event.target.value,
+                  }))}
+                  className="min-h-10 border-border-color bg-editor-bg text-text-emphasis"
+                />
+              </div>
             </div>
-            <p className="text-[0.75rem] leading-5 text-text-secondary">
-              {themeStatusText}
+            <p className="text-[0.8125rem] leading-snug text-text-secondary">
+              Title and author changes only affect this download. Theme and typeface use the same story appearance values as Settings.
             </p>
-            {showSetFileTheme && (
-              <button
-                type="button"
-                onClick={() => {
-                  onSetFileTheme(options.theme);
-                  setLocalFileTheme(options.theme);
-                }}
-                className="rounded border border-border-color px-2.5 py-1 text-[0.75rem] text-text-secondary hover:bg-editor-bg"
-              >
-                Set file theme to {themeName}
-              </button>
-            )}
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-center">
-            <div>
-              <Label htmlFor="html-export-font" className="text-text-emphasis">Story typeface</Label>
-              <p className="mt-0.5 text-[0.75rem] leading-5 text-text-secondary">
-                Shared with Settings. Applies to the story title and reading text.
-              </p>
-            </div>
-            <Select
-              value={options.font}
-              onValueChange={(font) => {
-                const nextFont = font as HtmlExportFont;
-                setOptions((current) => ({
-                  ...current,
-                  font: nextFont,
-                }));
-                onStoryTypefaceChange(nextFont);
-              }}
-            >
-              <SelectTrigger id="html-export-font" aria-label="HTML export typeface" className="min-h-11 border-border-color bg-editor-bg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-border-color bg-panel-bg">
-                <SelectItem value="serif">Serif</SelectItem>
-                <SelectItem value="sans">Sans</SelectItem>
-                <SelectItem value="mono">Mono</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-center">
-            <div>
-              <div id="include-readme-label" className="text-[0.875rem] font-medium text-text-emphasis">
-                Include README
+          {/* Appearance Section */}
+          <div className="flex flex-col gap-4">
+            <div className="text-[0.875rem] font-semibold tracking-tight text-text-emphasis">Appearance</div>
+            <div className="grid gap-6 sm:grid-cols-2 sm:gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="html-export-theme" className="text-text-emphasis">Export theme</Label>
+                <Select
+                  value={options.theme}
+                  onValueChange={(theme) => {
+                    setOptions((current) => ({
+                      ...current,
+                      theme: theme as HtmlExportTheme,
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="html-export-theme" aria-label="HTML export theme" className="min-h-10 border-border-color bg-editor-bg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-border-color bg-panel-bg">
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="sepia">Sepia</SelectItem>
+                    <SelectItem value="high-contrast">High contrast</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="mt-1 flex flex-col gap-2">
+                  <p className="text-[0.75rem] leading-snug text-text-secondary">
+                    {themeStatusText}
+                  </p>
+                  {showSetFileTheme && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSetFileTheme(options.theme);
+                        setLocalFileTheme(options.theme);
+                      }}
+                      className="self-start rounded border border-border-color px-2.5 py-1 text-[0.75rem] font-medium text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis active:scale-[0.98]"
+                    >
+                      Set file theme to {themeName}
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="mt-0.5 text-[0.75rem] leading-5 text-text-secondary">
-                Adds basic hosting and playback instructions to the ZIP.
-              </p>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="html-export-font" className="text-text-emphasis">Story typeface</Label>
+                <Select
+                  value={options.font}
+                  onValueChange={(font) => {
+                    const nextFont = font as HtmlExportFont;
+                    setOptions((current) => ({
+                      ...current,
+                      font: nextFont,
+                    }));
+                    onStoryTypefaceChange(nextFont);
+                  }}
+                >
+                  <SelectTrigger id="html-export-font" aria-label="HTML export typeface" className="min-h-10 border-border-color bg-editor-bg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-border-color bg-panel-bg">
+                    <SelectItem value="serif">Serif</SelectItem>
+                    <SelectItem value="sans">Sans</SelectItem>
+                    <SelectItem value="mono">Mono</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[0.75rem] leading-snug text-text-secondary">
+                  Shared with Settings. Applies to the story title and reading text.
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-labelledby="include-readme-label"
-              aria-checked={options.includeReadme}
-              onClick={() => setOptions((current) => ({
-                ...current,
-                includeReadme: !current.includeReadme,
-              }))}
-              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue sm:justify-self-end ${
-                options.includeReadme ? "bg-accent-blue" : "bg-border-color"
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                  options.includeReadme ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-center">
-            <div>
-              <div id="remember-export-label" className="text-[0.875rem] font-medium text-text-emphasis">
-                Remember these choices
+          {/* Options Section */}
+          <div className="flex flex-col gap-4">
+            <div className="text-[0.875rem] font-semibold tracking-tight text-text-emphasis">Options</div>
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <Label id="include-readme-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setOptions(c => ({...c, includeReadme: !c.includeReadme}))}>
+                    Include README
+                  </Label>
+                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
+                    Adds basic hosting and playback instructions to the ZIP.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-labelledby="include-readme-label"
+                  aria-checked={options.includeReadme}
+                  onClick={() => setOptions((current) => ({
+                    ...current,
+                    includeReadme: !current.includeReadme,
+                  }))}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg ${
+                    options.includeReadme ? "bg-accent-blue" : "bg-border-color"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      options.includeReadme ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
-              <p className="mt-0.5 text-[0.75rem] leading-5 text-text-secondary">
-                Reuse this export profile for this InkPad story next time.
-              </p>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <Label id="remember-export-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setRememberChoices(c => !c)}>
+                    Remember these choices
+                  </Label>
+                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
+                    Reuse this export profile for this InkPad story next time.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-labelledby="remember-export-label"
+                  aria-checked={rememberChoices}
+                  onClick={() => setRememberChoices((current) => !current)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg ${
+                    rememberChoices ? "bg-accent-blue" : "bg-border-color"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      rememberChoices ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-labelledby="remember-export-label"
-              aria-checked={rememberChoices}
-              onClick={() => setRememberChoices((current) => !current)}
-              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue sm:justify-self-end ${
-                rememberChoices ? "bg-accent-blue" : "bg-border-color"
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                  rememberChoices ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
         </div>
 
-        <p className="text-[0.75rem] leading-5 text-text-secondary">
+        <div className="mt-2 text-[0.75rem] leading-snug text-text-secondary">
           Story content is embedded in the HTML. InkJS and web fonts still require an internet connection.
-        </p>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-4">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -335,7 +344,7 @@ export function PlayableHtmlExportDialog({
             type="button"
             disabled={isExporting}
             onClick={() => void handleExport()}
-            className="gap-2 bg-success text-editor-bg hover:brightness-110"
+            className="gap-2 bg-success text-editor-bg transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           >
             <Download className="h-4 w-4" />
             {isExporting ? "Preparing…" : "Download ZIP"}
