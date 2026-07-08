@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, FileArchive, FileText, Braces, MonitorPlay, ChevronDown } from "lucide-react";
+import { Download, FileArchive, FileText, Braces, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -66,14 +66,14 @@ export function StoryExportMenu({
               void runExport(onExportInk);
             }}
             disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
           >
             <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
               <FileText className="h-4 w-4" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Ink source</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Current file as editable .ink</span>
+              <span className="text-[0.8125rem] text-text-secondary leading-tight">Editable source file</span>
             </div>
           </DropdownMenuItem>
 
@@ -85,14 +85,14 @@ export function StoryExportMenu({
                   void runExport(onExportProject);
                 }}
                 disabled={isExporting}
-                className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+                className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
               >
                 <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
                   <FileArchive className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">InkPad project</span>
-                  <span className="text-[0.8125rem] text-text-secondary leading-tight">ZIP archive with .inkpad extension</span>
+                  <span className="text-[0.8125rem] text-text-secondary leading-tight">Full project archive</span>
                 </div>
               </DropdownMenuItem>
 
@@ -103,14 +103,14 @@ export function StoryExportMenu({
                     void runExport(onExportProjectZip);
                   }}
                   disabled={isExporting}
-                  className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+                  className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
                 >
                   <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
                     <FileArchive className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Project ZIP</span>
-                    <span className="text-[0.8125rem] text-text-secondary leading-tight">Same archive, named .zip</span>
+                    <span className="text-[0.8125rem] text-text-secondary leading-tight">Standard ZIP format</span>
                   </div>
                 </DropdownMenuItem>
               )}
@@ -123,14 +123,14 @@ export function StoryExportMenu({
               void runExport(onExportJson);
             }}
             disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
           >
             <div className="shrink-0 rounded bg-success/10 p-1.5 text-success">
               <Braces className="h-4 w-4" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Compiled JSON</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Story data for a game or player</span>
+              <span className="text-[0.8125rem] text-text-secondary leading-tight">Compiled for custom engines</span>
             </div>
           </DropdownMenuItem>
 
@@ -141,14 +141,14 @@ export function StoryExportMenu({
               window.setTimeout(onConfigureHtml, 0);
             }}
             disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
           >
             <div className="shrink-0 rounded bg-warning/10 p-1.5 text-warning">
               <MonitorPlay className="h-4 w-4" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Playable HTML</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Configure appearance and download</span>
+              <span className="text-[0.8125rem] text-text-secondary leading-tight">Ready-to-play web build</span>
             </div>
           </DropdownMenuItem>
         </div>
