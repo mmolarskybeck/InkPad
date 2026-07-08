@@ -5,6 +5,8 @@ import {
   ArrowRight,
   BookOpen,
   Eye,
+  MonitorPlay,
+  PenTool,
   Play,
   RotateCcw,
 } from "lucide-react";
@@ -281,12 +283,8 @@ export function StoryPreview({
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-8 py-20 text-center">
-              <div className="flex select-none items-center gap-3 rounded-full border border-border-color bg-panel-bg px-4 py-2 font-mono text-[0.75rem] font-medium text-text-secondary shadow-sm">
-                <span>write</span>
-                <ArrowRight className="h-3.5 w-3.5 text-border-color" />
-                <span>run</span>
-                <ArrowRight className="h-3.5 w-3.5 text-border-color" />
-                <span className="text-text-emphasis">preview</span>
+              <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-2xl border border-border-color bg-panel-bg shadow-sm ring-1 ring-black/5 dark:ring-white/5">
+                <MonitorPlay className="h-7 w-7 text-text-secondary opacity-80" strokeWidth={1.75} />
               </div>
               
               <div className="space-y-2.5 max-w-[340px]">
