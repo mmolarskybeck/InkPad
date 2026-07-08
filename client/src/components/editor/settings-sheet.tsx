@@ -84,7 +84,7 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-5 border-b border-border-color pb-8 last:border-b-0 last:pb-0">
+    <section className="flex flex-col gap-5 border-b border-border-color py-8 first:pt-0 last:border-b-0 last:pb-0">
       <h2
         className={cn(
           "text-[0.875rem] font-semibold tracking-tight",
@@ -216,7 +216,7 @@ function MetaField({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <Label htmlFor={id} className="text-[0.875rem] font-medium text-text-emphasis">
           {label}
@@ -242,7 +242,7 @@ function MetaField({
       )}
 
       {isDirty && pendingType && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <div
             className={cn(
               "rounded-[var(--border-radius-md)] px-3 py-2 text-[0.75rem] leading-5",
@@ -340,7 +340,7 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Label
         htmlFor="settings-filename"
         className="text-[0.875rem] font-medium text-text-emphasis"
@@ -369,7 +369,7 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
         </p>
       )}
       {isDirty && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <p className={cn(
             "text-[0.75rem] leading-5",
             normalizedDraft.length === 0 ? "text-error" : "text-text-secondary",
@@ -491,7 +491,7 @@ function StoryThemeSection({
       : null;
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Label htmlFor="settings-preview-style" className="text-[0.875rem] font-medium text-text-emphasis">
           Story theme
@@ -526,7 +526,7 @@ function StoryThemeSection({
         </SelectContent>
       </Select>
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <div
           className={cn(
             "rounded-[var(--border-radius-md)] border px-3 py-2 text-[0.75rem] leading-5",
@@ -649,7 +649,7 @@ export function SettingsSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
 
           {/* ── Story details ── */}
           <SettingsSection title="Story details">
@@ -693,7 +693,7 @@ export function SettingsSheet({
               onJumpToTag={() => onJumpToTagLine("theme")}
             />
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label
                 htmlFor="settings-story-typeface"
                 className="text-[0.875rem] font-medium text-text-emphasis"
@@ -724,7 +724,7 @@ export function SettingsSheet({
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label
                 htmlFor="settings-display-mode"
                 className="text-[0.875rem] font-medium text-text-emphasis"
@@ -753,7 +753,7 @@ export function SettingsSheet({
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label
                 htmlFor="settings-preview-font-size"
                 className="text-[0.875rem] font-medium text-text-emphasis"
@@ -788,7 +788,7 @@ export function SettingsSheet({
 
           {/* ── InkPad appearance ── */}
           <SettingsSection title="InkPad appearance">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label
                 htmlFor="settings-inkpad-theme"
                 className="text-[0.875rem] font-medium text-text-emphasis"
@@ -818,7 +818,7 @@ export function SettingsSheet({
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label
                 htmlFor="settings-editor-font-size"
                 className="text-[0.875rem] font-medium text-text-emphasis"
@@ -850,15 +850,15 @@ export function SettingsSheet({
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
                 <p
                   id="word-wrap-label"
                   className="text-[0.875rem] font-medium text-text-emphasis"
                 >
                   Word wrap
                 </p>
-                <p className="text-[0.75rem] leading-5 text-text-secondary">
+                <p className="mt-1 text-[0.75rem] leading-5 text-text-secondary">
                   Show long lines on multiple visual lines.
                 </p>
               </div>
@@ -957,7 +957,7 @@ export function SettingsSheet({
 
           {/* ── Danger zone ── */}
           <SettingsSection title="Danger zone" danger>
-            <div>
+            <div className="flex flex-col items-start gap-2">
               <Button
                 type="button"
                 variant="outline"
