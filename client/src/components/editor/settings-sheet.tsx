@@ -87,7 +87,7 @@ function SettingsSection({
     <section className="flex flex-col gap-5 border-b border-border-color py-8 first:pt-0 last:border-b-0 last:pb-0">
       <h2
         className={cn(
-          "text-[0.875rem] font-semibold tracking-tight",
+          "text-base font-semibold tracking-tight",
           danger ? "text-error" : "text-text-emphasis",
         )}
       >
@@ -107,7 +107,7 @@ function TagChip({ field }: { field: string }) {
       <TooltipTrigger asChild>
         <span
           tabIndex={0}
-          className="rounded bg-accent px-1.5 py-0.5 font-mono text-[0.6875rem] font-medium text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="rounded bg-accent px-1.5 py-0.5 font-mono text-[0.75rem] font-medium text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
           {tagName}
         </span>
@@ -122,7 +122,7 @@ function TagChip({ field }: { field: string }) {
 /** `# field:` in monospace, for use inside pending-state messages. */
 function TagCode({ field }: { field: string }) {
   return (
-    <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.6875rem]">
+    <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.75rem]">
       # {field}:
     </code>
   );
@@ -134,7 +134,7 @@ function ShowInStoryButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="ml-auto flex items-center gap-1 text-[0.75rem] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+      className="ml-auto flex items-center gap-1 text-[0.8125rem] font-medium text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
     >
       <ArrowUpRight className="h-3 w-3" aria-hidden />
       Show in file
@@ -234,7 +234,7 @@ function MetaField({
       />
 
       {!isDirty && (
-        <p className="text-[0.75rem] leading-5 text-text-secondary">
+        <p className="text-[0.8125rem] leading-snug text-text-secondary">
           {hasTag
             ? "Defined in this ink file."
             : `No # ${field}: tag in this ink file.`}
@@ -245,7 +245,7 @@ function MetaField({
         <div className="flex flex-col gap-2">
           <div
             className={cn(
-              "rounded-[var(--border-radius-md)] px-3 py-2 text-[0.75rem] leading-5",
+              "rounded-[var(--border-radius-md)] px-3 py-2 text-[0.8125rem] leading-snug",
               pendingType === "remove"
                 ? "bg-error/10 text-error"
                 : "bg-warning/10 text-warning",
@@ -273,7 +273,7 @@ function MetaField({
               size="sm"
               onClick={handleConfirm}
               className={cn(
-                "h-8 px-3 text-[0.75rem] transition-all duration-200 active:scale-[0.98]",
+                "h-8 px-3 text-[0.8125rem] font-medium transition-all duration-200 active:scale-[0.98]",
                 pendingType === "remove"
                   ? "bg-error text-white hover:brightness-110"
                   : "bg-accent-blue text-white hover:brightness-110",
@@ -286,7 +286,7 @@ function MetaField({
             <button
               type="button"
               onClick={handleUndo}
-              className="rounded text-[0.75rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="rounded text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               Undo
             </button>
@@ -352,17 +352,17 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
           id="settings-filename"
           value={draftName}
           onChange={(event) => setDraftName(event.target.value.replace(/\.ink$/i, ""))}
-          className="min-w-0 rounded-r-none border-border-color bg-editor-bg font-mono text-[0.8125rem] text-text-primary focus-visible:z-10"
+          className="min-w-0 rounded-r-none border-border-color bg-editor-bg font-mono text-[0.875rem] text-text-primary focus-visible:z-10"
         />
         <span
           aria-hidden="true"
-          className="flex items-center rounded-r-md border border-l-0 border-border-color bg-muted px-3 font-mono text-[0.8125rem] text-text-secondary"
+          className="flex items-center rounded-r-md border border-l-0 border-border-color bg-muted px-3 font-mono text-[0.875rem] text-text-secondary"
         >
           .ink
         </span>
       </div>
       {!isDirty && (
-        <p className="text-[0.75rem] leading-5 text-text-secondary">
+        <p className="text-[0.8125rem] leading-snug text-text-secondary">
           {hasMultipleFiles
             ? "Renames this .ink file within the project. The project keeps its own name, set in the toolbar."
             : "Used for saves and exports. This can be different from the story title."}
@@ -371,7 +371,7 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
       {isDirty && (
         <div className="flex flex-col gap-2">
           <p className={cn(
-            "text-[0.75rem] leading-5",
+            "text-[0.8125rem] leading-snug",
             normalizedDraft.length === 0 ? "text-error" : "text-text-secondary",
           )}>
             {normalizedDraft.length === 0
@@ -386,14 +386,14 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
               size="sm"
               disabled={!canRename}
               onClick={handleRename}
-              className="h-8 px-3 text-[0.75rem] bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
+              className="h-8 px-3 text-[0.8125rem] font-medium bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
             >
               {isRenaming ? "Renaming..." : "Rename file"}
             </Button>
             <button
               type="button"
               onClick={() => setDraftName(sourceBaseName)}
-              className="rounded text-[0.75rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="rounded text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               Undo
             </button>
@@ -529,7 +529,7 @@ function StoryThemeSection({
       <div className="flex flex-col gap-2">
         <div
           className={cn(
-            "rounded-[var(--border-radius-md)] border px-3 py-2 text-[0.75rem] leading-5",
+            "rounded-[var(--border-radius-md)] border px-3 py-2 text-[0.8125rem] leading-snug",
             statusTone,
           )}
         >
@@ -542,11 +542,11 @@ function StoryThemeSection({
               type="button"
               size="sm"
               onClick={storyAction}
-              className="h-8 w-fit px-3 text-[0.75rem] bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              className="h-8 w-fit px-3 text-[0.8125rem] font-medium bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             >
               {storyActionLabel}
             </Button>
-            <p className="text-[0.6875rem] leading-5 text-text-tertiary">
+            <p className="text-[0.75rem] leading-snug text-text-tertiary">
               {storyActionNote}
             </p>
           </div>
@@ -719,7 +719,7 @@ export function SettingsSheet({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[0.75rem] leading-5 text-text-secondary">
+              <p className="text-[0.8125rem] leading-snug text-text-secondary">
                 Applies to playable HTML exports. The export dialog uses this same value.
               </p>
             </div>
@@ -747,7 +747,7 @@ export function SettingsSheet({
                   <SelectItem value="scene">Scene</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[0.75rem] leading-5 text-text-secondary">
+              <p className="text-[0.8125rem] leading-snug text-text-secondary">
                 Transcript shows the path you've played so far. Scene shows only
                 the current moment.
               </p>
@@ -813,7 +813,7 @@ export function SettingsSheet({
                   <SelectItem value="high-contrast">High contrast</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[0.75rem] leading-5 text-text-secondary">
+              <p className="text-[0.8125rem] leading-snug text-text-secondary">
                 Changes the InkPad interface. Story theme can be set separately.
               </p>
             </div>
@@ -858,7 +858,7 @@ export function SettingsSheet({
                 >
                   Word wrap
                 </p>
-                <p className="mt-1 text-[0.75rem] leading-5 text-text-secondary">
+                <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">
                   Show long lines on multiple visual lines.
                 </p>
               </div>
@@ -897,7 +897,7 @@ export function SettingsSheet({
                   >
                     Help improve InkPad with privacy-preserving analytics
                   </p>
-                  <p className="mt-1 text-[0.75rem] leading-5 text-text-secondary">
+                  <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">
                     InkPad collects aggregate usage data, such as which features
                     are used and whether the app runs successfully. Analytics
                     never include your story text, project names, filenames, or
@@ -930,8 +930,8 @@ export function SettingsSheet({
           {/* ── About ── */}
           <SettingsSection title="About">
             <div className="flex items-center justify-between text-[0.875rem]">
-              <span className="text-text-emphasis">InkPad</span>
-              <span className="font-mono text-[0.75rem] text-text-secondary">
+              <span className="text-text-emphasis font-medium">InkPad</span>
+              <span className="font-mono text-[0.8125rem] text-text-secondary">
                 v{__APP_VERSION__}
               </span>
             </div>
@@ -962,12 +962,12 @@ export function SettingsSheet({
                 type="button"
                 variant="outline"
                 onClick={() => setIsResetOpen(true)}
-                className="min-h-10 gap-2 border-border-color text-text-primary transition-all duration-200 active:scale-[0.98]"
+                className="min-h-10 gap-2 border-border-color text-text-primary transition-all duration-200 active:scale-[0.98] font-medium"
               >
                 <RotateCcw className="h-4 w-4" />
                 Reset preferences
               </Button>
-              <p className="mt-2 text-[0.75rem] leading-5 text-text-secondary">
+              <p className="mt-2 text-[0.8125rem] leading-snug text-text-secondary">
                 Resets InkPad theme, story theme, font sizes, and word wrap to
                 defaults. Ink tags and file names stay unchanged.
               </p>
