@@ -1,6 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { Ref } from "react";
-import type { ImperativePanelHandle } from "react-resizable-panels";
 import { TopMenu } from "@/components/editor/top-menu";
 import type {
   CodeMirrorEditorHandle,
@@ -19,6 +18,7 @@ import {
 } from "@/components/editor/project-files-pane";
 import {
   EditorWorkspace,
+  type DesktopBottomPanelHandle,
   type FocusedPanel,
   type MobileDrawer,
   type MobileTab,
@@ -425,7 +425,7 @@ export default function Editor() {
   });
 
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
-  const desktopBottomPanelRef = useRef<ImperativePanelHandle>(null);
+  const desktopBottomPanelRef = useRef<DesktopBottomPanelHandle>(null);
   const previousProjectIdRef = useRef(currentProject.id);
   const isMobile = useIsMobile();
   const mobileKeyboardInset = useMobileKeyboardInset(isMobile);

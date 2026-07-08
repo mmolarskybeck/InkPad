@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
@@ -20,6 +20,7 @@ import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
 export type FocusedPanel = "code" | "preview" | null;
+export type DesktopBottomPanelHandle = ImperativePanelHandle;
 
 const MOBILE_SYNTAX_INSERTS = [
   { label: "->", insert: { text: "-> " } },
@@ -32,6 +33,14 @@ const MOBILE_SYNTAX_INSERTS = [
 ];
 
 const MOBILE_SNIPPET_TAP_MOVE_THRESHOLD = 12;
+const DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT = 44;
+const DESKTOP_BOTTOM_PANEL_DEFAULT_SIZE = 25;
+const DESKTOP_BOTTOM_PANEL_MIN_HEIGHT = 140;
+const DESKTOP_BOTTOM_PANEL_MAX_HEIGHT = 520;
+const DESKTOP_BOTTOM_PANEL_COLLAPSE_SNAP_HEIGHT = 92;
+const DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD = 28;
+const DESKTOP_BOTTOM_PANEL_CLICK_DRAG_TOLERANCE = 4;
+const DESKTOP_MAIN_PANEL_MIN_HEIGHT = 220;
 
 const SNIPPET_CATEGORY_ORDER: SnippetCategory[] = [
   "Structure",
@@ -62,6 +71,14 @@ function getSnippetInsert(text: string): CodeMirrorEditorInsertOptions {
   };
 }
 
+function clampDesktopBottomPanelHeight(height: number, containerHeight: number) {
+  const availableMaxHeight = Math.max(
+    DESKTOP_BOTTOM_PANEL_MIN_HEIGHT,
+    Math.min(DESKTOP_BOTTOM_PANEL_MAX_HEIGHT, containerHeight - DESKTOP_MAIN_PANEL_MIN_HEIGHT),
+  );
+  return Math.min(availableMaxHeight, Math.max(DESKTOP_BOTTOM_PANEL_MIN_HEIGHT, height));
+}
+
 interface EditorWorkspaceProps {
   isMobile: boolean;
   mobileTab: MobileTab;
@@ -85,7 +102,7 @@ interface EditorWorkspaceProps {
   editorRef: RefObject<CodeMirrorEditorHandle>;
   editorControlState: CodeMirrorEditorControlState;
   onToggleFind: () => void;
-  desktopBottomPanelRef: RefObject<ImperativePanelHandle>;
+  desktopBottomPanelRef: RefObject<DesktopBottomPanelHandle>;
   onErrorPanelOpened: () => void;
   onPanelLayoutChanged: (layout: PanelLayout) => void;
   onMobileTabChanged: (tab: AnalyticsMobileTab) => void;
@@ -131,6 +148,17 @@ export function EditorWorkspace({
 }: EditorWorkspaceProps) {
   const editorPanelRef = useRef<ImperativePanelHandle>(null);
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
+  const desktopWorkspaceRef = useRef<HTMLDivElement>(null);
+  const bottomPanelDragRef = useRef<{
+    pointerId: number | null;
+    startY: number;
+    startHeight: number;
+    startCollapsed: boolean;
+    hasDragged: boolean;
+  } | null>(null);
+  const bottomPanelCleanupRef = useRef<(() => void) | null>(null);
+  const suppressBottomPanelHandleClickRef = useRef(false);
+  const hasInitializedDesktopBottomPanelHeightRef = useRef(false);
   const pointerActivationHandledRef = useRef(false);
   const restoreFindAfterFocusRef = useRef(false);
   const tapGestureRef = useRef<{
@@ -142,6 +170,8 @@ export function EditorWorkspace({
   // Incremented each time split view is restored, forcing a clean PanelGroup mount.
   const [splitKey, setSplitKey] = useState(0);
   const [expandedSnippetId, setExpandedSnippetId] = useState<string | null>(null);
+  const [desktopBottomPanelHeight, setDesktopBottomPanelHeight] = useState(280);
+  const [isDesktopBottomPanelCollapsed, setIsDesktopBottomPanelCollapsed] = useState(false);
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -153,6 +183,181 @@ export function EditorWorkspace({
     setFocusedPanel(null);
     onPanelLayoutChanged("split");
   }, [onPanelLayoutChanged, setFocusedPanel]);
+
+  const getDesktopWorkspaceHeight = useCallback(() => {
+    return desktopWorkspaceRef.current?.clientHeight ?? 900;
+  }, []);
+
+  const resizeDesktopBottomPanel = useCallback((size: number) => {
+    const workspaceHeight = getDesktopWorkspaceHeight();
+    const requestedHeight = size <= 100 ? workspaceHeight * (size / 100) : size;
+
+    if (requestedHeight <= DESKTOP_BOTTOM_PANEL_COLLAPSE_SNAP_HEIGHT) {
+      setIsDesktopBottomPanelCollapsed(true);
+      return;
+    }
+
+    setIsDesktopBottomPanelCollapsed(false);
+    setDesktopBottomPanelHeight(clampDesktopBottomPanelHeight(requestedHeight, workspaceHeight));
+  }, [getDesktopWorkspaceHeight]);
+
+  const expandDesktopBottomPanel = useCallback((minSize?: number) => {
+    setIsDesktopBottomPanelCollapsed(false);
+    if (typeof minSize === "number") {
+      resizeDesktopBottomPanel(minSize);
+    }
+  }, [resizeDesktopBottomPanel]);
+
+  useImperativeHandle(desktopBottomPanelRef, () => ({
+    collapse: () => setIsDesktopBottomPanelCollapsed(true),
+    expand: expandDesktopBottomPanel,
+    getId: () => "desktop-bottom-inspector-dock",
+    getSize: () => {
+      const workspaceHeight = getDesktopWorkspaceHeight();
+      const currentHeight = isDesktopBottomPanelCollapsed
+        ? DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT
+        : desktopBottomPanelHeight;
+      return (currentHeight / workspaceHeight) * 100;
+    },
+    isCollapsed: () => isDesktopBottomPanelCollapsed,
+    isExpanded: () => !isDesktopBottomPanelCollapsed,
+    resize: resizeDesktopBottomPanel,
+  }), [
+    desktopBottomPanelHeight,
+    desktopBottomPanelRef,
+    expandDesktopBottomPanel,
+    getDesktopWorkspaceHeight,
+    isDesktopBottomPanelCollapsed,
+    resizeDesktopBottomPanel,
+  ]);
+
+  const updateBottomPanelDrag = useCallback((clientY: number) => {
+    const drag = bottomPanelDragRef.current;
+    if (!drag) return;
+
+    const deltaUp = drag.startY - clientY;
+    if (Math.abs(deltaUp) > DESKTOP_BOTTOM_PANEL_CLICK_DRAG_TOLERANCE) {
+      drag.hasDragged = true;
+      suppressBottomPanelHandleClickRef.current = true;
+    }
+
+    if (drag.startCollapsed) {
+      if (deltaUp <= DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD) return;
+
+      setIsDesktopBottomPanelCollapsed(false);
+      setDesktopBottomPanelHeight(clampDesktopBottomPanelHeight(
+        DESKTOP_BOTTOM_PANEL_MIN_HEIGHT + deltaUp - DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD,
+        getDesktopWorkspaceHeight(),
+      ));
+      return;
+    }
+
+    const nextHeight = drag.startHeight + deltaUp;
+    if (nextHeight <= DESKTOP_BOTTOM_PANEL_COLLAPSE_SNAP_HEIGHT) {
+      setIsDesktopBottomPanelCollapsed(true);
+      return;
+    }
+
+    setIsDesktopBottomPanelCollapsed(false);
+    setDesktopBottomPanelHeight(clampDesktopBottomPanelHeight(nextHeight, getDesktopWorkspaceHeight()));
+  }, [getDesktopWorkspaceHeight]);
+
+  const finishBottomPanelDrag = useCallback(() => {
+    const drag = bottomPanelDragRef.current;
+    bottomPanelDragRef.current = null;
+    bottomPanelCleanupRef.current?.();
+    bottomPanelCleanupRef.current = null;
+
+    if (drag?.hasDragged) {
+      window.setTimeout(() => {
+        suppressBottomPanelHandleClickRef.current = false;
+      }, 0);
+    }
+  }, []);
+
+  const beginBottomPanelDrag = useCallback((startY: number, pointerId: number | null) => {
+    bottomPanelCleanupRef.current?.();
+    bottomPanelDragRef.current = {
+      pointerId,
+      startY,
+      startHeight: isDesktopBottomPanelCollapsed
+        ? DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT
+        : desktopBottomPanelHeight,
+      startCollapsed: isDesktopBottomPanelCollapsed,
+      hasDragged: false,
+    };
+  }, [desktopBottomPanelHeight, isDesktopBottomPanelCollapsed]);
+
+  const handleBottomPanelPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    beginBottomPanelDrag(event.clientY, event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const handleWindowPointerMove = (moveEvent: PointerEvent) => {
+      const drag = bottomPanelDragRef.current;
+      if (!drag || drag.pointerId !== moveEvent.pointerId) return;
+      updateBottomPanelDrag(moveEvent.clientY);
+    };
+    const handleWindowPointerEnd = (endEvent: PointerEvent) => {
+      const drag = bottomPanelDragRef.current;
+      if (!drag || drag.pointerId !== endEvent.pointerId) return;
+      finishBottomPanelDrag();
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    bottomPanelCleanupRef.current = () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [beginBottomPanelDrag, finishBottomPanelDrag, updateBottomPanelDrag]);
+
+  const handleBottomPanelPointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = bottomPanelDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    updateBottomPanelDrag(event.clientY);
+  }, [updateBottomPanelDrag]);
+
+  const handleBottomPanelPointerEnd = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = bottomPanelDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    finishBottomPanelDrag();
+  }, [finishBottomPanelDrag]);
+
+  const handleBottomPanelMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || bottomPanelDragRef.current) return;
+
+    beginBottomPanelDrag(event.clientY, null);
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      updateBottomPanelDrag(moveEvent.clientY);
+    };
+    const handleWindowMouseEnd = () => {
+      finishBottomPanelDrag();
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseEnd);
+    bottomPanelCleanupRef.current = () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseEnd);
+    };
+  }, [beginBottomPanelDrag, finishBottomPanelDrag, updateBottomPanelDrag]);
+
+  const handleBottomPanelHandleClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (suppressBottomPanelHandleClickRef.current) {
+      event.preventDefault();
+      suppressBottomPanelHandleClickRef.current = false;
+      return;
+    }
+
+    setIsDesktopBottomPanelCollapsed(collapsed => !collapsed);
+  }, []);
 
   const handleFocusPanelChange = useCallback((panel: Exclude<FocusedPanel, null>) => {
     restoreFindAfterFocusRef.current = panel === "code" && editorControlState.isFindVisible;
@@ -411,6 +616,30 @@ export function EditorWorkspace({
     if (mobileDrawer !== "snippets") setExpandedSnippetId(null);
   }, [mobileDrawer]);
 
+  useEffect(() => () => {
+    bottomPanelCleanupRef.current?.();
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) return;
+
+    const clampBottomPanelForViewport = () => {
+      const workspaceHeight = getDesktopWorkspaceHeight();
+      setDesktopBottomPanelHeight((height) => {
+        if (!hasInitializedDesktopBottomPanelHeightRef.current) {
+          hasInitializedDesktopBottomPanelHeightRef.current = true;
+          return clampDesktopBottomPanelHeight(workspaceHeight * (DESKTOP_BOTTOM_PANEL_DEFAULT_SIZE / 100), workspaceHeight);
+        }
+
+        return clampDesktopBottomPanelHeight(height, workspaceHeight);
+      });
+    };
+
+    clampBottomPanelForViewport();
+    window.addEventListener("resize", clampBottomPanelForViewport);
+    return () => window.removeEventListener("resize", clampBottomPanelForViewport);
+  }, [getDesktopWorkspaceHeight, isMobile]);
+
   // Re-measure after the chrome rows mount/unmount around the keyboard.
   useEffect(() => {
     const timer = window.setTimeout(() => editorRef.current?.layout(), 0);
@@ -420,8 +649,8 @@ export function EditorWorkspace({
   // Desktop and tablet keep the inspector dock independent from primary-pane focus.
   if (!isMobile) {
     return (
-      <ResizablePanelGroup direction="vertical" className="flex-1">
-        <ResizablePanel defaultSize={75}>
+      <div ref={desktopWorkspaceRef} className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1">
           {focusedPanel === null ? (
             <ResizablePanelGroup key={splitKey} direction="horizontal" className="h-full">
               <ResizablePanel
@@ -515,9 +744,38 @@ export function EditorWorkspace({
               </div>
             </div>
           )}
-        </ResizablePanel>
-        <ResizableHandle className="h-[2px] bg-border-color hover:bg-accent-blue transition-colors" />
-        <ResizablePanel ref={desktopBottomPanelRef} defaultSize={25} minSize={12}>
+        </div>
+        <section
+          aria-label="Problems and variables dock"
+          className="relative shrink-0 overflow-hidden border-t border-border-color bg-panel-bg"
+          data-collapsed={isDesktopBottomPanelCollapsed}
+          style={{
+            height: isDesktopBottomPanelCollapsed
+              ? DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT
+              : desktopBottomPanelHeight,
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onPointerDown={handleBottomPanelPointerDown}
+                onPointerMove={handleBottomPanelPointerMove}
+                onPointerUp={handleBottomPanelPointerEnd}
+                onPointerCancel={handleBottomPanelPointerEnd}
+                onMouseDown={handleBottomPanelMouseDown}
+                onClick={handleBottomPanelHandleClick}
+                aria-label={isDesktopBottomPanelCollapsed ? "Inspector divider: drag or click to show details" : "Inspector divider: drag to resize or click to hide details"}
+                aria-expanded={!isDesktopBottomPanelCollapsed}
+                className="group absolute inset-x-0 -top-1.5 z-20 flex h-3 touch-none cursor-row-resize items-center justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
+              >
+                <span className="h-px w-full bg-border-color transition-all group-hover:h-0.5 group-hover:bg-accent-blue group-focus-visible:h-0.5 group-focus-visible:bg-accent-blue" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {isDesktopBottomPanelCollapsed ? "Drag or click to show details" : "Drag to resize; click to hide details"}
+            </TooltipContent>
+          </Tooltip>
           <div className="hidden h-full min-[1100px]:block">
             <ResizablePanelGroup direction="horizontal" className="h-full">
               <ResizablePanel defaultSize={70} minSize={40}>
@@ -549,8 +807,8 @@ export function EditorWorkspace({
               {compactVariablesPane}
             </TabsContent>
           </Tabs>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </section>
+      </div>
     );
   }
 
