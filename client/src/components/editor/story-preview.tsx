@@ -289,9 +289,9 @@ export function StoryPreview({
                 <span className="text-text-emphasis">preview</span>
               </div>
               
-              <div className="space-y-2 max-w-[320px]">
-                <p className="text-base font-semibold tracking-tight text-text-emphasis">Ready when you are</p>
-                <p className="text-[0.875rem] leading-relaxed text-text-secondary">
+              <div className="space-y-2.5 max-w-[340px]">
+                <h3 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-text-emphasis">Ready when you are</h3>
+                <p className="text-[0.9375rem] leading-[1.6] text-text-secondary text-balance">
                   Compile and run your story to start the interactive preview.
                 </p>
               </div>
@@ -299,7 +299,7 @@ export function StoryPreview({
               {onRun ? (
                 <Button 
                   onClick={onRun} 
-                  className="h-9 gap-2 bg-success px-6 text-[0.8125rem] font-semibold tracking-[0.01em] text-editor-bg shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                  className="h-9 gap-2 bg-success px-6 text-[0.875rem] font-semibold tracking-[0.01em] text-editor-bg shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
                 >
                   <Play className="h-3.5 w-3.5 fill-current" />
                   Run story
@@ -311,7 +311,7 @@ export function StoryPreview({
                   href="https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md" 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="group inline-flex items-center gap-1.5 rounded-md text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                  className="group inline-flex items-center gap-1.5 rounded-md text-[0.875rem] font-medium text-text-secondary transition-colors hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                 >
                   <BookOpen className="h-3.5 w-3.5 transition-colors group-hover:text-accent-blue" />
                   New to ink? Read the tutorial
