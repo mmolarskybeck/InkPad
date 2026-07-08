@@ -99,8 +99,8 @@ export function VariableInspector({ variables, showHeader = true }: VariableInsp
       {showHeader && (
         <div className="bg-panel-bg px-4 h-11 shrink-0 border-b border-border-color flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <List className="text-accent-blue text-sm" />
-            <span className="text-[0.875rem] font-semibold tracking-[0.01em] text-text-emphasis">Variables</span>
+            <List className="shrink-0 text-sm text-accent-blue" />
+            <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">Variables</span>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -118,7 +118,7 @@ export function VariableInspector({ variables, showHeader = true }: VariableInsp
         </div>
       )}
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-editor-bg">
         <div className="p-2 space-y-1">
           {variables.length === 0 ? (
             <div className="p-4 text-center text-[0.875rem] text-text-secondary">

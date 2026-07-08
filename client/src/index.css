@@ -39,6 +39,7 @@
   --syntax-keyword: hsl(280, 70%, 60%); /* #a755ed - Vibrant purple */
   --syntax-string: hsl(171, 72%, 32%); /* Text/data teal */
   --syntax-number: hsl(15, 80%, 55%); /* #eb6b2f - Fun orange */
+  --disabled-bg: hsl(228, 25%, 89%); /* Soft muted indigo-grey */
 }
 
 .dark {
@@ -77,6 +78,7 @@
   --syntax-keyword: hsl(277, 86%, 79%);
   --syntax-string: #9ece6a;
   --syntax-number: hsl(27, 100%, 70%);
+  --disabled-bg: hsl(228, 23%, 25%);
 }
 
 .high-contrast {

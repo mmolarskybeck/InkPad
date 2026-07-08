@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock3, Copy, Info, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock3, Copy, Loader2, XCircle } from "lucide-react";
 import type { CompileStatus } from "@/hooks/use-ink-story";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import {
@@ -38,8 +38,8 @@ export function ErrorPanel({
       {showHeader && (
         <div className="bg-panel-bg px-4 h-11 shrink-0 border-b border-border-color flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <AlertTriangle className="text-error text-sm" />
-            <span className="text-[0.875rem] font-semibold tracking-[0.01em] text-error">Problems</span>
+            <AlertCircle className="shrink-0 text-sm text-accent-blue" />
+            <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">Problems</span>
             {errorCount > 0 && (
               <span className="bg-error text-editor-bg text-[0.75rem] px-1.5 py-0.5 rounded font-semibold tabular-nums">
                 {errorCount}
@@ -67,7 +67,7 @@ export function ErrorPanel({
         </div>
       )}
       
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-editor-bg">
         <div className="p-2 space-y-1">
           {errors.length === 0 ? (
             <div className="p-4 text-center text-[0.875rem] text-text-secondary">
@@ -78,36 +78,29 @@ export function ErrorPanel({
               <div
                 key={index}
                 onClick={() => onErrorClick(error)}
-                className="flex items-start space-x-3 p-2 hover:bg-accent rounded cursor-pointer transition-colors"
+                className="group flex items-start gap-3 p-2 hover:bg-accent rounded cursor-pointer transition-colors"
               >
-                {getEditorDiagnosticSeverity(error) === "warning" ? (
-                  <AlertTriangle className="text-warning text-sm mt-0.5 flex-shrink-0" />
-                ) : getEditorDiagnosticSeverity(error) === "info" || getEditorDiagnosticSeverity(error) === "hint" ? (
-                  <Info className="text-text-secondary text-sm mt-0.5 flex-shrink-0" />
-                ) : (
-                  <XCircle className="text-error text-sm mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[0.875rem] leading-6 text-text-emphasis font-mono">
-                    <span className="text-[0.8125rem] text-text-secondary">
-                      line {getEditorDiagnosticLine(error)}{getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ''}
-                    </span>
-                    {error.fileId && (
-                      <>
-                        {" "}
-                        <span className="text-[0.8125rem] text-text-secondary">
-                          {error.fileId}
-                        </span>
-                      </>
-                    )}
-                    {' - '}
-                    <span>{error.message}</span>
-                  </div>
+                <div className="flex-1 min-w-0 font-mono text-[0.875rem] leading-relaxed">
+                  <span className={`inline-block w-10 text-[0.6875rem] font-bold tracking-wider ${
+                    getEditorDiagnosticSeverity(error) === "warning"
+                      ? "text-warning"
+                      : getEditorDiagnosticSeverity(error) === "info" || getEditorDiagnosticSeverity(error) === "hint"
+                      ? "text-text-secondary"
+                      : "text-error"
+                  }`}>
+                    {getEditorDiagnosticSeverity(error) === "warning" ? "WARN" : getEditorDiagnosticSeverity(error) === "error" ? "ERR" : "INFO"}
+                  </span>
+                  <span className="text-[0.8125rem] text-text-secondary mr-2">
+                    line {getEditorDiagnosticLine(error)}{getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ''}
+                    {error.fileId && ` ${error.fileId}`}
+                    {" -"}
+                  </span>
+                  <span className="text-text-emphasis">{error.message}</span>
                 </div>
                 <button
                   type="button"
                   onClick={(event) => handleCopyMessage(event, error)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-panel-bg hover:text-text-emphasis"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-panel-bg hover:text-text-emphasis opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   aria-label="Copy problem message"
                   title="Copy problem message"
                 >

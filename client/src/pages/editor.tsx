@@ -1732,6 +1732,7 @@ export default function Editor() {
       previewTheme={preferences.previewTheme}
       metadata={storyMetadata}
       sessionKey={storySessionKey}
+      hasErrors={compileStatus === "error"}
       onMakeChoice={makeChoice}
       onStepBack={stepBack}
       onRun={handleRun}

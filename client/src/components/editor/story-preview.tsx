@@ -2,11 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
-  ArrowRight,
   BookOpen,
   Eye,
-  MonitorPlay,
-  PenTool,
   Play,
   RotateCcw,
 } from "lucide-react";
@@ -37,6 +34,8 @@ interface StoryPreviewProps {
   onStepBack?: () => void;
   onRun?: () => void;
   onRestart?: () => void;
+  hasErrors?: boolean;
+  onViewProblems?: () => void;
 }
 
 function TranscriptEntry({ entry }: { entry: StoryTranscriptEntry }) {
@@ -64,7 +63,9 @@ export function StoryPreview({
   previewFontSize = 16,
   previewTheme = "inkpad",
   metadata,
-  sessionKey,
+  sessionKey = 0,
+  hasErrors = false,
+  onViewProblems,
   onMakeChoice,
   onStepBack,
   onRun,
@@ -155,7 +156,7 @@ export function StoryPreview({
       {showHeader ? (
         <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border-color bg-panel-bg px-3 lg:px-4">
           <div className="flex min-w-0 items-center gap-2">
-            <Eye className="h-4 w-4 shrink-0 text-accent-blue" />
+            <Eye className="shrink-0 text-sm text-accent-blue" />
             <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">
               Story Preview
             </span>
@@ -283,26 +284,50 @@ export function StoryPreview({
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-8 py-20 text-center">
-              <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-2xl border border-border-color bg-panel-bg shadow-sm ring-1 ring-black/5 dark:ring-white/5">
-                <MonitorPlay className="h-7 w-7 text-text-secondary opacity-80" strokeWidth={1.75} />
+              <div className="flex select-none items-center gap-3 text-[0.6875rem] font-semibold uppercase tracking-[0.15em]">
+                <span className="text-text-secondary">Write</span>
+                <span className="text-border-color">&rarr;</span>
+                <span className={hasErrors ? "text-text-emphasis" : "text-text-secondary"}>Run</span>
+                <span className="text-border-color">&rarr;</span>
+                <span className={hasErrors ? "text-text-secondary" : "text-text-emphasis"}>Preview</span>
               </div>
               
               <div className="space-y-2.5 max-w-[340px]">
-                <h3 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-text-emphasis">Ready when you are</h3>
+                <h3 className={`text-[1.0625rem] font-semibold tracking-[-0.01em] ${hasErrors ? 'text-destructive' : 'text-text-emphasis'}`}>
+                  {hasErrors ? "Fix errors to preview" : "Ready when you are"}
+                </h3>
                 <p className="text-[0.9375rem] leading-[1.6] text-text-secondary text-balance">
-                  Compile and run your story to start the interactive preview.
+                  {hasErrors 
+                    ? "Your story has errors that prevent preview. Fix them in the Problems panel, then run again." 
+                    : "Compile and run your story to start the interactive preview."}
                 </p>
               </div>
               
-              {onRun ? (
-                <Button 
-                  onClick={onRun} 
-                  className="h-9 gap-2 bg-success px-6 text-[0.875rem] font-semibold tracking-[0.01em] text-editor-bg shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-                >
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                  Run story
-                </Button>
-              ) : null}
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center w-full">
+                {onRun ? (
+                  <Button 
+                    onClick={onRun} 
+                    disabled={hasErrors}
+                    className={`h-9 gap-2 px-6 text-[0.875rem] font-semibold tracking-[0.01em] shadow-sm transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none ${
+                      hasErrors 
+                        ? "bg-disabled-bg text-text-secondary shadow-none" 
+                        : "bg-success text-editor-bg hover:brightness-110"
+                    }`}
+                  >
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    Run story
+                  </Button>
+                ) : null}
+                {hasErrors && onViewProblems ? (
+                  <Button
+                    variant="outline"
+                    onClick={onViewProblems}
+                    className="h-9 border-border-color px-6 text-[0.875rem] font-medium text-text-primary hover:border-text-secondary hover:bg-panel-bg shadow-sm transition-all duration-200 active:scale-[0.98]"
+                  >
+                    View problems
+                  </Button>
+                ) : null}
+              </div>
 
               <div className="mt-8 w-full max-w-[240px] border-t border-border-color pt-8 mx-auto">
                 <a 

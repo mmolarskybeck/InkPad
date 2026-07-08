@@ -80,6 +80,7 @@ export default {
         "syntax-keyword": "var(--syntax-keyword)",
         "syntax-string": "var(--syntax-string)",
         "syntax-number": "var(--syntax-number)",
+        "disabled-bg": "var(--disabled-bg)",
       },
     },
   },

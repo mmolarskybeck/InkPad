@@ -351,7 +351,7 @@ export function TopMenu({
           onClick={onRun}
           className="h-8 gap-1.5 bg-success px-3.5 text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105"
         >
-          <Play className="h-3.5 w-3.5" />
+          <Play className="h-3.5 w-3.5 fill-current" />
           Run
         </Button>
       </div>
@@ -362,7 +362,7 @@ export function TopMenu({
           size="sm"
           className="h-8 gap-1 bg-success px-2.5 text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105"
         >
-          <Play className="h-3.5 w-3.5" />
+          <Play className="h-3.5 w-3.5 fill-current" />
           Run
         </Button>
 
