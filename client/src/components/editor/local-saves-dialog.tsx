@@ -418,7 +418,7 @@ export function LocalSavesDialog({
                             />
                           </div>
                           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.75rem] text-text-secondary">
-                            <span className="font-mono">{file.name}</span>
+                            <span className="font-sans">{file.name}</span>
                             {isCurrentFile && (
                               <>
                                 <span aria-hidden="true">·</span>
@@ -509,11 +509,11 @@ export function LocalSavesDialog({
                                     "h-3.5 w-3.5 shrink-0",
                                     isEntryFile ? "text-accent-blue" : "text-text-secondary",
                                   )} />
-                                  <span className="min-w-0 truncate font-mono text-text-secondary">
+                                  <span className="min-w-0 truncate font-sans text-text-secondary">
                                     {fileName}
                                   </span>
                                   {isEntryFile && (
-                                    <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-blue ring-1 ring-inset ring-accent-blue/20">
+                                    <span className="shrink-0 rounded-sm bg-accent-blue/15 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-accent-blue ring-1 ring-inset ring-accent-blue/20">
                                       entry
                                     </span>
                                   )}
