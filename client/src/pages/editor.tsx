@@ -1602,7 +1602,13 @@ export default function Editor() {
 
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
   const mobileCodeTabLabel = projectFileIds.length > 1 ? (
-    <span className="text-[0.75rem] font-medium">{activeFileId}</span>
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="shrink-0 leading-none">Code</span>
+      <span className="shrink-0 text-[0.75rem] leading-none text-text-secondary">·</span>
+      <span className="min-w-0 truncate text-[0.75rem] leading-none text-text-secondary">
+        {activeFileId}
+      </span>
+    </span>
   ) : (
     "Code"
   );
