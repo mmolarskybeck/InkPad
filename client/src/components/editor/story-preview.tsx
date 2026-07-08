@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
+  ArrowRight,
+  BookOpen,
   Eye,
   Play,
   RotateCcw,
@@ -278,22 +280,43 @@ export function StoryPreview({
               ) : null}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
-              <div className="flex select-none items-center gap-2.5 font-mono text-[0.75rem] text-text-secondary">
-                <span>write</span><span className="text-border-color">&rarr;</span>
-                <span>run</span><span className="text-border-color">&rarr;</span>
+            <div className="flex flex-col items-center justify-center gap-8 py-20 text-center">
+              <div className="flex select-none items-center gap-3 rounded-full border border-border-color bg-panel-bg px-4 py-2 font-mono text-[0.75rem] font-medium text-text-secondary shadow-sm">
+                <span>write</span>
+                <ArrowRight className="h-3.5 w-3.5 text-border-color" />
+                <span>run</span>
+                <ArrowRight className="h-3.5 w-3.5 text-border-color" />
                 <span className="text-text-emphasis">preview</span>
               </div>
-              <div className="space-y-1.5">
-                <p className="text-[0.9375rem] font-medium text-text-emphasis">Ready when you are.</p>
-                <p className="text-[0.875rem] text-text-secondary">Compile and run your story to start the preview.</p>
+              
+              <div className="space-y-2 max-w-[320px]">
+                <p className="text-base font-semibold tracking-tight text-text-emphasis">Ready when you are</p>
+                <p className="text-[0.875rem] leading-relaxed text-text-secondary">
+                  Compile and run your story to start the interactive preview.
+                </p>
               </div>
+              
               {onRun ? (
-                <Button onClick={onRun} className="gap-1.5 bg-success text-[0.875rem] font-semibold tracking-[0.01em] text-editor-bg hover:brightness-110">
-                  <Play className="h-3 w-3" />
-                  Run Story
+                <Button 
+                  onClick={onRun} 
+                  className="h-9 gap-2 bg-success px-6 text-[0.8125rem] font-semibold tracking-[0.01em] text-editor-bg shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  Run story
                 </Button>
               ) : null}
+
+              <div className="mt-8 w-full max-w-[240px] border-t border-border-color pt-8 mx-auto">
+                <a 
+                  href="https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="group inline-flex items-center gap-1.5 rounded-md text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                >
+                  <BookOpen className="h-3.5 w-3.5 transition-colors group-hover:text-accent-blue" />
+                  New to ink? Read the tutorial
+                </a>
+              </div>
             </div>
           )}
         </div>
