@@ -1,5 +1,41 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".codex/caffeinate-hook.mjs\" start",
+            "timeout": 5,
+            "statusMessage": "Starting caffeinate"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".codex/caffeinate-hook.mjs\" start",
+            "timeout": 5,
+            "statusMessage": "Starting caffeinate"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".codex/caffeinate-hook.mjs\" stop",
+            "timeout": 5,
+            "statusMessage": "Stopping caffeinate"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|apply_patch",

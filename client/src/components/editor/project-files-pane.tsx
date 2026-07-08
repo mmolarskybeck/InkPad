@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, MoreHorizontal, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, File, FilePlus2, FileText, Lock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -209,7 +210,7 @@ export function ProjectFilesPane({
             "p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis",
             isCollapsed ? "h-8 w-8" : "h-7 w-7",
           )}
-          aria-label="New file or project"
+          aria-label="New..."
         >
           <FilePlus2 className="h-3.5 w-3.5" />
         </Button>
@@ -219,6 +220,7 @@ export function ProjectFilesPane({
           <FilePlus2 className="h-4 w-4" />
           New ink file
         </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-border-color" />
         <DropdownMenuItem onClick={onNewProject} className="cursor-pointer">
           <File className="h-4 w-4" />
           New project
@@ -232,20 +234,27 @@ export function ProjectFilesPane({
       className={`${isCollapsed ? "flex flex-col items-center" : "flex flex-col"} relative shrink-0 border-border-color bg-panel-bg`}
       style={{ width: isCollapsed ? PROJECT_FILES_COLLAPSED_WIDTH : paneWidth }}
     >
-      <button
-        type="button"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onMouseDown={handleMouseDown}
-        onClick={handleHandleClick}
-        aria-label={isCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag to resize or click to hide files"}
-        aria-expanded={!isCollapsed}
-        className="group absolute inset-y-0 -right-1 z-20 flex w-2 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
-      >
-        <span className="h-full w-px bg-border-color transition-colors group-hover:bg-accent-blue group-focus-visible:bg-accent-blue" aria-hidden="true" />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            onMouseDown={handleMouseDown}
+            onClick={handleHandleClick}
+            aria-label={isCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag to resize or click to hide files"}
+            aria-expanded={!isCollapsed}
+            className="group absolute inset-y-0 -right-1.5 z-20 flex w-3 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
+          >
+            <span className="h-full w-px bg-border-color transition-all group-hover:w-0.5 group-hover:bg-accent-blue group-focus-visible:w-0.5 group-focus-visible:bg-accent-blue" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {isCollapsed ? "Drag or click to show files" : "Drag to resize; click to hide files"}
+        </TooltipContent>
+      </Tooltip>
       {isCollapsed && (
         <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-1.5 py-2">
           <Tooltip>
@@ -302,15 +311,29 @@ export function ProjectFilesPane({
           </Tooltip>
         </div>
       </div>
-      <div className={cn(
-        "min-h-0 flex-1 overflow-auto p-1.5 pr-2.5",
-        isCollapsed ? "hidden" : "block",
-      )}>
+      <div
+        role="list"
+        aria-label="Project files"
+        className={cn(
+          "min-h-0 flex-1 overflow-auto p-1.5 pr-2.5",
+          isCollapsed ? "hidden" : "block",
+        )}
+      >
         {fileIds.map((fileId) => {
           const isActive = fileId === activeFileId;
           const isEntry = fileId === entryFileId;
           return (
-            <div key={fileId} className="group relative mb-0.5 rounded-md focus-within:bg-accent/70">
+            <div
+              key={fileId}
+              role="listitem"
+              className="group relative mb-0.5 rounded-md [&:has(:focus-visible)]:bg-accent/70"
+              onKeyDownCapture={(event) => {
+                if (event.key !== "F2" || (event.target as HTMLElement).closest("input")) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onRequestRenameProjectFile(fileId);
+              }}
+            >
               <div
                 aria-current={isActive ? "page" : undefined}
                 onClick={(event) => {
@@ -320,7 +343,7 @@ export function ProjectFilesPane({
                 className={cn(
                   "flex min-h-10 w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[0.8125rem] text-text-primary transition-colors",
                   "hover:bg-accent hover:text-text-emphasis",
-                  isActive && "bg-accent text-text-emphasis shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-blue)_22%,transparent)]",
+                  isActive && "bg-accent text-text-emphasis",
                 )}
                 title={fileId}
               >
@@ -337,7 +360,7 @@ export function ProjectFilesPane({
                     >
                       <FileText className={cn(
                         "h-3.5 w-3.5",
-                        isActive || isEntry ? "text-accent-blue" : "text-text-secondary",
+                        isActive ? "text-accent-blue" : "text-text-secondary",
                       )} />
                       {isActive && <span className="sr-only">Current file</span>}
                     </button>
@@ -396,7 +419,7 @@ export function ProjectFilesPane({
                       }}
                       className="cursor-pointer"
                     >
-                      <FileText className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                       Rename
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -409,17 +432,26 @@ export function ProjectFilesPane({
                       <Copy className="h-4 w-4" />
                       Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRequestDeleteProjectFile(fileId);
-                      }}
-                      className="cursor-pointer text-error focus:text-error"
-                      disabled={isEntry}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
+                    {isEntry ? (
+                      <DropdownMenuItem
+                        disabled
+                        className="text-text-secondary opacity-100 data-[disabled]:opacity-100"
+                      >
+                        <Lock className="h-4 w-4" />
+                        Entry file cannot be deleted
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRequestDeleteProjectFile(fileId);
+                        }}
+                        className="cursor-pointer text-error focus:text-error"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

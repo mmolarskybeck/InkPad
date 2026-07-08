@@ -51,7 +51,7 @@ import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, Copy, File, FilePlus2, FileText, Trash2, X } from "lucide-react";
+import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -1639,14 +1639,23 @@ export default function Editor() {
             <Copy className="h-4 w-4" />
             Duplicate current file
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => handleRequestDeleteProjectFile(activeFileId)}
-            className="cursor-pointer text-error focus:text-error"
-            disabled={activeFileId === currentProject.entryFile}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete current file
-          </DropdownMenuItem>
+          {activeFileId === currentProject.entryFile ? (
+            <DropdownMenuItem
+              disabled
+              className="text-text-secondary opacity-100 data-[disabled]:opacity-100"
+            >
+              <Lock className="h-4 w-4" />
+              Entry file cannot be deleted
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={() => handleRequestDeleteProjectFile(activeFileId)}
+              className="cursor-pointer text-error focus:text-error"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete current file
+            </DropdownMenuItem>
+          )}
         </>
       )}
       <DropdownMenuItem onClick={handleNew} className="cursor-pointer">
