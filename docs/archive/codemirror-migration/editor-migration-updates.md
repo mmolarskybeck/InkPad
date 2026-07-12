@@ -680,7 +680,7 @@ InkPad's architecture.
 - Updated `README.md` (features list, "How InkPad works", acknowledgments) and
   `THIRD_PARTY_NOTICES.md` (removed the Monaco Editor section) to describe
   CodeMirror 6 as the editor.
-- Updated `docs/devnotes.md`: replaced the "Monaco editor invariants" section
+- Updated `docs/archive/devnotes.md`: replaced the "Monaco editor invariants" section
   with "CodeMirror editor invariants" grounded in the actual
   `codemirror-editor.tsx` implementation (compartments, `replaceDocument`
   history/diagnostics options, StrictMode cleanup); corrected the storage-key

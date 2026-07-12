@@ -14,7 +14,7 @@ Open the live app:
 
 **[https://inkpad.shadowbox.games](https://inkpad.shadowbox.games/)**
 
-Start with the included sample story, write your own, or import an existing `.ink` file.
+Start with the included sample story, write your own, or import an existing `.ink` file or `.inkpad` project bundle.
 
 ## Features
 
@@ -28,10 +28,11 @@ Start with the included sample story, write your own, or import an existing `.in
 - **Story navigation** — Jump between knots and go directly to their definitions in the editor.
 - **Settings and accessibility** — Choose dark, light, or high-contrast themes; adjust editor and preview font sizes; control editor word wrap; and manage privacy preferences.
 - **Story details** — Store an author name and preferred preview mode with each local story.
+- **Project manager** — Search, sort, open, rename, duplicate, expand, and delete locally saved projects from one project-focused view.
 - **Local saves and recovery** — Save and manage multiple stories in your browser, with recovery drafts and local snapshots.
-- **Multi-file projects** — Organize stories into multiple `.ink` files with `INCLUDE` support. Save and export as `.inkpad` bundles to preserve file structure and project metadata.
+- **Multi-file projects** — Organize stories into multiple `.ink` files with `INCLUDE` support, project-relative paths, an entry-file model, and a collapsible project file rail.
 - **Independent naming** — Story title (from `# title:` tag), project name (display label), and file names are independently editable.
-- **Import/export** — Import `.ink` files and export your work as `.ink` source, `.inkpad` (full-fidelity project bundle), JSON, or a playable web story.
+- **Import/export** — Import `.ink` files or `.inkpad`/ZIP project bundles, and export your work as `.ink` source, `.inkpad` (full-fidelity project bundle), JSON, or a playable web story.
 - **Responsive layout** — Desktop split view with a mobile-friendly editor/preview tab layout.
 
 ## Saving and privacy
@@ -42,7 +43,7 @@ Stories are currently saved in your browser’s local storage. Your writing is n
 
 InkPad includes basic, privacy-preserving analytics to track coarse events (like app load, run times, or settings changes) using sanitized URLs. This is strictly opt-out and can be disabled completely in the Settings menu.
 
-Because browser storage is local to your device and browser, you should export your `.ink` files regularly for backup or to move projects between devices.
+Because browser storage is local to your device and browser, you should export `.ink` files or `.inkpad` bundles regularly for backup or to move projects between devices.
 
 InkPad separates browser-wide preferences from story-specific settings:
 
@@ -94,9 +95,9 @@ InkPad’s next planned work keeps the app local-first and account-free:
 
 - Ink-aware code completion and a code snippet panel
 - Shareable, immutable project snapshot links
-- Simple multi-file projects using Ink’s built-in `INCLUDE` support and a portable `.inkpad` format
+- Mobile project-file navigation and project persistence hardening
 
-The editor now includes a compact multi-file project rail, strict `INCLUDE` resolution against project files, project-relative paths such as `chapters/one.ink`, and full-project `.inkpad` export. Richer file management is still being built incrementally.
+The editor now includes a project manager, multi-file project rail, strict `INCLUDE` resolution against project files, and full-fidelity `.inkpad` import/export. See [docs/roadmap.md](./docs/roadmap.md) for the remaining work.
 
 See [docs/roadmap.md](./docs/roadmap.md) for the phased implementation checklist.
 

@@ -243,13 +243,12 @@ sections for the missing-start fix. Both live in `inkSymbols.ts`.
 It is acceptable for v1 to miss edge cases. The goal is "InkPad can still find
 declared sections in a broken file," not perfect semantic parsing.
 
-> **`fileId` is already real; multi-file is not.** The project model and worker
-> contract are `{ entryFile, files: Record<string, string> }` — the map key
-> *is* the fileId — but the UI still compiles a single file
-> (`createSingleFileCompileInput`), and `INCLUDE` is recognized-but-ignored
-> with a warning (`workers/compile-ink-project.ts`). v1 threads the single
-> current document through; multi-file `INCLUDE` later does not force a
-> symbol-table refactor.
+> **`fileId` follows the project file map.** The project model and worker
+> contract are `{ entryFile, files: Record<string, string> }`; the map key is
+> the fileId. The current UI compiles the active `InkProject`, resolves exact
+> project-file `INCLUDE` paths, and routes diagnostics back to the relevant
+> file. Cross-file symbol navigation remains future work and does not require
+> changing the project/worker contract.
 
 ### Named fast-follows (not v1)
 

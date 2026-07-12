@@ -52,7 +52,7 @@ Near-term priorities include:
 - Complete accessibility verification and polish for Settings and preview modes
 - Ink-aware completions and reusable code snippets
 - Shareable project snapshot links without accounts
-- Incremental multi-file support built on Ink `INCLUDE`
+- Mobile project-file navigation and persistence hardening for multi-file projects
 - Persistence and multi-tab conflict hardening
 
 Small, focused improvements are usually easier to review than large rewrites.
@@ -115,7 +115,7 @@ http://localhost:3173
 InkPad/
 ├── client/                 # React/Vite app
 │   ├── src/
-│   │   ├── components/     # Editor, preview, toolbar, panels, UI primitives
+│   │   ├── components/     # Editor, preview, project manager, toolbar, panels, UI primitives
 │   │   ├── features/       # Focused import/export feature helpers
 │   │   ├── hooks/          # Editor, story runtime, autosave orchestration
 │   │   ├── lib/            # Project model, preferences, persistence, compiler helpers
@@ -124,7 +124,7 @@ InkPad/
 │   │   ├── types/          # Project, worker, and runtime contracts
 │   │   └── workers/        # inkjs compiler worker
 │   └── index.html
-├── docs/                   # Roadmap and implementation notes
+├── docs/                   # Roadmap, active specs, and archived history
 ├── core.md                 # Canonical architecture overview
 ├── vite.config.ts
 ├── LICENSE
@@ -166,7 +166,7 @@ InkPad users may be writing original stories. Avoid changes that risk data loss.
 
 Before submitting changes that affect saving, loading, importing, exporting, local storage, or editor state, test carefully.
 
-The portable domain object is `InkProject`. Browser-wide user preferences remain separate from project content. Current display title, author, preview mode, and optional remembered HTML-export profile are stored with local single-file documents until the portable project schema supports metadata. Display titles and filenames are independent. HTML export overrides do not rewrite Ink source. See [core.md](./core.md).
+The portable domain object is `InkProject`. Browser-wide user preferences remain separate from project content. Single-file and multi-file stories use the same project model, and `.inkpad` bundles preserve project files, entry-file information, and supported story settings. Display titles, project names, and filenames are independent. HTML export overrides do not rewrite Ink source. See [core.md](./core.md).
 
 ## Pull request guidelines
 

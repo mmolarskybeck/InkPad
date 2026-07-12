@@ -1,6 +1,6 @@
 # InkPad Architecture
 
-This is the canonical architecture overview. Low-level failure-sensitive notes live in [docs/devnotes.md](./docs/devnotes.md), and planned work lives in [docs/roadmap.md](./docs/roadmap.md).
+This is the canonical architecture overview. Planned work lives in [docs/roadmap.md](./docs/roadmap.md); historical implementation notes are kept in [`docs/archive/`](./docs/archive/).
 
 ## Product constraints
 
@@ -125,7 +125,7 @@ User preferences do not belong in `InkProject`. Source-authored global tags (`# 
 
 ### Persistence
 
-Current persistence is local and document-based:
+Current persistence is local and project-based:
 
 - Primary autosave record containing source plus optional story settings
 - A fixed recovery-draft record for crash/tab-close recovery
@@ -139,6 +139,10 @@ Current persistence is local and document-based:
 
 Recovery and autosave are separate safety layers. Do not remove recovery merely because autosave exists: asynchronous work triggered during unload is not guaranteed to finish.
 
+### Project manager
+
+`client/src/components/editor/local-saves-dialog.tsx` provides the project manager for browser-local saves. It groups project files under their saved project, supports search and sorting, and exposes open, rename, duplicate, and delete operations. The project file rail in `client/src/components/editor/project-files-pane.tsx` manages files inside the active project.
+
 ### Import and export
 
 Focused helpers live under:
@@ -149,7 +153,7 @@ client/src/features/
   export/
 ```
 
-Editable import currently accepts `.ink`. Export supports source, compiled JSON, and playable web output. `.inkproject` and snapshot-link support are planned.
+Editable import accepts `.ink` source files and `.inkpad`/ZIP project bundles. `.inkpad` bundles are ZIP archives containing an `inkpad.json` manifest, source files under `ink/`, and supported project settings. Export supports individual source files, full-fidelity `.inkpad` bundles, compiled JSON, and playable web output. Snapshot-link support is planned.
 
 ## State strategy
 
@@ -189,7 +193,6 @@ Completed work:
 
 Remaining work for Phase 5 (see [docs/roadmap.md](./docs/roadmap.md)):
 
-- [ ] `.inkpad` import support (export is complete)
 - [ ] Mobile file-rail UX for phones
 - [ ] Folder/tree ergonomics for path-shaped file names, without introducing separate folder objects.
 

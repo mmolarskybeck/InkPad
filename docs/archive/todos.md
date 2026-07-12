@@ -18,7 +18,7 @@ Canonical detail lives in `docs/structural-assistance-spec.md`.
 
 ### Quick wins
 * **Export dialog inline rename** — wire the suggested-name input to `pinExportNameBase()` so users can edit the `.inkpad` name in the export dialog, not just in Save As. (20 min)
-* **`.inkpad` import** — wire load path to detect and parse `.inkpad` files as multi-file projects. (Roadmap Phase 5)
+* ~~**`.inkpad` import** — detect, validate, and open `.inkpad`/ZIP bundles as multi-file projects.~~
 
 ### Documentation
 * Update project onboarding with the new naming model: independent story title, project name, and file names.
@@ -59,8 +59,9 @@ Canonical detail lives in `docs/structural-assistance-spec.md`.
 * Quick-fix sheet / Problems-panel fix buttons
 * Quick insert tool / palette
 * Custom project snippets
-* Multi-file INCLUDE support
-	* export/import as .inkpad format, a ZIP containing ink source files + JSON manifest
+* Multi-file project refinements
+	* mobile file-rail UX
+	* export/import as `.inkpad` format is complete; continue hardening validation and persistence
 * [[Monaco features to build out]]
 
 ### Done

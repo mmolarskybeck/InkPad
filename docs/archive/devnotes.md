@@ -95,11 +95,19 @@ Worker regression checklist:
 
 ```ts
 interface InkProject {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   name: string;
+  nameIsExplicit: boolean;
+  fileNameIsExplicit: boolean;
+  exportNameBase: string;
+  exportNameIsExplicit: boolean;
   entryFile: string;
   files: Record<string, { content: string }>;
+  author?: string;
+  previewMode?: "transcript" | "scene";
+  storyTypeface?: "serif" | "sans" | "mono";
+  htmlExport?: object;
 }
 ```
 
@@ -112,13 +120,13 @@ Keep these concerns out of the project payload:
 - Save status and transient UI state
 - Runtime story state and transcript history
 
-Schema changes require an explicit version bump and migration strategy. Snapshot links and `.inkproject` files must never depend on undocumented React state.
+Schema changes require an explicit version bump and migration strategy. Snapshot links and `.inkpad` files must never depend on undocumented React state.
 
-The current single-file persistence layer does store limited story-specific settings—author and preview mode—beside source content. This is an interim `InkDocument` behavior, not yet part of the portable `InkProject` contract.
+Single-file stories are represented as one-file `InkProject`s, just like multi-file stories. Story-specific settings supported by the project model travel with `.inkpad` bundles; browser-wide preferences remain separate.
 
 ## Persistence architecture
 
-InkPad currently has no backend. Persistence is browser-local and still document-based while the UI supports one active file.
+InkPad currently has no backend. Persistence is browser-local and project-based, with one active file selected inside the current project.
 
 ### Storage records
 

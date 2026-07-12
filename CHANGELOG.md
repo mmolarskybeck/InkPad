@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Project manager for searching, sorting, opening, renaming, duplicating, expanding, and deleting browser-local projects
+- `.inkpad`/ZIP project import with manifest validation, path-collision checks, metadata restoration, and local-project creation
+- Full-fidelity `.inkpad` export containing the project manifest, all Ink source files, entry-file information, and supported settings
+- Multi-file project rail with create, rename, duplicate, delete, entry-file protection, project-relative paths, and `INCLUDE` resolution
 - Versioned, browser-local `UserPreferences` storage with migration from the previous theme key
 - Responsive Settings sheet for story details, appearance, editor, preview, and About information
-- Dark, light, and high-contrast application and Monaco themes
+- Dark, light, and high-contrast application and CodeMirror themes
 - Editor and preview font-size preferences plus editor word-wrap control
 - Project-local author and transcript/scene preview settings, preserved through save, recovery, rename, and duplication
 - Transcript and scene Story Preview renderers
@@ -23,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collapsible desktop project file rail, collapsed by default for single-file stories, with a New menu for adding an Ink file or starting a blank project
 - Recovery-aware top-level error boundary
 - Automated project-model and multi-file compiler tests
-- Phone/desktop progressive hydration split with viewport-gated Monaco loading, phone Preview default, delayed phone prefetch, and branded mobile loading fallback
+- Phone/desktop progressive hydration split with viewport-gated editor loading, phone Preview default, delayed phone prefetch, and branded mobile loading fallback
 - Centralized privacy-preserving analytics wrapper with allowlisted events, opt-out storage, URL sanitization, and Vercel Analytics gating
 - Settings privacy/data toggle for analytics opt-in/out
 - Privacy tests and telemetry for coarse app events (load, run results, layout changes, settings changes)
@@ -35,7 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Monaco appearance preferences now update the existing editor instance through `updateOptions`
+- Project persistence now uses the shared `InkProject` model for both single-file and multi-file stories
+- Import and export menus now distinguish portable `.ink` source files from full `.inkpad` project bundles
+- CodeMirror appearance preferences now update the existing editor instance through compartments
 - Preview display mode is changed in Settings rather than through duplicate controls in the preview
 - Restart moved from the global navigation into the Story Preview header
 - Global preferences and story-local settings now use separate persistence scopes

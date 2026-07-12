@@ -101,18 +101,18 @@ This is the working implementation checklist. It favors small, testable slices a
 
 - [x] Promote live editor compile state from `InkDocument` to `InkProject`
 - [x] Add a project file list and active-file selection
-- [ ] Add create, rename, duplicate, and delete file operations
-- [ ] Prevent deletion or invalid renaming of the entry file without an explicit replacement
+- [x] Add create, rename, duplicate, and delete file operations
+- [x] Prevent deletion or invalid renaming of the entry file without an explicit replacement
 - [x] Add minimal create-file support
 - [x] Resolve exact-name `INCLUDE` paths from the project file map
-- [ ] Decide and document relative-path behavior; inkjs `JsonFileHandler` does not resolve relative imports
+- [x] Define and document project-relative path behavior; normalized paths such as `chapters/one.ink` resolve from the project file map by exact path
 - [x] Display compiler errors with filename and line information
 - [x] Route Problems clicks by file before jumping to the diagnostic line
 - [ ] Finish project persistence hardening beyond serialized `.inkpad` autosave
 - [x] Add `.inkpad` export
-- [ ] Add `.inkpad` import
-- [ ] Keep plain `.ink` import/export working as a single-file project workflow
-- [ ] Migrate existing local single-file saves safely
+- [x] Add `.inkpad` import with manifest and path validation
+- [x] Keep plain `.ink` import/export working as a single-file project workflow
+- [x] Migrate existing local single-file saves safely
 - [ ] Add multi-file recovery and snapshot tests
 - [x] Make desktop project drawer collapsible and collapsed by default when only a single Ink file is open
 - [x] Update New controls to offer adding an Ink file or starting a blank project
