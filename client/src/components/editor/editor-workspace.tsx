@@ -821,33 +821,19 @@ export function EditorWorkspace({
         className="flex min-h-0 flex-1 flex-col"
       >
         {!isMobileSearchMode && !isMobileKeyboardOpen && (
-          <div className="flex h-10 w-full shrink-0 items-stretch border-b border-border-color bg-panel-bg text-text-secondary">
+          <div className="relative flex h-10 w-full shrink-0 items-stretch border-b border-border-color bg-panel-bg text-text-secondary">
             <TabsList className="grid h-full min-w-0 flex-1 grid-cols-2 rounded-none bg-transparent p-0">
               {mobileCodeTabMenu ? (
-                <div className="relative h-full min-w-0">
-                  <TabsTrigger
-                    value="code"
-                    onPointerEnter={onCodeTabIntent}
-                    onFocus={onCodeTabIntent}
-                    className="relative h-full w-full min-w-0 justify-start rounded-none pl-3 pr-11 text-left text-[0.8125rem] font-medium after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue"
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      {mobileCodeTabLabel ?? "Code"}
-                    </span>
-                  </TabsTrigger>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="Open file menu"
-                        className="absolute inset-y-1 right-0 z-10 flex w-12 items-center justify-center rounded-md text-text-secondary/50 transition-colors hover:bg-accent/45 hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue"
-                      >
-                        <ChevronDown aria-hidden="true" className="h-3 w-3 stroke-[1.75]" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    {mobileCodeTabMenu}
-                  </DropdownMenu>
-                </div>
+                <TabsTrigger
+                  value="code"
+                  onPointerEnter={onCodeTabIntent}
+                  onFocus={onCodeTabIntent}
+                  className="relative h-full w-full min-w-0 justify-start rounded-none pl-3 pr-11 text-left text-[0.8125rem] font-medium after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {mobileCodeTabLabel ?? "Code"}
+                  </span>
+                </TabsTrigger>
               ) : (
                 <TabsTrigger
                   value="code"
@@ -862,6 +848,20 @@ export function EditorWorkspace({
                 Preview
               </TabsTrigger>
             </TabsList>
+            {mobileCodeTabMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Open file menu"
+                    className="absolute inset-y-1 right-1/2 z-10 flex w-12 translate-x-1/2 items-center justify-center rounded-md text-text-secondary/50 transition-colors hover:bg-accent/45 hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue"
+                  >
+                    <ChevronDown aria-hidden="true" className="h-3 w-3 stroke-[1.75]" />
+                  </button>
+                </DropdownMenuTrigger>
+                {mobileCodeTabMenu}
+              </DropdownMenu>
+            )}
           </div>
         )}
         <TabsContent value="code" forceMount className="m-0 min-h-0 flex-1 data-[state=inactive]:hidden">

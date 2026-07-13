@@ -32,7 +32,7 @@
   --secondary-blue: hsl(195, 90%, 50%); /* #0ea5e9 - Sky blue */
   --text-primary: hsl(230, 25%, 35%); /* #42486f - Sleek indigo-grey */
   --text-emphasis: hsl(230, 40%, 20%); /* #1f2447 - Dark punchy navy */
-  --text-secondary: hsl(230, 15%, 55%); /* #7d829d */
+  --text-secondary: hsl(230, 15%, 42%); /* readable secondary text on light panels */
   --success: hsl(151, 65%, 40%); /* Shared action/status emerald */
   --error: hsl(340, 80%, 55%); /* #e82e6c - Vibrant pink-red */
   --warning: hsl(30, 90%, 55%); /* #f58e1d - Bright orange */

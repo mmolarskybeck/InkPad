@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Story as InkStory, type Story } from 'inkjs';
+import type { Story } from 'inkjs';
 import type { ErrorType } from 'inkjs/engine/Error';
 import {
   compileInkScript,
@@ -41,8 +41,9 @@ type CompileSource = string | InkCompileInput;
 
 const INK_RUNTIME_ERROR_TYPE = 2;
 
-function createRuntimeStoryFromJson(compiledJson: string): Story {
-  return new InkStory(normalizeStoryJson(compiledJson));
+function createRuntimeStoryFromJson(runtimeStory: Story, compiledJson: string): Story {
+  const StoryConstructor = runtimeStory.constructor as new (storyData: unknown) => Story;
+  return new StoryConstructor(normalizeStoryJson(compiledJson));
 }
 
 function runtimeIssueFromInkError(message: string, type: ErrorType): RuntimeIssue {
@@ -309,7 +310,7 @@ export function useInkStory() {
       if (typeof storyJson === 'string') {
         try {
           // Re-instantiate from raw JSON to guarantee a perfectly clean runtime state
-          activeRuntimeStory = createRuntimeStoryFromJson(storyJson);
+          activeRuntimeStory = createRuntimeStoryFromJson(activeRuntimeStory, storyJson);
         } catch (e) {
           console.error('Error instantiating clean story in runStory:', e);
         }
@@ -340,7 +341,10 @@ export function useInkStory() {
 
     if (activeStoryJson) {
       try {
-        runtimeStory = createRuntimeStoryFromJson(activeStoryJson);
+        const sourceStory = activeRuntimeStoryRef.current ?? latestCompiledRuntimeStory;
+        if (sourceStory) {
+          runtimeStory = createRuntimeStoryFromJson(sourceStory, activeStoryJson);
+        }
       } catch (error) {
         console.error('[InkPad] restartStory: createRuntimeStoryFromJson failed:', error);
       }

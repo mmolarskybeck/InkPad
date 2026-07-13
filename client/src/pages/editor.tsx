@@ -9,9 +9,6 @@ import type {
 import { StoryPreview } from "@/components/editor/story-preview";
 import { ErrorPanel } from "@/components/editor/error-panel";
 import { VariableInspector } from "@/components/editor/variable-inspector";
-import { FileActionDialog } from "@/components/editor/file-action-dialog";
-import { LocalSavesDialog } from "@/components/editor/local-saves-dialog";
-import { SettingsSheet } from "@/components/editor/settings-sheet";
 import {
   ProjectFilesPane,
   PROJECT_FILES_DEFAULT_WIDTH,
@@ -102,6 +99,24 @@ import {
 const LazyCodeMirrorEditor = lazy(() =>
   loadCodeMirrorEditor().then((module) => ({
     default: module.CodeMirrorEditor,
+  })),
+);
+
+const LazySettingsSheet = lazy(() =>
+  import("@/components/editor/settings-sheet").then((module) => ({
+    default: module.SettingsSheet,
+  })),
+);
+
+const LazyFileActionDialog = lazy(() =>
+  import("@/components/editor/file-action-dialog").then((module) => ({
+    default: module.FileActionDialog,
+  })),
+);
+
+const LazyLocalSavesDialog = lazy(() =>
+  import("@/components/editor/local-saves-dialog").then((module) => ({
+    default: module.LocalSavesDialog,
   })),
 );
 
@@ -1836,61 +1851,71 @@ export default function Editor() {
         saveState={autosave.saveState}
       />
 
-      <SettingsSheet
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-        parsedGlobalTags={parsedGlobalTags}
-        currentFileName={currentDocument.filename}
-        storyTitle={resolvedStoryTitle}
-        author={currentDocument.author}
-        previewMode={currentDocument.previewMode ?? "transcript"}
-        storyTypeface={effectiveStoryTypeface}
-        onWriteTag={handleWriteTag}
-        onStoryDetailsChange={(updates) => {
-          void handleProjectSettingsChange(updates);
-        }}
-        onStoryTypefaceChange={handleStoryTypefaceChange}
-        onRenameFile={handleRenameCurrentDocument}
-        hasMultipleFiles={hasMultipleProjectFiles}
-        onPreviewModeChange={(previewMode) => {
-          void handleProjectSettingsChange({ previewMode });
-        }}
-        onJumpToTagLine={handleJumpToTagLine}
-      />
+      <Suspense fallback={null}>
+        {isSettingsOpen && (
+          <LazySettingsSheet
+            open={isSettingsOpen}
+            onOpenChange={setIsSettingsOpen}
+            parsedGlobalTags={parsedGlobalTags}
+            currentFileName={currentDocument.filename}
+            storyTitle={resolvedStoryTitle}
+            author={currentDocument.author}
+            previewMode={currentDocument.previewMode ?? "transcript"}
+            storyTypeface={effectiveStoryTypeface}
+            onWriteTag={handleWriteTag}
+            onStoryDetailsChange={(updates) => {
+              void handleProjectSettingsChange(updates);
+            }}
+            onStoryTypefaceChange={handleStoryTypefaceChange}
+            onRenameFile={handleRenameCurrentDocument}
+            hasMultipleFiles={hasMultipleProjectFiles}
+            onPreviewModeChange={(previewMode) => {
+              void handleProjectSettingsChange({ previewMode });
+            }}
+            onJumpToTagLine={handleJumpToTagLine}
+          />
+        )}
 
-      <FileActionDialog
-        mode={fileAction?.mode ?? null}
-        initialName={getFileActionInitialName()}
-        extension={getFileActionExtension()}
-        onOpenChange={(open) => {
-          if (!open) {
-            setFileAction(null);
-          }
-        }}
-        onConfirm={handleConfirmFileAction}
-      />
+        {fileAction !== null && (
+          <LazyFileActionDialog
+            mode={fileAction.mode}
+            initialName={getFileActionInitialName()}
+            extension={getFileActionExtension()}
+            onOpenChange={(open) => {
+              if (!open) {
+                setFileAction(null);
+              }
+            }}
+            onConfirm={handleConfirmFileAction}
+          />
+        )}
 
-      <FileActionDialog
-        mode={isAddProjectFileOpen ? "add-file" : null}
-        initialName="chapter"
-        extension=".ink"
-        onOpenChange={setIsAddProjectFileOpen}
-        onConfirm={handleConfirmAddProjectFile}
-      />
+        {isAddProjectFileOpen && (
+          <LazyFileActionDialog
+            mode="add-file"
+            initialName="chapter"
+            extension=".ink"
+            onOpenChange={setIsAddProjectFileOpen}
+            onConfirm={handleConfirmAddProjectFile}
+          />
+        )}
 
-      <LocalSavesDialog
-        open={isLocalSavesOpen}
-        files={recentFiles}
-        currentFileName={localSaveFileName}
-        storageAvailable={storageAvailable}
-        onOpenChange={setIsLocalSavesOpen}
-        onOpenFile={handleOpenManagedFile}
-        onRenameProject={handleRenameManagedProject}
-        onDuplicateFile={handleDuplicateLocalFile}
-        onDeleteFile={setDeleteTarget}
-        onDeleteFiles={handleDeleteLocalFiles}
-        onExport={exportInk}
-      />
+        {isLocalSavesOpen && (
+          <LazyLocalSavesDialog
+            open={isLocalSavesOpen}
+            files={recentFiles}
+            currentFileName={localSaveFileName}
+            storageAvailable={storageAvailable}
+            onOpenChange={setIsLocalSavesOpen}
+            onOpenFile={handleOpenManagedFile}
+            onRenameProject={handleRenameManagedProject}
+            onDuplicateFile={handleDuplicateLocalFile}
+            onDeleteFile={setDeleteTarget}
+            onDeleteFiles={handleDeleteLocalFiles}
+            onExport={exportInk}
+          />
+        )}
+      </Suspense>
 
       <AlertDialog open={projectDeleteTarget !== null} onOpenChange={(open) => {
         if (!open) {
