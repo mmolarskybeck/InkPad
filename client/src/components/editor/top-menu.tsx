@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Archive, ChevronDown, PenTool, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
+import { Archive, ChevronDown, Download, PenTool, Upload, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportMenu } from "./story-export-menu";
 import { PlayableHtmlExportDialog } from "./playable-html-export-dialog";
@@ -31,6 +32,49 @@ import type {
   HtmlExportTheme,
 } from "@/features/export/html-export-options";
 import type { StoryMetadata, ThemeName } from "@/lib/tag-interpreter";
+
+
+/** Inline expand/collapse row for the mobile menu. Items render in the drawer, not a popover. */
+function MobileMenuDisclosure({
+  id,
+  icon,
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  icon: React.ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Button
+        variant="ghost"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onToggle}
+        className="w-full justify-start gap-2"
+      >
+        {icon}
+        {label}
+        <ChevronDown
+          className={cn(
+            "ml-auto h-4 w-4 text-text-secondary transition-transform duration-200 motion-reduce:transition-none",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </Button>
+      <div id={id} className={cn("gap-1 pl-6 pt-1", open ? "grid" : "hidden")}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface TopMenuProps {
   title: string;
@@ -100,6 +144,8 @@ export function TopMenu({
   saveState = "saved"
 }: TopMenuProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileExportOpen, setIsMobileExportOpen] = useState(false);
+  const [isMobileOpenOpen, setIsMobileOpenOpen] = useState(false);
   const [isHtmlExportOpen, setIsHtmlExportOpen] = useState(false);
 
   const getSaveStatusDotClass = () => {
@@ -366,7 +412,16 @@ export function TopMenu({
           Run
         </Button>
 
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <Sheet
+          open={isMobileMenuOpen}
+          onOpenChange={(open) => {
+            setIsMobileMenuOpen(open);
+            if (!open) {
+              setIsMobileOpenOpen(false);
+              setIsMobileExportOpen(false);
+            }
+          }}
+        >
           <SheetTrigger asChild>
             <Button
               variant="ghost"
@@ -377,16 +432,21 @@ export function TopMenu({
               <Menu className="h-4 w-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[86vw] max-w-sm bg-panel-bg border-border-color p-4 pt-12 text-text-primary">
-            <SheetHeader>
-              <SheetTitle className="sr-only">Menu</SheetTitle>
+          <SheetContent
+            side="right"
+            className="flex w-[86vw] max-w-sm flex-col overflow-y-auto overscroll-contain touch-pan-y border-border-color bg-panel-bg p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] text-text-primary"
+          >
+            <SheetHeader className="mb-1 space-y-0 pr-8">
+              <SheetTitle className="flex h-6 items-center text-[0.875rem] font-semibold text-text-emphasis">
+                Menu
+              </SheetTitle>
               <SheetDescription className="sr-only">
                 File, export, navigation, and settings actions.
               </SheetDescription>
             </SheetHeader>
 
-            <div className="space-y-4">
-              <div className="grid gap-2">
+            <div className="space-y-3">
+              <div className="grid gap-1">
                 {onNewFile && (
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onNewFile} className="justify-start gap-2">
@@ -401,15 +461,49 @@ export function TopMenu({
                     New project
                   </Button>
                 </SheetClose>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="justify-start gap-2">
-                      <FolderOpen className="h-4 w-4" />
-                      Open
+                <MobileMenuDisclosure
+                  id="mobile-open-items"
+                  icon={<FolderOpen className="h-4 w-4" />}
+                  label="Open"
+                  open={isMobileOpenOpen}
+                  onToggle={() => setIsMobileOpenOpen((open) => !open)}
+                >
+                  <SheetClose asChild>
+                    <Button variant="ghost" onClick={onOpen} className="justify-start gap-2">
+                      <Upload className="h-4 w-4" aria-hidden />
+                      Import .ink, .inkpad, or .zip...
                     </Button>
-                  </DropdownMenuTrigger>
-                  {renderRecentFilesMenu()}
-                </DropdownMenu>
+                  </SheetClose>
+                  <div className="flex items-center gap-2 px-4 pt-2 text-[0.75rem] font-medium text-text-secondary">
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    Recent
+                  </div>
+                  {recentFiles.length === 0 ? (
+                    <p className="px-4 py-2 text-[0.8125rem] text-text-secondary">No saved projects</p>
+                  ) : (
+                    recentFiles.slice(0, 8).map((file) => (
+                      <SheetClose asChild key={file.name}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => onOpenRecent(file.name)}
+                          className="h-auto flex-col items-start gap-0.5 py-2"
+                        >
+                          <span className="flex w-full items-center justify-between gap-3">
+                            <span className="truncate text-text-emphasis">
+                              {file.settings?.title ?? file.name.replace(/\.ink$/i, "")}
+                            </span>
+                            {file.name === currentSaveFileName && (
+                              <span className="text-[0.6875rem] text-accent-blue">open</span>
+                            )}
+                          </span>
+                          <span className="text-[0.75rem] font-normal text-text-secondary">
+                            {file.name} · {formatRecentFileTime(file.lastSavedAt ?? file.lastModified)}
+                          </span>
+                        </Button>
+                      </SheetClose>
+                    ))
+                  )}
+                </MobileMenuDisclosure>
                 <SheetClose asChild>
                   <Button variant="ghost" onClick={onSave} className="justify-start gap-2">
                     <Save className="h-4 w-4" />
@@ -431,10 +525,13 @@ export function TopMenu({
               </div>
 
               <div className="border-t border-border-color pt-4">
-                <div className="mb-2 px-3 text-[0.75rem] font-medium uppercase tracking-[0.08em] text-text-secondary">
-                  Export
-                </div>
-                <div className="grid gap-2">
+                <MobileMenuDisclosure
+                  id="mobile-export-items"
+                  icon={<Download className="h-4 w-4" />}
+                  label="Export"
+                  open={isMobileExportOpen}
+                  onToggle={() => setIsMobileExportOpen((open) => !open)}
+                >
                   <SheetClose asChild>
                     <Button variant="ghost" onClick={onExportInk} disabled={isExporting} className="justify-start">
                       Current .ink file
@@ -472,7 +569,7 @@ export function TopMenu({
                   >
                     Playable HTML
                   </Button>
-                </div>
+                </MobileMenuDisclosure>
               </div>
 
               <div className="border-t border-border-color pt-4">
@@ -496,7 +593,7 @@ export function TopMenu({
                 </Select>
               </div>
 
-              <div className="grid gap-2 border-t border-border-color pt-4">
+              <div className="grid gap-1 border-t border-border-color pt-4">
                 <Button
                   variant="ghost"
                   onClick={() => {
