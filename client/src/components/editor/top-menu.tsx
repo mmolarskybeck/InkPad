@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -147,6 +147,8 @@ export function TopMenu({
   const [isMobileExportOpen, setIsMobileExportOpen] = useState(false);
   const [isMobileOpenOpen, setIsMobileOpenOpen] = useState(false);
   const [isHtmlExportOpen, setIsHtmlExportOpen] = useState(false);
+  // "New ink file" hands focus to the inline rename in the files pane; skip the menu's focus restore.
+  const skipNewMenuFocusRestoreRef = useRef(false);
 
   const getSaveStatusDotClass = () => {
     const baseClass = "h-2 w-2 flex-shrink-0 rounded-full transition-colors duration-200";
@@ -255,8 +257,22 @@ export function TopMenu({
             New
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-52 bg-panel-bg border-border-color">
-          <DropdownMenuItem onClick={onNewFile} className="cursor-pointer">
+        <DropdownMenuContent
+          align="start"
+          className="w-52 bg-panel-bg border-border-color"
+          onCloseAutoFocus={(event) => {
+            if (!skipNewMenuFocusRestoreRef.current) return;
+            skipNewMenuFocusRestoreRef.current = false;
+            event.preventDefault();
+          }}
+        >
+          <DropdownMenuItem
+            onClick={() => {
+              skipNewMenuFocusRestoreRef.current = true;
+              onNewFile();
+            }}
+            className="cursor-pointer"
+          >
             <FilePlus2 className="h-4 w-4" />
             New ink file
           </DropdownMenuItem>

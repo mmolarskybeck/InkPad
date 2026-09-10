@@ -38,9 +38,15 @@ export function EditableTitle({
   const lastEditRequestKeyRef = useRef(editRequestKey);
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (!isEditing || !inputRef.current) return;
+    const input = inputRef.current;
+    input.focus();
+    // Select only the stem so typing replaces "name" in "name.ink" and keeps the extension.
+    const extensionStart = /\.[A-Za-z0-9]+$/.exec(input.value)?.index ?? -1;
+    if (extensionStart > 0) {
+      input.setSelectionRange(0, extensionStart);
+    } else {
+      input.select();
     }
   }, [isEditing]);
 

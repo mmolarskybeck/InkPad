@@ -76,6 +76,8 @@ export interface CodeMirrorEditorProps {
   documentId: string;
   fileName: string;
   isMobileLayout?: boolean;
+  /** Focus the editor when it mounts. Set false when another control (e.g. an inline rename) should keep focus. */
+  autoFocus?: boolean;
   showHeader?: boolean;
   fontSize?: number;
   wordWrap?: boolean;
@@ -393,6 +395,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   documentId,
   fileName,
   isMobileLayout = false,
+  autoFocus = true,
   showHeader = true,
   fontSize = 14,
   wordWrap = true,
@@ -817,7 +820,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     });
     viewRef.current = view;
     updateControlState(view);
-    if (!isMobileLayout) view.focus();
+    if (!isMobileLayout && autoFocus) view.focus();
 
     return () => {
       emitChangeNow();

@@ -91,10 +91,7 @@ import {
   reconcileProjectNaming,
   renameProjectFile,
 } from "@/lib/ink-project";
-import {
-  hasCaseInsensitiveInkProjectPathCollision,
-  normalizeInkProjectFilePath,
-} from "@/lib/ink-project-paths";
+import { normalizeInkProjectFilePath } from "@/lib/ink-project-paths";
 
 const LazyCodeMirrorEditor = lazy(() =>
   loadCodeMirrorEditor().then((module) => ({
@@ -406,6 +403,8 @@ export default function Editor() {
   // loads another save (resets undo history/diagnostics), but NOT when the open
   // file is merely renamed — a rename keeps the same buffer.
   const [editorBufferKey, setEditorBufferKey] = useState(0);
+  // Set false for one editor remount so an inline file rename keeps focus instead of the editor.
+  const editorAutoFocusRef = useRef(true);
   // The localStorage key the current project was last saved under. When naming
   // changes move the storage name, the save path renames instead of leaving a
   // ghost entry behind.
@@ -428,7 +427,6 @@ export default function Editor() {
   // tab layout shared with mobile. Cleared when the window narrows into true mobile.
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAddProjectFileOpen, setIsAddProjectFileOpen] = useState(false);
   const [inlineRenameRequest, setInlineRenameRequest] = useState<{ fileId: string; key: number } | null>(null);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<string | null>(null);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
@@ -792,12 +790,6 @@ export default function Editor() {
     }
   }, [handleRenameProjectFileById, toast]);
 
-  const requestInlineProjectFileRename = useCallback((fileId: string) => {
-    setInlineRenameRequest((request) => ({
-      fileId,
-      key: (request?.key ?? 0) + 1,
-    }));
-  }, []);
 
   const {
     pendingAction,
@@ -1226,37 +1218,19 @@ export default function Editor() {
     toast,
   ]);
 
-  const handleAddProjectFile = useCallback(() => {
-    setIsAddProjectFileOpen(true);
+  const requestInlineProjectFileRename = useCallback((fileId: string) => {
+    setInlineRenameRequest((request) => ({
+      fileId,
+      key: (request?.key ?? 0) + 1,
+    }));
   }, []);
 
-  const handleConfirmAddProjectFile = useCallback((requestedPath: string) => {
-    const normalizedPath = normalizeInkProjectFilePath(requestedPath);
-    if (!normalizedPath) {
-      toast({
-        title: "Could not add file",
-        description: "Use a project-relative Ink path like chapters/opening.ink.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (Object.prototype.hasOwnProperty.call(currentProject.files, normalizedPath)) {
-      toast({
-        title: "Could not add file",
-        description: `${normalizedPath} already exists in this project.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (hasCaseInsensitiveInkProjectPathCollision([...Object.keys(currentProject.files), normalizedPath])) {
-      toast({
-        title: "Could not add file",
-        description: `${normalizedPath} collides with an existing path on case-insensitive filesystems.`,
-        variant: "destructive",
-      });
-      return;
+  const handleAddProjectFile = useCallback(() => {
+    const existingPaths = Object.keys(currentProject.files);
+    const existingLower = new Set(existingPaths.map((path) => path.toLowerCase()));
+    let normalizedPath = "untitled.ink";
+    for (let index = 2; existingLower.has(normalizedPath.toLowerCase()); index += 1) {
+      normalizedPath = `untitled-${index}.ink`;
     }
 
     const activeSource = editorRef.current?.getValue() ?? currentDocument.source;
@@ -1270,6 +1244,7 @@ export default function Editor() {
     };
     setCurrentProject(nextProject);
     setActiveFileId(normalizedPath);
+    editorAutoFocusRef.current = false;
     setEditorBufferKey((key) => key + 1);
     resetBufferedSource("");
     setCurrentDocument((document) => ({
@@ -1279,17 +1254,20 @@ export default function Editor() {
       updatedAt: Date.now(),
     }));
     compileLive(getProjectCompileInput(nextProject));
-    setIsAddProjectFileOpen(false);
     setIsProjectFilesCollapsed(false);
     setMobileTab("code");
-    window.setTimeout(() => editorRef.current?.layout(), 0);
+    window.setTimeout(() => {
+      editorRef.current?.layout();
+      editorAutoFocusRef.current = true;
+      requestInlineProjectFileRename(normalizedPath);
+    }, 0);
   }, [
     activeFileId,
     compileLive,
     currentDocument.source,
     currentProject,
+    requestInlineProjectFileRename,
     resetBufferedSource,
-    toast,
   ]);
 
   const handleDuplicateProjectFile = useCallback(async (fileId: string) => {
@@ -1724,6 +1702,7 @@ export default function Editor() {
           documentId={`${currentProject.id}:${editorBufferKey}`}
           fileName={activeFileId}
           isMobileLayout={isMobile}
+          autoFocus={editorAutoFocusRef.current}
           showHeader={!isMobile && focusedPanel === null}
           fontSize={preferences.editorFontSize}
           wordWrap={preferences.wordWrap}
@@ -1888,16 +1867,6 @@ export default function Editor() {
               }
             }}
             onConfirm={handleConfirmFileAction}
-          />
-        )}
-
-        {isAddProjectFileOpen && (
-          <LazyFileActionDialog
-            mode="add-file"
-            initialName="chapter"
-            extension=".ink"
-            onOpenChange={setIsAddProjectFileOpen}
-            onConfirm={handleConfirmAddProjectFile}
           />
         )}
 
