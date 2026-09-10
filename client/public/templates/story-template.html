@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
   InkPad portable HTML export.
-  Story content is embedded, but InkJS and web fonts load from CDNs.
-  An internet connection is therefore required unless those dependencies are inlined.
+  Story content and the InkJS runtime are embedded, so the story plays offline.
+  Web fonts are fetched from Google Fonts when online and fall back to system fonts otherwise.
 -->
 <html lang="en">
 <head>
@@ -271,7 +271,7 @@
             }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/inkjs@2.3.2/dist/ink.js"></script>
+    <script>{{INK_RUNTIME}}</script>
 </head>
 <body class="theme-{{STORY_THEME}} font-{{STORY_FONT}}">
     <main class="story-container">

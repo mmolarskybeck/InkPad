@@ -18,9 +18,14 @@ export default defineConfig({
   },
 
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "client", "src"),
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(__dirname, "client", "src") },
+      // inkjs's exports map hides dist/, but the HTML export inlines the runtime source.
+      {
+        find: /^inkjs-runtime-source(?=\?|$)/,
+        replacement: path.resolve(__dirname, "node_modules", "inkjs", "dist", "ink.js"),
+      },
+    ],
     // CodeMirror extensions break silently if two copies of @codemirror/state
     // or @codemirror/view end up in the same page (facets/keymaps from one
     // copy are invisible to a view built from the other).

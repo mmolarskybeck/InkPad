@@ -195,10 +195,6 @@ export function TopMenu({
         <FolderOpen className="w-4 h-4" />
         Import .ink, .inkpad, or .zip...
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={onManageSaves} className="cursor-pointer">
-        <Archive className="w-4 h-4" />
-        Manage Projects...
-      </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuLabel className="flex items-center gap-2 text-text-secondary">
         <Clock className="w-3.5 h-3.5" />
@@ -227,6 +223,11 @@ export function TopMenu({
           </DropdownMenuItem>
         ))
       )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={onManageSaves} className="cursor-pointer">
+        <Archive className="w-4 h-4" />
+        Manage Projects...
+      </DropdownMenuItem>
     </DropdownMenuContent>
   );
 

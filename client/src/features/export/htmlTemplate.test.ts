@@ -5,6 +5,7 @@ import {
   escapeHtml,
   renderStoryHtmlTemplate,
   serializeJsonForHtml,
+  serializeScriptForHtml,
 } from "./htmlTemplate";
 
 describe("HTML story template rendering", () => {
@@ -97,6 +98,24 @@ Literal <script>alert("no")</script>
     expect(html).toContain("--page: hsl(228, 30%, 96%)");
     expect(html).not.toContain("#fbfaf7");
     expect(html).not.toContain("{{STORY_");
+  });
+
+  it("embeds the inkjs runtime so exports play offline", () => {
+    const template = readFileSync(
+      "client/public/templates/story-template.html",
+      "utf8",
+    );
+    const html = renderStoryHtmlTemplate(
+      template,
+      new Compiler("Hello\n-> END").Compile().ToJson(),
+      { title: "Offline", author: null, theme: "light", font: "serif" },
+    );
+
+    expect(template).not.toContain("cdn.jsdelivr.net");
+    expect(html).not.toContain("{{INK_RUNTIME}}");
+    expect(html).not.toContain('<script src="http');
+    expect(html).toContain("inkjs");
+    expect(serializeScriptForHtml("a</script><!--b")).toBe("a<\\/script><\\!--b");
   });
 
   it("renders story text with textContent instead of innerHTML", () => {

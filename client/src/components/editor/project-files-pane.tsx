@@ -397,7 +397,7 @@ export function ProjectFilesPane({
                       fallbackTitle={fileId}
                       normalizeValue={(value) => value.trim() || fileId}
                       showEditIcon={false}
-                      className="h-7 min-w-0 flex-1 justify-start px-0 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg md:px-0"
+                      className="h-7 min-w-0 flex-1 cursor-pointer justify-start px-0 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg md:px-0"
                       inputClassName="h-6 font-sans text-[0.8125rem]"
                       textClassName={cn(
                         "font-sans text-[0.8125rem] leading-5 text-text-primary",

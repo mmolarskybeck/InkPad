@@ -1,4 +1,5 @@
 import { validateTitle } from "@/lib/filename-utils";
+import inkRuntimeSource from "inkjs-runtime-source?raw";
 import {
   HTML_EXPORT_FONTS,
   HTML_EXPORT_THEMES,
@@ -48,7 +49,8 @@ export function renderStoryHtmlTemplate(
     .replace(/\{\{STORY_THEME\}\}/g, () => theme)
     .replace(/\{\{STORY_FONT\}\}/g, () => font)
     .replace(/\{\{STORY_DATA\}\}/g, () => safeStoryData)
-    .replace(/\{\{STORY_METADATA\}\}/g, () => safeMetadata);
+    .replace(/\{\{STORY_METADATA\}\}/g, () => safeMetadata)
+    .replace(/\{\{INK_RUNTIME\}\}/g, () => serializeScriptForHtml(inkRuntimeSource));
 }
 
 export async function buildStoryHtml(
@@ -75,4 +77,12 @@ export function serializeJsonForHtml(value: unknown): string {
     .replace(/&/g, "\\u0026")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
+}
+
+/**
+ * Makes arbitrary JavaScript safe to embed inside an inline <script> element by
+ * preventing the source from closing the element early.
+ */
+export function serializeScriptForHtml(source: string): string {
+  return source.replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
 }
