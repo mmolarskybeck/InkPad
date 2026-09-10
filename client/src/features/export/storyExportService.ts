@@ -20,6 +20,8 @@ interface StoryExportOptions {
   htmlOptions?: HtmlExportOptions;
   filename?: string;
   compileStory: CompileInkSource;
+  /** Builds the editable .inkpad archive when htmlOptions.includeSource is set. */
+  createSourceBundle?: () => Promise<Blob>;
 }
 
 function getCompileErrorMessage(result: InkCompileResult | null): string {
@@ -101,10 +103,14 @@ export async function exportStoryHtml(options: StoryExportOptions): Promise<void
     theme: htmlOptions.theme,
     font: htmlOptions.font,
   });
+  const sourceBundle = htmlOptions.includeSource && options.createSourceBundle
+    ? await options.createSourceBundle()
+    : undefined;
   const zipBlob = await createStoryZip({
     html,
     title: metadata.title,
     includeReadme: htmlOptions.includeReadme,
+    sourceBundle,
   });
   const filename = replaceFilenameExtension(
     options.filename ?? getFilename(metadata.title, ".ink"),

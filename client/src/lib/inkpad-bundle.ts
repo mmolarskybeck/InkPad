@@ -89,6 +89,7 @@ function sanitizeSettings(value: unknown): StoredStorySettings | undefined {
     if (typeof htmlExport.includeReadme === "boolean") {
       includeReadme = htmlExport.includeReadme;
     }
+    const includeSource = htmlExport.includeSource === true;
     if (theme && font && includeReadme !== undefined) {
       settings.htmlExport = {
         title,
@@ -96,6 +97,7 @@ function sanitizeSettings(value: unknown): StoredStorySettings | undefined {
         theme,
         font,
         includeReadme,
+        includeSource,
       };
     }
   }

@@ -945,24 +945,15 @@ export default function Editor() {
     await persistProjectNow(true);
   }, [persistProjectNow]);
 
-  const exportProjectArchive = useCallback(async (extension: ".inkpad" | ".zip") => {
-    const project = getLiveProject();
-    const [{ createInkPadBundleBlob }, { downloadBlob }] = await Promise.all([
-      import("@/lib/inkpad-bundle"),
-      import("@/features/files/fileDownload"),
-    ]);
-    const blob = await createInkPadBundleBlob(project, {
+  const createProjectBundleBlob = useCallback(async () => {
+    const { createInkPadBundleBlob } = await import("@/lib/inkpad-bundle");
+    return createInkPadBundleBlob(getLiveProject(), {
       title: currentDocument.title,
       author: currentDocument.author,
       htmlExport: currentDocument.htmlExport,
       storyTypeface: currentDocument.storyTypeface,
       previewMode: currentDocument.previewMode,
     });
-    const inkpadName = getProjectExportName(project);
-    downloadBlob(
-      blob,
-      extension === ".zip" ? replaceFilenameExtension(inkpadName, ".zip") : inkpadName,
-    );
   }, [
     currentDocument.author,
     currentDocument.htmlExport,
@@ -971,6 +962,18 @@ export default function Editor() {
     currentDocument.title,
     getLiveProject,
   ]);
+
+  const exportProjectArchive = useCallback(async (extension: ".inkpad" | ".zip") => {
+    const [blob, { downloadBlob }] = await Promise.all([
+      createProjectBundleBlob(),
+      import("@/features/files/fileDownload"),
+    ]);
+    const inkpadName = getProjectExportName(getLiveProject());
+    downloadBlob(
+      blob,
+      extension === ".zip" ? replaceFilenameExtension(inkpadName, ".zip") : inkpadName,
+    );
+  }, [createProjectBundleBlob, getLiveProject]);
 
   const handleExportProject = useCallback(async () => {
     try {
@@ -1376,6 +1379,7 @@ export default function Editor() {
     author: currentDocument.author ?? "",
     filename: currentDocument.filename,
     compileStory: compileNow,
+    createSourceBundle: createProjectBundleBlob,
     onError: handleExportError,
   });
 

@@ -76,6 +76,7 @@ describe("InkPad bundle archive", () => {
         theme: "high-contrast",
         font: "mono",
         includeReadme: false,
+        includeSource: false,
       },
     });
 
@@ -103,6 +104,7 @@ describe("InkPad bundle archive", () => {
         theme: "high-contrast",
         font: "mono",
         includeReadme: false,
+        includeSource: false,
       },
     });
   });

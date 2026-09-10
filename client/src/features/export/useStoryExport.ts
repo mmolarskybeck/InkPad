@@ -11,6 +11,7 @@ interface UseStoryExportOptions {
   author: string;
   filename: string;
   compileStory: CompileInkSource;
+  createSourceBundle?: () => Promise<Blob>;
   onError?: (message: string, error: unknown) => void;
 }
 
@@ -21,6 +22,7 @@ export function useStoryExport({
   author,
   filename,
   compileStory,
+  createSourceBundle,
   onError,
 }: UseStoryExportOptions) {
   const [isExporting, setIsExporting] = useState(false);
@@ -71,13 +73,14 @@ export function useStoryExport({
         htmlOptions,
         filename,
         compileStory,
+        createSourceBundle,
       });
     } catch (error) {
       onError?.("Failed to export HTML", error);
     } finally {
       setIsExporting(false);
     }
-  }, [author, compileStory, filename, getCompileInput, getSource, onError, title]);
+  }, [author, compileStory, createSourceBundle, filename, getCompileInput, getSource, onError, title]);
 
   return {
     exportInk,

@@ -5,6 +5,8 @@ interface StoryZipOptions {
   html: string;
   title: string;
   includeReadme?: boolean;
+  /** Editable .inkpad project archive to place beside play.html. */
+  sourceBundle?: Blob;
 }
 
 function createReadme(title: string): string {
@@ -35,12 +37,16 @@ export async function createStoryZip({
   html,
   title,
   includeReadme = true,
+  sourceBundle,
 }: StoryZipOptions): Promise<Blob> {
   const zip = new JSZip();
 
   zip.file("play.html", html);
   if (includeReadme) {
     zip.file("README.md", createReadme(title));
+  }
+  if (sourceBundle) {
+    zip.file("source.inkpad", sourceBundle);
   }
 
   return zip.generateAsync({ type: "blob" });

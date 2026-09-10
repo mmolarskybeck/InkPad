@@ -89,6 +89,7 @@ export function PlayableHtmlExportDialog({
       theme: defaultTheme,
       font: storyTypeface,
       includeReadme: savedOptions?.includeReadme ?? DEFAULT_HTML_EXPORT_APPEARANCE.includeReadme,
+      includeSource: savedOptions?.includeSource ?? DEFAULT_HTML_EXPORT_APPEARANCE.includeSource,
     });
     setRememberChoices(true);
   }, [metadata.author, metadata.theme, metadata.title, open, resolvedTheme, savedOptions, storyTypeface]);
@@ -287,6 +288,26 @@ export function PlayableHtmlExportDialog({
                   onCheckedChange={(checked) => setOptions((current) => ({
                     ...current,
                     includeReadme: checked,
+                  }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <Label id="include-source-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setOptions(c => ({...c, includeSource: !c.includeSource}))}>
+                    Include editable project source
+                  </Label>
+                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
+                    Adds source.inkpad to the ZIP so the story can be reopened in InkPad. Anyone with the ZIP can read the full source, including comments and unpublished content.
+                  </span>
+                </div>
+                <Switch
+                  id="include-source-switch"
+                  checked={options.includeSource}
+                  aria-labelledby="include-source-label"
+                  onCheckedChange={(checked) => setOptions((current) => ({
+                    ...current,
+                    includeSource: checked,
                   }))}
                 />
               </div>

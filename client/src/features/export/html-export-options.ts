@@ -18,6 +18,8 @@ export interface HtmlExportOptions {
   theme: HtmlExportTheme;
   font: HtmlExportFont;
   includeReadme: boolean;
+  /** Adds the editable .inkpad project next to play.html. Off by default: it exposes comments and unpublished content. */
+  includeSource: boolean;
 }
 
 export interface HtmlExportRequest extends HtmlExportOptions {
@@ -28,4 +30,5 @@ export const DEFAULT_HTML_EXPORT_APPEARANCE = {
   theme: "light",
   font: "serif",
   includeReadme: true,
-} satisfies Pick<HtmlExportOptions, "theme" | "font" | "includeReadme">;
+  includeSource: false,
+} satisfies Pick<HtmlExportOptions, "theme" | "font" | "includeReadme" | "includeSource">;
