@@ -39,7 +39,7 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { useEditorSourceBuffer } from "@/hooks/use-editor-source-buffer";
 import { useEditorDocumentActions } from "@/hooks/use-editor-document-actions";
 import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 import { usePreferences } from "@/components/preferences-provider";
@@ -488,7 +488,6 @@ export default function Editor() {
       }
     };
   }, [isMobile, mobileTab]);
-  const { toast } = useToast();
   const { preferences, effectiveTheme } = usePreferences();
   
   const {
@@ -687,14 +686,13 @@ export default function Editor() {
       }));
       autosave.markSaved(filename, content);
       if (showToast) {
-        toast({ title: "Saved", description: `${filename} saved successfully.` });
+        toast.success(`Saved ${filename}`);
       }
       return true;
     } catch (error) {
-      toast({
-        title: "Save failed",
+      toast.error("Save failed", {
+        id: "save-error",
         description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
       });
       return false;
     }
@@ -706,7 +704,6 @@ export default function Editor() {
     currentDocument.storyTypeface,
     currentDocument.title,
     persistSaveContent,
-    toast,
   ]);
 
   const persistProjectNow = useCallback(
@@ -776,19 +773,12 @@ export default function Editor() {
 
   const handleInlineProjectFileRename = useCallback(async (fileId: string, requestedName: string) => {
     try {
-      const { nextFilename, sourceName } = await handleRenameProjectFileById(fileId, requestedName);
-      if (nextFilename !== sourceName) {
-        toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
-      }
+      await handleRenameProjectFileById(fileId, requestedName);
     } catch (error) {
-      toast({
-        title: "Rename failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Rename failed", { description: error instanceof Error ? error.message : "Unknown error" });
       throw error;
     }
-  }, [handleRenameProjectFileById, toast]);
+  }, [handleRenameProjectFileById]);
 
 
   const {
@@ -897,12 +887,8 @@ export default function Editor() {
 
   const handleExportError = useCallback((message: string, error: unknown) => {
     console.error(message, error);
-    toast({
-      title: message,
-      description: error instanceof Error ? error.message : "Unknown error",
-      variant: "destructive",
-    });
-  }, [toast]);
+    toast.error(message, { description: error instanceof Error ? error.message : "Unknown error" });
+  }, []);
 
   const handleRun = useCallback(async () => {
     // Use the editor's value as source of truth and do immediate compile
@@ -1159,7 +1145,6 @@ export default function Editor() {
         }));
       }
       autosave.markSaved(nextStorageName, content);
-      toast({ title: "Renamed", description: `${fileName} is now ${nextStorageName}.` });
       return;
     }
 
@@ -1183,7 +1168,6 @@ export default function Editor() {
         FileOperations.deleteFile(fileName);
       }
       setRecentFiles(FileOperations.getAllFiles());
-      toast({ title: "Renamed", description: `${fileName} is now ${nextStorageName}.` });
       return;
     }
 
@@ -1204,7 +1188,6 @@ export default function Editor() {
       });
     }
     setRecentFiles(FileOperations.getAllFiles());
-    toast({ title: "Renamed", description: `${fileName} is now ${nextFileName}.` });
   }, [
     autosave,
     currentDocument.author,
@@ -1215,7 +1198,6 @@ export default function Editor() {
     localSaveFileName,
     persistSaveContent,
     setRecentFiles,
-    toast,
   ]);
 
   const requestInlineProjectFileRename = useCallback((fileId: string) => {
@@ -1273,11 +1255,7 @@ export default function Editor() {
   const handleDuplicateProjectFile = useCallback(async (fileId: string) => {
     const live = getLiveProject();
     if (!Object.prototype.hasOwnProperty.call(live.files, fileId)) {
-      toast({
-        title: "Duplicate failed",
-        description: `${fileId} is not part of this project.`,
-        variant: "destructive",
-      });
+      toast.error("Duplicate failed", { description: `${fileId} is not part of this project.` });
       return;
     }
 
@@ -1285,11 +1263,7 @@ export default function Editor() {
     const newFileId = Object.keys(nextProject.files)
       .find((name) => !Object.prototype.hasOwnProperty.call(live.files, name));
     if (!newFileId) {
-      toast({
-        title: "Duplicate failed",
-        description: `${fileId} could not be duplicated.`,
-        variant: "destructive",
-      });
+      toast.error("Duplicate failed", { description: `${fileId} could not be duplicated.` });
       return;
     }
 
@@ -1309,35 +1283,25 @@ export default function Editor() {
     setMobileTab("code");
     window.setTimeout(() => editorRef.current?.layout(), 0);
     await persistProject(nextProject, false);
-    toast({ title: "Duplicated", description: `${fileId} copied to ${newFileId}.` });
   }, [
     compileLive,
     getLiveProject,
     persistProject,
     resetBufferedSource,
-    toast,
   ]);
 
   const handleRequestDeleteProjectFile = useCallback((fileId: string) => {
     const live = getLiveProject();
     if (fileId === live.entryFile) {
-      toast({
-        title: "Entry file cannot be deleted",
-        description: "Rename or edit the entry file instead, or delete another project file.",
-        variant: "destructive",
-      });
+      toast.error("Entry file cannot be deleted", { description: "Rename or edit the entry file instead, or delete another project file." });
       return;
     }
     if (Object.keys(live.files).length <= 1) {
-      toast({
-        title: "File cannot be deleted",
-        description: "A project needs at least one Ink file.",
-        variant: "destructive",
-      });
+      toast.error("File cannot be deleted", { description: "A project needs at least one Ink file." });
       return;
     }
     setProjectDeleteTarget(fileId);
-  }, [getLiveProject, toast]);
+  }, [getLiveProject]);
 
   const handleConfirmDeleteProjectFile = useCallback(async () => {
     if (!projectDeleteTarget) return;
@@ -1347,12 +1311,10 @@ export default function Editor() {
     const nextProject = deleteProjectFile(live, fileId);
     if (nextProject === live) {
       setProjectDeleteTarget(null);
-      toast({
-        title: "Delete failed",
+      toast.error("Delete failed", {
         description: fileId === live.entryFile
           ? "The project entry file cannot be deleted."
           : `${fileId} could not be deleted.`,
-        variant: "destructive",
       });
       return;
     }
@@ -1378,7 +1340,6 @@ export default function Editor() {
     FileOperations.clearRecoveryDraft(fileId);
     compileLive(getProjectCompileInput(nextProject));
     await persistProject(nextProject, false);
-    toast({ title: "Deleted", description: `${fileId} removed from this project.` });
   }, [
     activeFileId,
     compileLive,
@@ -1386,7 +1347,6 @@ export default function Editor() {
     persistProject,
     projectDeleteTarget,
     resetBufferedSource,
-    toast,
   ]);
 
   const handleNavigateToKnot = useCallback((knotName: string) => {
@@ -1462,18 +1422,13 @@ export default function Editor() {
       });
       autosave.markSaved(settingsFileName, settingsContent);
     } catch (error) {
-      toast({
-        title: "Could not save story settings",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Could not save story settings", { description: error instanceof Error ? error.message : "Unknown error" });
     }
   }, [
     autosave,
     currentDocument,
     getLiveProject,
     persistSaveContent,
-    toast,
   ]);
 
   const effectiveStoryTypeface: HtmlExportFont =

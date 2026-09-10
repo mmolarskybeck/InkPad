@@ -3,7 +3,7 @@ import type { FileActionMode } from "@/components/editor/file-action-dialog";
 import { useFileImport } from "@/features/files/useFileImport";
 import type { ImportedFile } from "@/features/files/useFileImport";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   FileOperations,
   type StoredInkDocument,
@@ -111,7 +111,6 @@ export function useEditorDocumentActions({
   const [fileAction, setFileAction] = useState<FileActionRequest | null>(null);
   const [isLocalSavesOpen, setIsLocalSavesOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const requestGuardedAction = useCallback((label: string, run: () => void) => {
     const unguarded = autosave.saveState === "saved" || autosave.saveState === "disabled";
@@ -149,14 +148,13 @@ export function useEditorDocumentActions({
       setRecentFiles(FileOperations.getAllFiles());
       trackProjectSavedLocal({ storage: "local_storage", storyText: currentSource });
       if (showToast) {
-        toast({ title: "Saved", description: `${currentDocument.filename} saved successfully.` });
+        toast.success(`Saved ${currentDocument.filename}`);
       }
       return true;
     } catch (error) {
-      toast({
-        title: "Save failed",
+      toast.error("Save failed", {
+        id: "save-error",
         description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
       });
       return false;
     }
@@ -176,7 +174,6 @@ export function useEditorDocumentActions({
     setIsRecoveryBannerDismissed,
     setRecentFiles,
     setRecoveredAt,
-    toast,
   ]);
 
   const applyLoadedDocument = useCallback((
@@ -326,7 +323,7 @@ export function useEditorDocumentActions({
   const importFromDisk = useFileImport({
     onLoad: handleLoad,
     onError: (message) => {
-      toast({ title: "Import failed", description: message, variant: "destructive" });
+      toast.error("Import failed", { description: message });
     },
   });
 
@@ -339,17 +336,13 @@ export function useEditorDocumentActions({
     requestGuardedAction(`open ${fileName}`, () => {
       const file = FileOperations.loadFile(fileName);
       if (!file) {
-        toast({
-          title: "Could not open file",
-          description: `${fileName} is no longer available in local storage.`,
-          variant: "destructive",
-        });
+        toast.error("Could not open file", { description: `${fileName} is no longer available in local storage.` });
         setRecentFiles(FileOperations.getAllFiles());
         return;
       }
       applyLoadedFile(file);
     });
-  }, [applyLoadedFile, requestGuardedAction, setRecentFiles, toast]);
+  }, [applyLoadedFile, requestGuardedAction, setRecentFiles]);
 
   const handleOpenManagedFile = useCallback((fileName: string) => {
     setIsLocalSavesOpen(false);
@@ -461,19 +454,13 @@ export function useEditorDocumentActions({
 
   const handleRenameCurrentDocument = useCallback(async (name: string) => {
     try {
-      const { nextFilename, sourceName } = await renameCurrentDocument(name);
-      toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
+      await renameCurrentDocument(name);
     } catch (error) {
-      toast({
-        title: "Rename failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Rename failed", { description: error instanceof Error ? error.message : "Unknown error" });
       throw error;
     }
   }, [
     renameCurrentDocument,
-    toast,
   ]);
 
   const handleConfirmFileAction = useCallback(async (name: string) => {
@@ -508,23 +495,18 @@ export function useEditorDocumentActions({
           applyLoadedDocument(nextFilename, currentSource, Date.now(), storedSettings);
         }
         trackProjectSavedLocal({ storage: "local_storage", storyText: currentSource });
-        toast({ title: "Saved copy", description: `${nextFilename} is now open.` });
       } else if (sourceName === currentDocument.filename) {
-        const result = await renameCurrentDocument(requestedFilename);
-        toast({ title: "Renamed", description: `${result.sourceName} is now ${result.nextFilename}.` });
+        await renameCurrentDocument(requestedFilename);
       } else {
         const nextFilename = FileOperations.getAvailableFileName(requestedFilename, sourceName);
         const renamed = await FileOperations.renameFile(sourceName, nextFilename, true);
         if (!renamed) throw new Error(`${sourceName} could not be renamed.`);
         setRecentFiles(FileOperations.getAllFiles());
-        toast({ title: "Renamed", description: `${sourceName} is now ${nextFilename}.` });
       }
       setFileAction(null);
     } catch (error) {
-      toast({
-        title: fileAction.mode === "save-as" ? "Save As failed" : "Rename failed",
+      toast.error(fileAction.mode === "save-as" ? "Save As failed" : "Rename failed", {
         description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
       });
     }
   }, [
@@ -538,7 +520,6 @@ export function useEditorDocumentActions({
     getFileActionExtension,
     renameCurrentDocument,
     setRecentFiles,
-    toast,
   ]);
 
   const handleDuplicateLocalFile = useCallback(async (fileName: string) => {
@@ -546,29 +527,20 @@ export function useEditorDocumentActions({
       const duplicate = await FileOperations.duplicateFile(fileName);
       if (!duplicate) throw new Error(`${fileName} could not be duplicated.`);
       setRecentFiles(FileOperations.getAllFiles());
-      toast({ title: "Duplicated", description: `${duplicate.name} was created.` });
     } catch (error) {
-      toast({
-        title: "Duplicate failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Duplicate failed", { description: error instanceof Error ? error.message : "Unknown error" });
     }
-  }, [setRecentFiles, toast]);
+  }, [setRecentFiles]);
 
   const handleDeleteLocalFiles = useCallback((fileNames: string[]) => {
     const uniqueFileNames = Array.from(new Set(fileNames));
     if (uniqueFileNames.length === 0) return;
 
-    let deletedCount = 0;
     const missingFiles: string[] = [];
     const deletedCurrentFile = uniqueFileNames.includes(currentSaveFileName);
 
     for (const fileName of uniqueFileNames) {
-      const deleted = FileOperations.deleteFile(fileName);
-      if (deleted) {
-        deletedCount += 1;
-      } else {
+      if (!FileOperations.deleteFile(fileName)) {
         missingFiles.push(fileName);
       }
     }
@@ -578,19 +550,8 @@ export function useEditorDocumentActions({
     setDeleteTarget(null);
 
     if (missingFiles.length > 0) {
-      toast({
-        title: "Delete failed",
+      toast.error("Delete failed", {
         description: `${missingFiles.join(", ")} ${missingFiles.length === 1 ? "is" : "are"} no longer available.`,
-        variant: "destructive",
-      });
-    }
-
-    if (deletedCount > 0) {
-      toast({
-        title: deletedCount === 1 ? "Deleted" : "Deleted projects",
-        description: deletedCount === 1
-          ? `${uniqueFileNames.find((fileName) => !missingFiles.includes(fileName))} was removed.`
-          : `${deletedCount} projects were removed.`,
       });
     }
 
@@ -607,7 +568,6 @@ export function useEditorDocumentActions({
     createNewDocument,
     currentSaveFileName,
     setRecentFiles,
-    toast,
   ]);
 
   const handleConfirmDeleteLocalFile = useCallback(() => {

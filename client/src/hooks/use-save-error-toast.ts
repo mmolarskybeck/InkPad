@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { SaveState } from '@/hooks/use-autosave';
 
 interface UseSaveErrorToastOptions {
@@ -16,11 +16,10 @@ export function useSaveErrorToast({ saveState, fileName }: UseSaveErrorToastOpti
       const now = Date.now();
       // Only show error toast once per minute to avoid spam
       if (!errorShownRef.current || now - lastErrorRef.current > 60000) {
-        toast({
-          title: "Save Failed",
-          description: `Could not save "${fileName}". Please export your work to avoid data loss.`,
-          variant: "destructive",
-          duration: 10000, // Show longer for errors
+        toast.error("Save failed", {
+          id: "save-error",
+          description: `Could not save "${fileName}". Export your work to avoid data loss.`,
+          duration: 10000,
         });
         
         lastErrorRef.current = now;

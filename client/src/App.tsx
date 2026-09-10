@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import Editor from "@/pages/editor";

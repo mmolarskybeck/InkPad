@@ -546,3 +546,89 @@
 .cm-editor textarea {
   font-size: 16px !important;
 }
+
+/* ---------- Toasts (Sonner) ----------
+   Map Sonner's variables onto the active theme tokens so every theme,
+   including high-contrast, renders toasts on its own palette. The selector
+   outranks Sonner's own [data-theme] rules. */
+.app-toaster[data-sonner-toaster][data-sonner-theme] {
+  --normal-bg: var(--popover);
+  --normal-border: var(--border);
+  --normal-text: var(--text-emphasis);
+  --border-radius: var(--radius);
+  z-index: 100; /* above dialogs and popovers (z-50) */
+}
+
+.app-toaster [data-sonner-toast] {
+  box-shadow:
+    0 1px 2px hsl(0 0% 0% / 0.08),
+    0 12px 32px -8px hsl(0 0% 0% / 0.35);
+  padding: 12px 40px 12px 14px; /* room for the close button on the right */
+  gap: 10px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dark .app-toaster [data-sonner-toast] {
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.02) inset,
+    0 12px 32px -8px hsl(0 0% 0% / 0.6);
+}
+
+.high-contrast .app-toaster [data-sonner-toast] {
+  box-shadow: none;
+  border-width: 2px;
+}
+
+.app-toaster [data-sonner-toast] [data-title] {
+  font-weight: 600;
+  color: var(--text-emphasis);
+}
+
+.app-toaster [data-sonner-toast] [data-description] {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* Semantic status is carried by the icon glyph (check vs. cross) and by
+   color; the toast surface itself stays neutral. */
+.app-toaster [data-sonner-toast][data-type="success"] [data-icon] { color: var(--success); }
+.app-toaster [data-sonner-toast][data-type="error"] [data-icon] { color: var(--error); }
+.app-toaster [data-sonner-toast][data-type="warning"] [data-icon] { color: var(--warning); }
+.app-toaster [data-sonner-toast][data-type="info"] [data-icon] { color: var(--accent-blue); }
+
+/* Close button: ghost, right-aligned, vertically centred. Quiet until the
+   toast is hovered or focused; always visible on touch (no hover there). */
+.app-toaster [data-sonner-toast] [data-close-button] {
+  left: auto;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 150ms ease-out, color 150ms ease-out, background-color 150ms ease-out;
+}
+.app-toaster [data-sonner-toast]:hover [data-close-button],
+.app-toaster [data-sonner-toast]:focus-within [data-close-button],
+.app-toaster [data-sonner-toast] [data-close-button]:focus-visible {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .app-toaster [data-sonner-toast] [data-close-button] { opacity: 1; }
+}
+.app-toaster [data-sonner-toast] [data-close-button]:hover {
+  background: var(--muted);
+  color: var(--text-emphasis);
+}
+.app-toaster [data-sonner-toast] [data-close-button]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-toaster [data-sonner-toast] [data-close-button] { transition: none; }
+}
