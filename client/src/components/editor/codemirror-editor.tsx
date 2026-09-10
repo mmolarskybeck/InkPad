@@ -223,6 +223,7 @@ function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout:
     },
     ".cm-cursor": {
       borderLeftColor: "var(--accent-blue)",
+      borderLeftWidth: "2px",
     },
     // Matches of an explicit selection: a whisper next to the real selection (34%).
     ".cm-selectionMatch": {

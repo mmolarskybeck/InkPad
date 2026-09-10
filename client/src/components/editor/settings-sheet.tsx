@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, ExternalLink, RotateCcw } from "lucide-react";
+import { ExternalLink, FileText, Info, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isAnalyticsEnabled,
@@ -33,6 +33,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PreviewMode } from "@/types/story-runtime";
 import type { ParsedGlobalTags, MetadataField, ThemeName } from "@/lib/tag-interpreter";
@@ -68,6 +69,12 @@ const STORY_TYPEFACES: Array<{ value: HtmlExportFont; label: string }> = [
   { value: "mono", label: "Mono" },
 ];
 
+const TAB_TRIGGER_CLASS =
+  "rounded-none border-b-2 border-transparent bg-transparent px-2.5 pb-2.5 pt-2 text-[0.8125rem] font-medium text-text-secondary shadow-none data-[state=active]:border-accent-blue data-[state=active]:bg-transparent data-[state=active]:text-text-emphasis data-[state=active]:shadow-none";
+
+const LINK_BUTTON_CLASS =
+  "font-medium text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+
 function capTheme(theme: string): string {
   if (theme === "high-contrast") return "High contrast";
   return theme.charAt(0).toUpperCase() + theme.slice(1);
@@ -75,76 +82,177 @@ function capTheme(theme: string): string {
 
 // ─── Small shared atoms ────────────────────────────────────────────────────
 
-function SettingsSection({
+function Group({
   title,
-  danger,
+  hint,
   children,
 }: {
-  title: string;
-  danger?: boolean;
+  title?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-5 border-b border-border-color py-8 first:pt-0 last:border-b-0 last:pb-0">
-      <h2
-        className={cn(
-          "text-base font-semibold tracking-tight",
-          danger ? "text-error" : "text-text-emphasis",
-        )}
-      >
-        {title}
-      </h2>
-      <div className="flex flex-col gap-6">{children}</div>
+    <section className="border-t border-border-color/60 py-4 first-of-type:border-t-0">
+      {title && (
+        <div className="mb-1 flex items-baseline gap-2">
+          <h3 className="text-[0.8125rem] font-semibold text-text-emphasis">{title}</h3>
+          {hint && <span className="text-[0.75rem] text-text-secondary">{hint}</span>}
+        </div>
+      )}
+      <div className="flex flex-col">{children}</div>
     </section>
   );
 }
 
-/** Inline `# field:` chip shown when a tag exists in the ink source. */
-function TagChip({ field }: { field: string }) {
-  const tagName = `# ${field}:`;
+function Row({
+  label,
+  htmlFor,
+  info,
+  badge,
+  description,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  info?: React.ReactNode;
+  badge?: React.ReactNode;
+  description?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-4 py-1">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={htmlFor} className="text-[0.875rem] font-medium text-text-emphasis">
+            {label}
+          </Label>
+          {badge}
+          {info && <InfoTip text={info} label={`About ${label}`} />}
+        </div>
+        {description && (
+          <p className="mt-0.5 text-[0.8125rem] text-text-secondary">{description}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
+    </div>
+  );
+}
 
+function StackRow({
+  label,
+  htmlFor,
+  info,
+  badge,
+  description,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  info?: React.ReactNode;
+  badge?: React.ReactNode;
+  description?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 py-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={htmlFor} className="text-[0.875rem] font-medium text-text-emphasis">
+            {label}
+          </Label>
+          {badge}
+          {info && <InfoTip text={info} label={`About ${label}`} />}
+        </div>
+        {description && (
+          <p className="mt-0.5 text-[0.8125rem] text-text-secondary">{description}</p>
+        )}
+      </div>
+      <div className="flex flex-col">{children}</div>
+    </div>
+  );
+}
+
+function InfoTip({ text, label }: { text: React.ReactNode; label: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span
-          tabIndex={0}
-          className="rounded bg-accent px-1.5 py-0.5 font-mono text-[0.75rem] font-medium text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        <button
+          type="button"
+          aria-label={label}
+          className="grid h-5 w-5 place-items-center rounded-full text-text-secondary transition-colors hover:text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
-          {tagName}
-        </span>
+          <Info className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-64 text-[0.75rem] leading-5">
-        Comes from {tagName} in this ink file.
+      <TooltipContent side="top" className="max-w-60 text-[0.75rem] leading-5">
+        {text}
       </TooltipContent>
     </Tooltip>
   );
 }
 
-/** `# field:` in monospace, for use inside pending-state messages. */
-function TagCode({ field }: { field: string }) {
+/** Pill shown when the value lives in the ink file; jumps to the tag line. */
+function InFileChip({ field, onJump }: { field: string; onJump: () => void }) {
   return (
-    <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.75rem]">
-      # {field}:
-    </code>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onJump}
+          className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-px text-[0.6875rem] font-medium leading-4 text-accent-blue transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        >
+          <FileText className="h-2.5 w-2.5" aria-hidden />
+          In file
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-60 text-[0.75rem] leading-5">
+        Written as <code className="font-mono text-accent-blue"># {field}:</code> at the top of
+        the file. Click to jump to that line.
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
-/** Link-style button that jumps from Settings to the tag in the ink file. */
-function ShowInStoryButton({ onClick }: { onClick: () => void }) {
+function SelectField({
+  id,
+  ariaLabel,
+  value,
+  onValueChange,
+  options,
+  width,
+}: {
+  id?: string;
+  ariaLabel: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  width?: string;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="ml-auto flex items-center gap-1 text-[0.8125rem] font-medium text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-    >
-      <ArrowUpRight className="h-3 w-3" aria-hidden />
-      Show in file
-    </button>
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger
+        id={id}
+        aria-label={ariaLabel}
+        className={cn(
+          "h-8 border-border-color bg-editor-bg text-[0.8125rem]",
+          width ?? "w-[150px]",
+        )}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="border-border-color bg-panel-bg">
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
 // ─── MetaField ────────────────────────────────────────────────────────────
-// Handles title and author with full pending-state "Add / Update / Remove" flow.
+// Title / author: commits on blur or Enter, with a short-lived Undo.
 
 interface MetaFieldProps {
   field: "title" | "author";
@@ -155,6 +263,10 @@ interface MetaFieldProps {
   onValueCommit: (value: string) => void;
   onWrite: (value: string | null) => void;
   onJumpToTag: () => void;
+}
+
+interface LastWrite {
+  previousTag: string | null | undefined;
 }
 
 function MetaField({
@@ -172,7 +284,9 @@ function MetaField({
 
   const [draft, setDraft] = useState(hasTag ? sourceValue : value || sourceValue);
   const [announcementMsg, setAnnouncementMsg] = useState("");
+  const [lastWrite, setLastWrite] = useState<LastWrite | null>(null);
   const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // When a tag exists in the ink source it is the source of truth for this
@@ -180,15 +294,13 @@ function MetaField({
     setDraft(hasTag ? sourceValue : value || sourceValue);
   }, [hasTag, sourceValue, value]);
 
-  const normalizedDraft = draft.trim();
-  const isDirty = normalizedDraft !== sourceValue;
-
-  let pendingType: "add" | "update" | "remove" | null = null;
-  if (isDirty) {
-    if (!hasTag && normalizedDraft !== "") pendingType = "add";
-    else if (hasTag && normalizedDraft === "") pendingType = "remove";
-    else if (hasTag && normalizedDraft !== "") pendingType = "update";
-  }
+  useEffect(
+    () => () => {
+      if (announcementTimer.current) clearTimeout(announcementTimer.current);
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    },
+    [],
+  );
 
   const announce = (msg: string) => {
     setAnnouncementMsg(msg);
@@ -196,128 +308,104 @@ function MetaField({
     announcementTimer.current = setTimeout(() => setAnnouncementMsg(""), 3000);
   };
 
-  const handleConfirm = () => {
-    if (pendingType === "remove") {
-      onValueCommit("");
-      onWrite(null);
-      announce(`${label} tag removed from this ink file.`);
-    } else if (pendingType === "add") {
-      onValueCommit(normalizedDraft);
-      onWrite(normalizedDraft);
-      announce(`${label} tag added to this ink file.`);
-    } else if (pendingType === "update") {
-      onValueCommit(normalizedDraft);
-      onWrite(normalizedDraft);
-      announce(`${label} tag updated in this ink file.`);
+  const armUndo = (previousTag: string | null | undefined) => {
+    setLastWrite({ previousTag });
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setLastWrite(null), 8000);
+  };
+
+  const handleCommit = () => {
+    const normalized = draft.trim();
+    if (normalized === sourceValue) return;
+
+    const previousTag = tagValue;
+
+    if (normalized === "") {
+      if (hasTag) {
+        onValueCommit("");
+        onWrite(null);
+        armUndo(previousTag);
+        announce(`${label} removed from file.`);
+      } else {
+        onValueCommit("");
+      }
+      return;
     }
+
+    onValueCommit(normalized);
+    onWrite(normalized);
+    armUndo(previousTag);
+    announce(`${label} saved to file.`);
   };
 
   const handleUndo = () => {
-    setDraft(sourceValue);
+    if (!lastWrite) return;
+    const { previousTag } = lastWrite;
+
+    if (previousTag === undefined) {
+      onWrite(null);
+      onValueCommit("");
+    } else {
+      onWrite(previousTag ?? "");
+      onValueCommit(previousTag ?? "");
+    }
+
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setLastWrite(null);
+    announce("Undone.");
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Label htmlFor={id} className="text-[0.875rem] font-medium text-text-emphasis">
-          {label}
-        </Label>
-        {hasTag && <TagChip field={field} />}
-        {hasTag && <ShowInStoryButton onClick={onJumpToTag} />}
-      </div>
-
+    <StackRow
+      label={label}
+      htmlFor={id}
+      badge={hasTag ? <InFileChip field={field} onJump={onJumpToTag} /> : undefined}
+      info={
+        field === "title"
+          ? "Shown as the story's name in exports."
+          : "Shown with the title in exports."
+      }
+    >
       <Input
         id={id}
         value={draft}
         placeholder={field === "title" ? "Story title" : "Author name"}
         onChange={(e) => setDraft(e.target.value)}
-        className="border-border-color bg-editor-bg text-text-emphasis"
+        onBlur={handleCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="h-8 border-border-color bg-editor-bg text-[0.875rem] text-text-emphasis"
       />
 
-      {!isDirty && (
-        <p className="text-[0.8125rem] leading-snug text-text-secondary">
-          {hasTag
-            ? "Defined in this ink file."
-            : `No # ${field}: tag in this ink file.`}
+      {lastWrite && (
+        <p className="flex items-center gap-2 text-[0.75rem] text-text-secondary">
+          Saved to file.{" "}
+          <button type="button" onClick={handleUndo} className={LINK_BUTTON_CLASS}>
+            Undo
+          </button>
         </p>
       )}
 
-      {isDirty && pendingType && (
-        <div className="flex flex-col gap-2">
-          <div
-            className={cn(
-              "rounded-[var(--border-radius-md)] px-3 py-2 text-[0.8125rem] leading-snug",
-              pendingType === "remove"
-                ? "bg-error/10 text-error"
-                : "bg-warning/10 text-warning",
-            )}
-          >
-            {pendingType === "add" && (
-              <>
-                Will add <TagCode field={field} /> to this ink file.
-              </>
-            )}
-            {pendingType === "update" && (
-              <>
-                Will update <TagCode field={field} /> in this ink file.
-              </>
-            )}
-            {pendingType === "remove" && (
-              <>
-                Will remove <TagCode field={field} /> from this ink file.
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleConfirm}
-              className={cn(
-                "h-8 px-3 text-[0.8125rem] font-medium transition-all duration-200 active:scale-[0.98]",
-                pendingType === "remove"
-                  ? "bg-error text-white hover:brightness-110"
-                  : "bg-accent-blue text-white hover:brightness-110",
-              )}
-            >
-              {pendingType === "add" && `Add ${field} tag`}
-              {pendingType === "update" && `Update ${field} tag`}
-              {pendingType === "remove" && `Remove ${field} tag`}
-            </Button>
-            <button
-              type="button"
-              onClick={handleUndo}
-              className="rounded text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-            >
-              Undo
-            </button>
-          </div>
-        </div>
-      )}
-
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {announcementMsg}
       </span>
-    </div>
+    </StackRow>
   );
 }
+
+// ─── FileNameField ────────────────────────────────────────────────────────
 
 interface FileNameFieldProps {
   currentFileName: string;
   onRenameFile: (fileName: string) => void | Promise<void>;
-  hasMultipleFiles?: boolean;
 }
 
 function getFileBaseName(fileName: string): string {
   return fileName.replace(/\.ink$/i, "");
 }
 
-function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false }: FileNameFieldProps) {
+function FileNameField({ currentFileName, onRenameFile }: FileNameFieldProps) {
   const sourceBaseName = getFileBaseName(currentFileName);
   const [draftName, setDraftName] = useState(sourceBaseName);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -328,7 +416,8 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
 
   const normalizedDraft = draftName.trim().replace(/\.ink$/i, "");
   const isDirty = normalizedDraft !== sourceBaseName;
-  const canRename = isDirty && normalizedDraft.length > 0 && !isRenaming;
+  const isEmpty = normalizedDraft.length === 0;
+  const canRename = isDirty && !isEmpty && !isRenaming;
 
   const handleRename = async () => {
     if (!canRename) return;
@@ -341,74 +430,53 @@ function FileNameField({ currentFileName, onRenameFile, hasMultipleFiles = false
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <Label
-        htmlFor="settings-filename"
-        className="text-[0.875rem] font-medium text-text-emphasis"
-      >
-        File name
-      </Label>
+    <>
       <div className="flex min-w-0 items-stretch">
         <Input
           id="settings-filename"
           value={draftName}
           onChange={(event) => setDraftName(event.target.value.replace(/\.ink$/i, ""))}
-          className="min-w-0 rounded-r-none border-border-color bg-editor-bg font-mono text-[0.875rem] text-text-primary focus-visible:z-10"
+          className="h-8 min-w-0 rounded-r-none border-border-color bg-editor-bg font-mono text-[0.8125rem] text-text-primary focus-visible:z-10"
         />
         <span
           aria-hidden="true"
-          className="flex items-center rounded-r-md border border-l-0 border-border-color bg-muted px-3 font-mono text-[0.875rem] text-text-secondary"
+          className="flex items-center rounded-r-md border border-l-0 border-border-color bg-muted px-2.5 font-mono text-[0.8125rem] text-text-secondary"
         >
           .ink
         </span>
       </div>
-      {!isDirty && (
-        <p className="text-[0.8125rem] leading-snug text-text-secondary">
-          {hasMultipleFiles
-            ? "Renames this .ink file within the project. The project keeps its own name, set in the toolbar."
-            : "Used for saves and exports. This can be different from the story title."}
-        </p>
+
+      {isDirty && isEmpty && (
+        <p className="mt-1.5 text-[0.75rem] text-error">File name can&apos;t be empty.</p>
       )}
-      {isDirty && (
-        <div className="flex flex-col gap-2">
-          <p className={cn(
-            "text-[0.8125rem] leading-snug",
-            normalizedDraft.length === 0 ? "text-error" : "text-text-secondary",
-          )}>
-            {normalizedDraft.length === 0
-              ? "File name cannot be empty."
-              : hasMultipleFiles
-                ? "Renames this file only. Project name and story title stay unchanged."
-                : "Renames this local save. Story title stays unchanged."}
-          </p>
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              disabled={!canRename}
-              onClick={handleRename}
-              className="h-8 px-3 text-[0.8125rem] font-medium bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
-            >
-              {isRenaming ? "Renaming..." : "Rename file"}
-            </Button>
-            <button
-              type="button"
-              onClick={() => setDraftName(sourceBaseName)}
-              className="rounded text-[0.8125rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-            >
-              Undo
-            </button>
-          </div>
+
+      {isDirty && !isEmpty && (
+        <div className="mt-1.5 flex items-center gap-3">
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canRename}
+            onClick={handleRename}
+            className="h-7 bg-accent-blue px-2.5 text-[0.75rem] text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
+          >
+            {isRenaming ? "Renaming…" : "Rename"}
+          </Button>
+          <button
+            type="button"
+            onClick={() => setDraftName(sourceBaseName)}
+            className="rounded text-[0.75rem] font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          >
+            Undo
+          </button>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-// ─── StoryThemeSection ────────────────────────────────────────────────────
-// Story theme first; explicit action writes a portable `# theme:` tag.
+// ─── StoryThemeRow ────────────────────────────────────────────────────────
 
-interface StoryThemeSectionProps {
+interface StoryThemeRowProps {
   themeTagValue: ThemeName | undefined;
   themeWarningMessage: string | undefined;
   previewTheme: PreviewThemePreference;
@@ -417,143 +485,128 @@ interface StoryThemeSectionProps {
   onJumpToTag: () => void;
 }
 
-function StoryThemeSection({
+function StoryThemeRow({
   themeTagValue,
   themeWarningMessage,
   previewTheme,
   onPreviewThemeChange,
   onWriteTag,
   onJumpToTag,
-}: StoryThemeSectionProps) {
+}: StoryThemeRowProps) {
   const hasTag = themeTagValue !== undefined;
-  const selectedName = previewTheme === "inkpad" ? "InkPad theme" : capTheme(previewTheme);
-  const hasValidStoryTheme = hasTag && !themeWarningMessage && Boolean(themeTagValue);
-  const selectedCanBeSaved = previewTheme !== "inkpad";
-  const selectedMatchesStory = selectedCanBeSaved && themeTagValue === previewTheme && !themeWarningMessage;
-  const canSaveSelection = selectedCanBeSaved && !selectedMatchesStory;
+  const hasValidTag = hasTag && !themeWarningMessage && Boolean(themeTagValue);
 
-  let statusTone = "border-border-color bg-editor-bg text-text-secondary";
-  let statusText: React.ReactNode;
+  let status: React.ReactNode = null;
+  let statusIsWarning = false;
 
   if (themeWarningMessage) {
-    statusTone = "border-warning/40 bg-warning/10 text-warning";
-    statusText = (
+    statusIsWarning = true;
+    status = (
       <>
-        {themeWarningMessage} Choose a story theme here, or update{" "}
-        <TagCode field="theme" /> in this ink file.
+        {themeWarningMessage}{" "}
+        <button type="button" onClick={onJumpToTag} className={LINK_BUTTON_CLASS}>
+          Show in file
+        </button>
       </>
     );
-  } else if (previewTheme === "inkpad" && hasValidStoryTheme && themeTagValue) {
-    statusText = (
+  } else if (previewTheme === "inkpad" && hasValidTag && themeTagValue) {
+    status = (
       <>
-        Appearance will match selected InkPad theme. <TagCode field="theme" /> is{" "}
-        {capTheme(themeTagValue)} in this ink file.
+        File says {capTheme(themeTagValue)}.{" "}
+        <button
+          type="button"
+          onClick={() => onPreviewThemeChange(themeTagValue)}
+          className={LINK_BUTTON_CLASS}
+        >
+          Use it
+        </button>
+        {" · "}
+        <button type="button" onClick={() => onWriteTag(null)} className={LINK_BUTTON_CLASS}>
+          Remove from file
+        </button>
       </>
     );
-  } else if (previewTheme === "inkpad") {
-    statusText = <>No defined story theme. Appearance will match selected InkPad theme.</>;
-  } else if (selectedMatchesStory) {
-    statusText = (
+  } else if (
+    previewTheme !== "inkpad" &&
+    hasValidTag &&
+    themeTagValue &&
+    themeTagValue !== previewTheme
+  ) {
+    status = (
       <>
-        Story theme: {selectedName}. Defined by <TagCode field="theme" /> in this ink file.
+        File says {capTheme(themeTagValue)}.{" "}
+        <button
+          type="button"
+          onClick={() => onWriteTag(previewTheme)}
+          className={LINK_BUTTON_CLASS}
+        >
+          Save {capTheme(previewTheme)} to file
+        </button>
+        {" · "}
+        <button
+          type="button"
+          onClick={() => onPreviewThemeChange(themeTagValue)}
+          className={LINK_BUTTON_CLASS}
+        >
+          Use {capTheme(themeTagValue)}
+        </button>
       </>
     );
-  } else if (hasValidStoryTheme && themeTagValue) {
-    statusText = (
+  } else if (previewTheme !== "inkpad" && !hasTag) {
+    status = (
       <>
-        Story theme: {selectedName}. <TagCode field="theme" /> is{" "}
-        {capTheme(themeTagValue)} in this ink file.
-      </>
-    );
-  } else {
-    statusText = (
-      <>
-        Story theme: {selectedName}. No <TagCode field="theme" /> tag in this ink file.
+        Not in file.{" "}
+        <button
+          type="button"
+          onClick={() => onWriteTag(previewTheme)}
+          className={LINK_BUTTON_CLASS}
+        >
+          Save to file
+        </button>
       </>
     );
   }
 
-  const storyActionLabel = canSaveSelection
-    ? `Set # theme: to ${selectedName}`
-    : previewTheme === "inkpad" && hasValidStoryTheme
-      ? "Remove # theme:"
-      : null;
-  const storyActionNote = canSaveSelection
-    ? hasTag
-      ? <>Will update <TagCode field="theme" /> in this ink file.</>
-      : <>Will add <TagCode field="theme" /> to this ink file.</>
-    : previewTheme === "inkpad" && hasValidStoryTheme
-      ? <>Will remove <TagCode field="theme" /> from this ink file.</>
-      : null;
-  const storyAction = canSaveSelection
-    ? () => onWriteTag(previewTheme)
-    : previewTheme === "inkpad" && hasValidStoryTheme
-      ? () => onWriteTag(null)
-      : null;
-
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Label htmlFor="settings-preview-style" className="text-[0.875rem] font-medium text-text-emphasis">
-          Story theme
-        </Label>
-        {hasTag && !themeWarningMessage && <TagChip field="theme" />}
-        {hasTag && !themeWarningMessage && (
-          <ShowInStoryButton onClick={onJumpToTag} />
-        )}
-        {themeWarningMessage && hasTag && (
-          <ShowInStoryButton onClick={onJumpToTag} />
-        )}
-      </div>
-
-      <Select
-        value={previewTheme}
-        onValueChange={(value) => onPreviewThemeChange(value as PreviewThemePreference)}
+    <>
+      <Row
+        label="Theme"
+        htmlFor="settings-preview-style"
+        badge={
+          hasTag && !themeWarningMessage ? (
+            <InFileChip field="theme" onJump={onJumpToTag} />
+          ) : undefined
+        }
+        info={
+          <>
+            How the story looks when played. &ldquo;Match InkPad&rdquo; follows the InkPad theme
+            instead.
+          </>
+        }
       >
-        <SelectTrigger
+        <SelectField
           id="settings-preview-style"
-          aria-label="Story theme"
-          className="min-h-9 border-border-color bg-editor-bg"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="border-border-color bg-panel-bg">
-          <SelectItem value="inkpad">Match InkPad theme</SelectItem>
-          {PREVIEW_THEMES.map((t) => (
-            <SelectItem key={t} value={t}>
-              {capTheme(t)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          ariaLabel="Story theme"
+          value={previewTheme}
+          onValueChange={(value) => onPreviewThemeChange(value as PreviewThemePreference)}
+          options={[
+            { value: "inkpad", label: "Match InkPad" },
+            ...PREVIEW_THEMES.map((theme) => ({ value: theme, label: capTheme(theme) })),
+          ]}
+        />
+      </Row>
 
-      <div className="flex flex-col gap-2">
-        <div
+      {status && (
+        <p
           className={cn(
-            "rounded-[var(--border-radius-md)] border px-3 py-2 text-[0.8125rem] leading-snug",
-            statusTone,
+            "pb-2 text-[0.75rem] leading-5",
+            statusIsWarning ? "text-warning" : "text-text-secondary",
           )}
         >
-          {statusText}
-        </div>
-
-        {storyActionLabel && storyAction && (
-          <div className="flex flex-col gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              onClick={storyAction}
-              className="h-8 w-fit px-3 text-[0.8125rem] font-medium bg-accent-blue text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-            >
-              {storyActionLabel}
-            </Button>
-            <p className="text-[0.75rem] leading-snug text-text-tertiary">
-              {storyActionNote}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+          {status}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -634,337 +687,291 @@ export function SettingsSheet({
     setAnalyticsEnabledState(enabled);
   };
 
+  const aboutLinks = [
+    ["GitHub", GITHUB_URL],
+    ["Report a bug", ISSUES_URL],
+    ["Third-party notices", NOTICES_URL],
+  ] as const;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
         className="flex w-[92vw] max-w-lg flex-col overflow-hidden border-border-color bg-panel-bg p-0 text-text-primary"
       >
-        <SheetHeader className="shrink-0 border-b border-border-color bg-panel-bg px-5 py-5 pr-12 text-left">
-          <SheetTitle className="text-xl font-semibold tracking-tight text-text-emphasis">
-            Settings
-          </SheetTitle>
-          <SheetDescription className="text-[0.8125rem] text-text-secondary">
-            Ink tags travel with exported .ink files. Browser preferences stay
-            in InkPad.
-          </SheetDescription>
-        </SheetHeader>
+        <Tabs defaultValue="story" className="flex min-h-0 flex-1 flex-col">
+          <SheetHeader className="shrink-0 border-b border-border-color px-5 pt-5 pr-12 text-left">
+            <SheetTitle className="text-[1.0625rem] font-semibold tracking-tight text-text-emphasis">
+              Settings
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Story settings are saved in the .ink file. InkPad settings are saved in this
+              browser.
+            </SheetDescription>
+            <TabsList className="mt-3 h-auto justify-start gap-1 rounded-none border-0 bg-transparent p-0">
+              <TabsTrigger value="story" className={TAB_TRIGGER_CLASS}>
+                Story
+              </TabsTrigger>
+              <TabsTrigger value="inkpad" className={TAB_TRIGGER_CLASS}>
+                InkPad
+              </TabsTrigger>
+            </TabsList>
+          </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
-
-          {/* ── Story details ── */}
-          <SettingsSection title="Story details">
-            <MetaField
-              field="title"
-              label="Title"
-              value={storyTitle}
-              tagValue={titleTagValue}
-              onValueCommit={(title) => onStoryDetailsChange({ title })}
-              onWrite={(v) => onWriteTag("title", v)}
-              onJumpToTag={() => onJumpToTagLine("title")}
-            />
-            <MetaField
-              field="author"
-              label="Author"
-              value={author ?? ""}
-              tagValue={authorTagValue}
-              onValueCommit={(author) => onStoryDetailsChange({ author })}
-              onWrite={(v) => onWriteTag("author", v)}
-              onJumpToTag={() => onJumpToTagLine("author")}
-            />
-          </SettingsSection>
-
-          {/* ── File ── */}
-          <SettingsSection title="File">
-            <FileNameField
-              currentFileName={currentFileName}
-              onRenameFile={onRenameFile}
-              hasMultipleFiles={hasMultipleFiles}
-            />
-          </SettingsSection>
-
-          {/* ── Story Preview ── */}
-          <SettingsSection title="Story Preview">
-            <StoryThemeSection
-              themeTagValue={themeTagValue}
-              themeWarningMessage={themeWarning?.message}
-              previewTheme={preferences.previewTheme}
-              onPreviewThemeChange={(previewTheme) => updatePreferences({ previewTheme })}
-              onWriteTag={(v) => onWriteTag("theme", v)}
-              onJumpToTag={() => onJumpToTagLine("theme")}
-            />
-
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="settings-story-typeface"
-                className="text-[0.875rem] font-medium text-text-emphasis"
-              >
-                Story typeface
-              </Label>
-              <Select
-                value={storyTypeface}
-                onValueChange={(value) => onStoryTypefaceChange(value as HtmlExportFont)}
-              >
-                <SelectTrigger
-                  id="settings-story-typeface"
-                  aria-label="Story typeface"
-                  className="min-h-9 border-border-color bg-editor-bg"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  {STORY_TYPEFACES.map((typeface) => (
-                    <SelectItem key={typeface.value} value={typeface.value}>
-                      {typeface.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[0.8125rem] leading-snug text-text-secondary">
-                Applies to playable HTML exports. The export dialog uses this same value.
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
+            {/* ── Story ── */}
+            <TabsContent value="story" className="mt-0 focus-visible:outline-none">
+              <p className="pt-4 text-[0.8125rem] text-text-secondary">
+                Saved in your .ink file, so they travel with the story.
               </p>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="settings-display-mode"
-                className="text-[0.875rem] font-medium text-text-emphasis"
-              >
-                Display mode
-              </Label>
-              <Select
-                value={previewMode}
-                onValueChange={(v) => onPreviewModeChange(v as PreviewMode)}
-              >
-                <SelectTrigger
-                  id="settings-display-mode"
-                  aria-label="Preview display mode"
-                  className="min-h-9 border-border-color bg-editor-bg"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  <SelectItem value="transcript">Transcript</SelectItem>
-                  <SelectItem value="scene">Scene</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[0.8125rem] leading-snug text-text-secondary">
-                Transcript shows the path you've played so far. Scene shows only
-                the current moment.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="settings-preview-font-size"
-                className="text-[0.875rem] font-medium text-text-emphasis"
-              >
-                Preview font size
-              </Label>
-              <Select
-                value={String(preferences.previewFontSize)}
-                onValueChange={(v) =>
-                  updatePreferences({
-                    previewFontSize: Number(v) as typeof preferences.previewFontSize,
-                  })
-                }
-              >
-                <SelectTrigger
-                  id="settings-preview-font-size"
-                  aria-label="Preview font size"
-                  className="min-h-9 border-border-color bg-editor-bg"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  {[14, 16, 18, 20, 22].map((size) => (
-                    <SelectItem key={size} value={String(size)}>
-                      {size} px
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </SettingsSection>
-
-          {/* ── InkPad appearance ── */}
-          <SettingsSection title="InkPad appearance">
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="settings-inkpad-theme"
-                className="text-[0.875rem] font-medium text-text-emphasis"
-              >
-                InkPad theme
-              </Label>
-              <Select
-                value={preferences.theme}
-                onValueChange={(v) => updatePreferences({ theme: v as AppTheme })}
-              >
-                <SelectTrigger
-                  id="settings-inkpad-theme"
-                  aria-label="InkPad theme"
-                  className="min-h-9 border-border-color bg-editor-bg"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="high-contrast">High contrast</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[0.8125rem] leading-snug text-text-secondary">
-                Changes the InkPad interface. Story theme can be set separately.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="settings-editor-font-size"
-                className="text-[0.875rem] font-medium text-text-emphasis"
-              >
-                Editor font size
-              </Label>
-              <Select
-                value={String(preferences.editorFontSize)}
-                onValueChange={(v) =>
-                  updatePreferences({
-                    editorFontSize: Number(v) as typeof preferences.editorFontSize,
-                  })
-                }
-              >
-                <SelectTrigger
-                  id="settings-editor-font-size"
-                  aria-label="Editor font size"
-                  className="min-h-9 border-border-color bg-editor-bg"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border-color bg-panel-bg">
-                  {[12, 14, 16, 18, 20].map((size) => (
-                    <SelectItem key={size} value={String(size)}>
-                      {size} px
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p
-                  id="word-wrap-label"
-                  className="text-[0.875rem] font-medium text-text-emphasis"
-                >
-                  Word wrap
-                </p>
-                <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">
-                  Show long lines on multiple visual lines.
-                </p>
-              </div>
-              <Switch
-                id="word-wrap-switch"
-                checked={preferences.wordWrap}
-                aria-labelledby="word-wrap-label"
-                onCheckedChange={(checked) => updatePreferences({ wordWrap: checked })}
-              />
-            </div>
-          </SettingsSection>
-
-          {/* ── Privacy and data ── */}
-          <div ref={privacySectionRef}>
-            <SettingsSection title="Privacy and data">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p
-                    id="analytics-opt-out-label"
-                    className="text-[0.875rem] font-medium text-text-emphasis"
-                  >
-                    Help improve InkPad with privacy-preserving analytics
-                  </p>
-                  <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">
-                    InkPad collects aggregate usage data, such as which features
-                    are used and whether the app runs successfully. Analytics
-                    never include your story text, project names, filenames, or
-                    personal information.
-                  </p>
-                </div>
-                <Switch
-                  id="analytics-opt-out-switch"
-                  checked={analyticsEnabled}
-                  aria-labelledby="analytics-opt-out-label"
-                  onCheckedChange={handleAnalyticsEnabledChange}
+              <Group>
+                <MetaField
+                  field="title"
+                  label="Title"
+                  value={storyTitle}
+                  tagValue={titleTagValue}
+                  onValueCommit={(title) => onStoryDetailsChange({ title })}
+                  onWrite={(v) => onWriteTag("title", v)}
+                  onJumpToTag={() => onJumpToTagLine("title")}
                 />
-              </div>
-            </SettingsSection>
-          </div>
 
-          {/* ── About ── */}
-          <SettingsSection title="About">
-            <div className="flex items-center justify-between text-[0.875rem]">
-              <span className="text-text-emphasis font-medium">InkPad</span>
-              <span className="font-mono text-[0.8125rem] text-text-secondary">
-                v{__APP_VERSION__}
-              </span>
-            </div>
-            {(
-              [
-                ["GitHub", GITHUB_URL],
-                ["Report an issue", ISSUES_URL],
-                ["Third-party notices", NOTICES_URL],
-              ] as const
-            ).map(([label, href]) => (
-              <a
-                key={href}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="flex min-h-10 items-center justify-between rounded-md px-2 text-[0.875rem] text-text-primary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-              >
-                {label}
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-            ))}
-          </SettingsSection>
+                <MetaField
+                  field="author"
+                  label="Author"
+                  value={author ?? ""}
+                  tagValue={authorTagValue}
+                  onValueCommit={(nextAuthor) => onStoryDetailsChange({ author: nextAuthor })}
+                  onWrite={(v) => onWriteTag("author", v)}
+                  onJumpToTag={() => onJumpToTagLine("author")}
+                />
 
-          {/* ── Danger zone ── */}
-          <SettingsSection title="Danger zone" danger>
-            <div className="flex flex-col items-start gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsResetOpen(true)}
-                className="min-h-10 gap-2 border-border-color text-text-primary transition-all duration-200 active:scale-[0.98] font-medium"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reset preferences
-              </Button>
-              <p className="mt-2 text-[0.8125rem] leading-snug text-text-secondary">
-                Resets InkPad theme, story theme, font sizes, and word wrap to
-                defaults. Ink tags and file names stay unchanged.
+                <StackRow
+                  label="File name"
+                  htmlFor="settings-filename"
+                  info={
+                    hasMultipleFiles
+                      ? "Renames this file only. The project name is set in the toolbar."
+                      : "Used when saving and exporting. Can be different from the title."
+                  }
+                >
+                  <FileNameField
+                    currentFileName={currentFileName}
+                    onRenameFile={onRenameFile}
+                  />
+                </StackRow>
+              </Group>
+
+              <Group title="Reading" hint="how the story looks when played">
+                <StoryThemeRow
+                  themeTagValue={themeTagValue}
+                  themeWarningMessage={themeWarning?.message}
+                  previewTheme={preferences.previewTheme}
+                  onPreviewThemeChange={(previewTheme) => updatePreferences({ previewTheme })}
+                  onWriteTag={(v) => onWriteTag("theme", v)}
+                  onJumpToTag={() => onJumpToTagLine("theme")}
+                />
+
+                <Row
+                  label="Typeface"
+                  htmlFor="settings-story-typeface"
+                  info="Used in the preview and in exported HTML."
+                >
+                  <SelectField
+                    id="settings-story-typeface"
+                    ariaLabel="Story typeface"
+                    value={storyTypeface}
+                    onValueChange={(value) => onStoryTypefaceChange(value as HtmlExportFont)}
+                    options={STORY_TYPEFACES}
+                  />
+                </Row>
+              </Group>
+            </TabsContent>
+
+            {/* ── InkPad ── */}
+            <TabsContent value="inkpad" className="mt-0 focus-visible:outline-none">
+              <p className="pt-4 text-[0.8125rem] text-text-secondary">
+                Saved in this browser. Stories are not affected.
               </p>
-            </div>
-          </SettingsSection>
-        </div>
+
+              <Group title="Appearance">
+                <Row label="Theme" htmlFor="settings-inkpad-theme">
+                  <SelectField
+                    id="settings-inkpad-theme"
+                    ariaLabel="InkPad theme"
+                    value={preferences.theme}
+                    onValueChange={(v) => updatePreferences({ theme: v as AppTheme })}
+                    options={[
+                      { value: "system", label: "System" },
+                      { value: "light", label: "Light" },
+                      { value: "dark", label: "Dark" },
+                      { value: "high-contrast", label: "High contrast" },
+                    ]}
+                  />
+                </Row>
+              </Group>
+
+              <Group title="Editor">
+                <Row label="Font size" htmlFor="settings-editor-font-size">
+                  <SelectField
+                    id="settings-editor-font-size"
+                    ariaLabel="Editor font size"
+                    value={String(preferences.editorFontSize)}
+                    onValueChange={(v) =>
+                      updatePreferences({
+                        editorFontSize: Number(v) as typeof preferences.editorFontSize,
+                      })
+                    }
+                    options={[12, 14, 16, 18, 20].map((size) => ({
+                      value: String(size),
+                      label: `${size} px`,
+                    }))}
+                    width="w-[96px]"
+                  />
+                </Row>
+
+                <div className="flex min-h-11 items-center justify-between gap-4 py-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        id="word-wrap-label"
+                        className="text-[0.875rem] font-medium text-text-emphasis"
+                      >
+                        Word wrap
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Switch
+                      id="word-wrap-switch"
+                      checked={preferences.wordWrap}
+                      aria-labelledby="word-wrap-label"
+                      onCheckedChange={(checked) => updatePreferences({ wordWrap: checked })}
+                    />
+                  </div>
+                </div>
+              </Group>
+
+              <Group title="Preview">
+                <Row
+                  label="Show"
+                  htmlFor="settings-display-mode"
+                  info="Full transcript shows everything you've read so far. Current scene shows only the latest passage."
+                >
+                  <SelectField
+                    id="settings-display-mode"
+                    ariaLabel="Preview display mode"
+                    value={previewMode}
+                    onValueChange={(v) => onPreviewModeChange(v as PreviewMode)}
+                    options={[
+                      { value: "transcript", label: "Full transcript" },
+                      { value: "scene", label: "Current scene" },
+                    ]}
+                  />
+                </Row>
+
+                <Row label="Font size" htmlFor="settings-preview-font-size">
+                  <SelectField
+                    id="settings-preview-font-size"
+                    ariaLabel="Preview font size"
+                    value={String(preferences.previewFontSize)}
+                    onValueChange={(v) =>
+                      updatePreferences({
+                        previewFontSize: Number(v) as typeof preferences.previewFontSize,
+                      })
+                    }
+                    options={[14, 16, 18, 20, 22].map((size) => ({
+                      value: String(size),
+                      label: `${size} px`,
+                    }))}
+                    width="w-[96px]"
+                  />
+                </Row>
+              </Group>
+
+              {/* The wrapper carries the divider because the Group inside it is
+                  its parent's first section. */}
+              <div ref={privacySectionRef} className="border-t border-border-color/60">
+                <Group title="Privacy">
+                  <div className="flex min-h-11 items-center justify-between gap-4 py-1">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          id="analytics-opt-out-label"
+                          className="text-[0.875rem] font-medium text-text-emphasis"
+                        >
+                          Share anonymous usage stats
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[0.8125rem] text-text-secondary">
+                        Never includes story text or file names.
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Switch
+                        id="analytics-opt-out-switch"
+                        checked={analyticsEnabled}
+                        aria-labelledby="analytics-opt-out-label"
+                        onCheckedChange={handleAnalyticsEnabledChange}
+                      />
+                    </div>
+                  </div>
+                </Group>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border-color/60 pt-4">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="font-mono text-[0.75rem] text-text-secondary">
+                    InkPad v{__APP_VERSION__}
+                  </p>
+                  <nav aria-label="About">
+                    {aboutLinks.map(([label, href], index) => (
+                      <span key={href}>
+                        {index > 0 && (
+                          <span aria-hidden className="text-text-secondary">
+                            {" · "}
+                          </span>
+                        )}
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[0.75rem] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                        >
+                          {label}
+                          <ExternalLink className="ml-0.5 inline h-2.5 w-2.5" aria-hidden />
+                        </a>
+                      </span>
+                    ))}
+                  </nav>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsResetOpen(true)}
+                  className="h-8 gap-1.5 border-border-color text-[0.8125rem] text-text-primary"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                  Reset to defaults
+                </Button>
+              </div>
+            </TabsContent>
+          </div>
+        </Tabs>
 
         <AlertDialog open={isResetOpen} onOpenChange={setIsResetOpen}>
           <AlertDialogContent className="border-border-color bg-panel-bg text-text-primary">
             <AlertDialogHeader>
-              <AlertDialogTitle>
-                Reset appearance and editor preferences?
-              </AlertDialogTitle>
+              <AlertDialogTitle>Reset InkPad settings?</AlertDialogTitle>
               <AlertDialogDescription className="text-text-secondary">
-                InkPad theme, story theme, font sizes, and word wrap will return to
-                their defaults. Ink tags and file names stay unchanged.
+                Theme, font sizes, word wrap, and story preview theme go back to their defaults.
+                Your .ink files are not changed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => setIsResetOpen(false)}
-              >
-                Keep preferences
+              <Button variant="ghost" onClick={() => setIsResetOpen(false)}>
+                Keep settings
               </Button>
               <Button
                 onClick={() => {
@@ -973,7 +980,7 @@ export function SettingsSheet({
                 }}
                 className="bg-error text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
               >
-                Reset preferences
+                Reset
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -399,7 +399,13 @@
 
 .story-preview-copy {
   font-size: var(--preview-font-size, 16px);
+  font-family: var(--story-font, 'Lora', Georgia, 'Times New Roman', serif);
 }
+
+/* Mirrors body.font-* in public/templates/story-template.html so the preview matches the export. */
+.story-preview-font-serif { --story-font: 'Lora', Georgia, 'Times New Roman', serif; }
+.story-preview-font-sans { --story-font: var(--font-sans, 'Inter'), system-ui, sans-serif; }
+.story-preview-font-mono { --story-font: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace; }
 
 .story-preview-theme-system {
   --background: hsl(228, 30%, 96%);

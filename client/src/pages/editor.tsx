@@ -1745,6 +1745,7 @@ export default function Editor() {
       previewMode={currentDocument.previewMode ?? "transcript"}
       previewFontSize={preferences.previewFontSize}
       previewTheme={preferences.previewTheme}
+      storyTypeface={effectiveStoryTypeface}
       metadata={storyMetadata}
       sessionKey={storySessionKey}
       hasErrors={compileStatus === "error"}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { HtmlExportFont } from "@/features/export/html-export-options";
 import {
   ArrowDown,
   ArrowLeft,
@@ -28,6 +29,7 @@ interface StoryPreviewProps {
   previewMode?: PreviewMode;
   previewFontSize?: number;
   previewTheme?: PreviewThemePreference;
+  storyTypeface?: HtmlExportFont;
   metadata?: StoryMetadata;
   sessionKey?: number;
   onMakeChoice: (choiceIndex: number) => void;
@@ -62,6 +64,7 @@ export function StoryPreview({
   previewMode = "transcript",
   previewFontSize = 16,
   previewTheme = "inkpad",
+  storyTypeface = "serif",
   metadata,
   sessionKey = 0,
   hasErrors = false,
@@ -227,7 +230,7 @@ export function StoryPreview({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="story-preview-copy relative min-h-0 flex-1 overflow-auto bg-editor-bg p-5 sm:p-6"
+        className={`story-preview-copy story-preview-font-${storyTypeface} relative min-h-0 flex-1 overflow-auto bg-editor-bg p-5 sm:p-6`}
         style={{ "--preview-font-size": `${previewFontSize}px` } as React.CSSProperties}
       >
         <div className="mx-auto max-w-[68ch] space-y-6 pb-8">

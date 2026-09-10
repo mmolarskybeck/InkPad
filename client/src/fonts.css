@@ -53,3 +53,29 @@
   font-weight: 600;
   src: url("@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff2") format("woff2");
 }
+
+/* Lora: story preview "Serif" typeface. Matches the HTML export template.
+   Only fetched when the preview actually renders serif text. */
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/lora/files/lora-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Lora";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/lora/files/lora-latin-400-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("@fontsource/lora/files/lora-latin-600-normal.woff2") format("woff2");
+}
