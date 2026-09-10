@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -198,6 +199,57 @@ export function ProjectFilesPane({
     onCollapsedChange(!isCollapsed);
   }, [isCollapsed, onCollapsedChange]);
 
+  /** Rename / Duplicate / Delete, shared by the row's "…" dropdown and its right-click menu. */
+  const renderFileActions = (
+    fileId: string,
+    isEntry: boolean,
+    Item: typeof DropdownMenuItem | typeof ContextMenuItem,
+  ) => (
+    <>
+      <Item
+        onClick={(event) => {
+          event.stopPropagation();
+          suppressMenuRestoreFocusRef.current = true;
+          onRequestRenameProjectFile(fileId);
+        }}
+        className="cursor-pointer"
+      >
+        <Pencil className="h-4 w-4" />
+        Rename
+      </Item>
+      <Item
+        onClick={(event) => {
+          event.stopPropagation();
+          void onDuplicateProjectFile(fileId);
+        }}
+        className="cursor-pointer"
+      >
+        <Copy className="h-4 w-4" />
+        Duplicate
+      </Item>
+      {isEntry ? (
+        <Item
+          disabled
+          className="text-text-secondary opacity-100 data-[disabled]:opacity-100"
+        >
+          <Lock className="h-4 w-4" />
+          Entry file cannot be deleted
+        </Item>
+      ) : (
+        <Item
+          onClick={(event) => {
+            event.stopPropagation();
+            onRequestDeleteProjectFile(fileId);
+          }}
+          className="cursor-pointer text-error focus:text-error"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </Item>
+      )}
+    </>
+  );
+
   const iconButtonClass =
     "h-6 w-6 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg";
   /* Header actions stay quiet until the pane is hovered or focused (always visible on touch). */
@@ -315,6 +367,8 @@ export function ProjectFilesPane({
                     onRequestRenameProjectFile(fileId);
                   }}
                 >
+                  <ContextMenu>
+                  <ContextMenuTrigger asChild>
                   <div
                     aria-current={isActive ? "page" : undefined}
                     onClick={(event) => {
@@ -379,50 +433,22 @@ export function ProjectFilesPane({
                           event.preventDefault();
                         }}
                       >
-                        <DropdownMenuItem
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            suppressMenuRestoreFocusRef.current = true;
-                            onRequestRenameProjectFile(fileId);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void onDuplicateProjectFile(fileId);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <Copy className="h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        {isEntry ? (
-                          <DropdownMenuItem
-                            disabled
-                            className="text-text-secondary opacity-100 data-[disabled]:opacity-100"
-                          >
-                            <Lock className="h-4 w-4" />
-                            Entry file cannot be deleted
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onRequestDeleteProjectFile(fileId);
-                            }}
-                            className="cursor-pointer text-error focus:text-error"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        )}
+                        {renderFileActions(fileId, isEntry, DropdownMenuItem)}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent
+                    className="w-44 border-border-color bg-panel-bg"
+                    onCloseAutoFocus={(event) => {
+                      if (!suppressMenuRestoreFocusRef.current) return;
+                      suppressMenuRestoreFocusRef.current = false;
+                      event.preventDefault();
+                    }}
+                  >
+                    {renderFileActions(fileId, isEntry, ContextMenuItem)}
+                  </ContextMenuContent>
+                  </ContextMenu>
                 </div>
               );
             })}

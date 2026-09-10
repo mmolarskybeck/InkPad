@@ -1377,7 +1377,6 @@ export default function Editor() {
     }));
     FileOperations.clearRecoveryDraft(fileId);
     compileLive(getProjectCompileInput(nextProject));
-    setIsProjectFilesCollapsed(Object.keys(nextProject.files).length <= 1);
     await persistProject(nextProject, false);
     toast({ title: "Deleted", description: `${fileId} removed from this project.` });
   }, [
