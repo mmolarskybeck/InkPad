@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Download } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,6 +32,65 @@ import { Input } from "@/components/ui/input";
 function capTheme(theme: ThemeName): string {
   if (theme === "high-contrast") return "High contrast";
   return theme.charAt(0).toUpperCase() + theme.slice(1);
+}
+
+const FIELD_CLASS = "h-9 border-border-color bg-editor-bg text-[0.875rem] text-text-emphasis";
+const LABEL_CLASS = "text-[0.875rem] font-medium text-text-emphasis";
+
+function Code({ children }: { children: ReactNode }) {
+  return (
+    <code className="rounded border border-border-color/60 bg-editor-bg px-1 py-px font-mono text-[0.6875rem] text-text-primary">
+      {children}
+    </code>
+  );
+}
+
+function Section({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 border-t border-border-color/60 pt-5 first-of-type:border-t-0 first-of-type:pt-0">
+      {title && <h3 className="text-[0.8125rem] font-semibold text-text-emphasis">{title}</h3>}
+      {children}
+    </section>
+  );
+}
+
+function Hint({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <p id={id} className="text-[0.75rem] leading-5 text-text-secondary">
+      {children}
+    </p>
+  );
+}
+
+interface ToggleRowProps {
+  id: string;
+  label: string;
+  description: ReactNode;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+function ToggleRow({ id, label, description, checked, onCheckedChange }: ToggleRowProps) {
+  const descriptionId = `${id}-description`;
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0 flex-1">
+        <Label htmlFor={id} className={`cursor-pointer ${LABEL_CLASS}`}>
+          {label}
+        </Label>
+        <p id={descriptionId} className="mt-0.5 text-[0.8125rem] leading-5 text-text-secondary">
+          {description}
+        </p>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        aria-describedby={descriptionId}
+        className="mt-0.5"
+      />
+    </div>
+  );
 }
 
 interface PlayableHtmlExportDialogProps {
@@ -72,6 +131,7 @@ export function PlayableHtmlExportDialog({
   const [localFileTheme, setLocalFileTheme] = useState<ThemeName | null>(metadata.theme);
   const wasOpenRef = useRef(false);
   const defaultThemeRef = useRef<ThemeName>(metadata.theme ?? resolvedTheme);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -94,7 +154,11 @@ export function PlayableHtmlExportDialog({
     setRememberChoices(true);
   }, [metadata.author, metadata.theme, metadata.title, open, resolvedTheme, savedOptions, storyTypeface]);
 
+  const update = (patch: Partial<HtmlExportOptions>) =>
+    setOptions((current) => ({ ...current, ...patch }));
+
   const handleExport = async () => {
+    if (isExporting) return;
     await onExport({
       ...options,
       title: options.title.trim() || "Untitled Story",
@@ -108,41 +172,38 @@ export function PlayableHtmlExportDialog({
   const themeMatchesFile = localFileTheme !== null && options.theme === localFileTheme;
   const themeIsDefault = options.theme === defaultTheme;
   const showSetFileTheme = !themeIsDefault && options.theme !== localFileTheme;
+  const zipFilename = replaceFilenameExtension(filename, ".zip");
 
   const themeName = capTheme(options.theme);
-  let themeStatusText: React.ReactNode;
+  let themeStatusText: ReactNode;
   if (themeMatchesFile) {
     themeStatusText = (
       <>
-        Export will use {themeName} from{" "}
-        <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.6875rem]">
-          # theme:
-        </code>{" "}
-        in this ink file.
+        Export will use {themeName} from <Code># theme:</Code> in this ink file.
       </>
     );
   } else if (themeIsDefault && localFileTheme === null) {
     themeStatusText = resolvedFromSystem ? (
       <>
-        No{" "}
-        <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.6875rem]">
-          # theme:
-        </code>{" "}
-        tag in this file. Export will use {themeName}, based on your current system setting.
+        No <Code># theme:</Code> tag in this file. Export will use {themeName}, based on your
+        current system setting.
       </>
     ) : (
       <>
-        No{" "}
-        <code className="rounded bg-editor-bg px-1 py-0.5 font-mono text-[0.6875rem]">
-          # theme:
-        </code>{" "}
-        tag in this file. Export will use {themeName}.
+        No <Code># theme:</Code> tag in this file. Export will use {themeName}.
+      </>
+    );
+  } else if (localFileTheme !== null) {
+    themeStatusText = (
+      <>
+        Export will use {themeName}. The file&apos;s <Code># theme:</Code> tag stays{" "}
+        {capTheme(localFileTheme)} unless you update it.
       </>
     );
   } else {
     themeStatusText = (
       <>
-        Export will use {themeName}. You can also write {themeName} to this ink file.
+        Export will use {themeName}. This file has no <Code># theme:</Code> tag.
       </>
     );
   }
@@ -150,206 +211,194 @@ export function PlayableHtmlExportDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto border-border-color bg-panel-bg text-text-primary sm:max-w-lg"
+        ref={contentRef}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          contentRef.current?.focus();
+        }}
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden border-border-color bg-panel-bg p-0 text-text-primary sm:max-w-lg"
       >
-        <DialogHeader className="mb-4">
-          <DialogTitle className="text-xl font-semibold tracking-tight text-text-emphasis">Export playable HTML</DialogTitle>
-          <DialogDescription className="text-text-secondary">
-            Download a standalone web version of this story.
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border-color/60 px-6 pb-4 pr-12 pt-5 text-left">
+          <DialogTitle className="text-[1.0625rem] font-semibold tracking-tight text-text-emphasis">
+            Export playable HTML
+          </DialogTitle>
+          <DialogDescription className="text-[0.8125rem] text-text-secondary">
+            A ZIP with a standalone web page that plays this story. The story and Ink runtime are
+            embedded, so it works from any host or a local folder.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-8 py-2">
-          {/* Metadata Section */}
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="html-export-title" className="text-text-emphasis">Story title</Label>
-                <Input
-                  id="html-export-title"
-                  value={options.title}
-                  onChange={(event) => setOptions((current) => ({
-                    ...current,
-                    title: event.target.value,
-                  }))}
-                  className="min-h-10 border-border-color bg-editor-bg text-text-emphasis"
-                />
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleExport();
+          }}
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+            <Section title="Details">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="html-export-title" className={LABEL_CLASS}>
+                    Story title
+                  </Label>
+                  <Input
+                    id="html-export-title"
+                    value={options.title}
+                    placeholder="Untitled Story"
+                    onChange={(event) => update({ title: event.target.value })}
+                    className={FIELD_CLASS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="html-export-author" className={LABEL_CLASS}>
+                    Author
+                  </Label>
+                  <Input
+                    id="html-export-author"
+                    value={options.author}
+                    placeholder="No byline"
+                    onChange={(event) => update({ author: event.target.value })}
+                    className={FIELD_CLASS}
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="html-export-author" className="text-text-emphasis">Author</Label>
-                <Input
-                  id="html-export-author"
-                  value={options.author}
-                  placeholder="No byline"
-                  onChange={(event) => setOptions((current) => ({
-                    ...current,
-                    author: event.target.value,
-                  }))}
-                  className="min-h-10 border-border-color bg-editor-bg text-text-emphasis"
-                />
-              </div>
-            </div>
-            <p className="text-[0.8125rem] leading-snug text-text-secondary">
-              Title and author changes only affect this download. Theme and typeface use the same story appearance values as Settings.
-            </p>
-          </div>
+              <Hint>Shown on the exported page. Title and author here don&apos;t change the ink file.</Hint>
+            </Section>
 
-          {/* Appearance Section */}
-          <div className="flex flex-col gap-4">
-            <div className="text-[0.875rem] font-semibold tracking-tight text-text-emphasis">Appearance</div>
-            <div className="grid gap-6 sm:grid-cols-2 sm:gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="html-export-theme" className="text-text-emphasis">Export theme</Label>
-                <Select
-                  value={options.theme}
-                  onValueChange={(theme) => {
-                    setOptions((current) => ({
-                      ...current,
-                      theme: theme as HtmlExportTheme,
-                    }));
-                  }}
-                >
-                  <SelectTrigger id="html-export-theme" aria-label="HTML export theme" className="min-h-10 border-border-color bg-editor-bg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-border-color bg-panel-bg">
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="sepia">Sepia</SelectItem>
-                    <SelectItem value="high-contrast">High contrast</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="mt-1 flex flex-col gap-2">
-                  <p className="text-[0.75rem] leading-snug text-text-secondary">
-                    {themeStatusText}
-                  </p>
-                  {showSetFileTheme && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSetFileTheme(options.theme);
-                        setLocalFileTheme(options.theme);
-                      }}
-                      className="self-start rounded border border-border-color px-2.5 py-1 text-[0.75rem] font-medium text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis active:scale-[0.98]"
+            <Section title="Appearance">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="html-export-theme" className={LABEL_CLASS}>
+                    Theme
+                  </Label>
+                  <Select
+                    value={options.theme}
+                    onValueChange={(theme) => update({ theme: theme as HtmlExportTheme })}
+                  >
+                    <SelectTrigger
+                      id="html-export-theme"
+                      aria-label="HTML export theme"
+                      aria-describedby="html-export-theme-status"
+                      className={FIELD_CLASS}
                     >
-                      Set file theme to {themeName}
-                    </button>
-                  )}
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-border-color bg-panel-bg">
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="sepia">Sepia</SelectItem>
+                      <SelectItem value="high-contrast">High contrast</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="html-export-font" className={LABEL_CLASS}>
+                    Story typeface
+                  </Label>
+                  <Select
+                    value={options.font}
+                    onValueChange={(font) => {
+                      const nextFont = font as HtmlExportFont;
+                      update({ font: nextFont });
+                      onStoryTypefaceChange(nextFont);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="html-export-font"
+                      aria-label="HTML export typeface"
+                      aria-describedby="html-export-font-hint"
+                      className={FIELD_CLASS}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-border-color bg-panel-bg">
+                      <SelectItem value="serif">Serif</SelectItem>
+                      <SelectItem value="sans">Sans</SelectItem>
+                      <SelectItem value="mono">Mono</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="html-export-font" className="text-text-emphasis">Story typeface</Label>
-                <Select
-                  value={options.font}
-                  onValueChange={(font) => {
-                    const nextFont = font as HtmlExportFont;
-                    setOptions((current) => ({
-                      ...current,
-                      font: nextFont,
-                    }));
-                    onStoryTypefaceChange(nextFont);
-                  }}
-                >
-                  <SelectTrigger id="html-export-font" aria-label="HTML export typeface" className="min-h-10 border-border-color bg-editor-bg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-border-color bg-panel-bg">
-                    <SelectItem value="serif">Serif</SelectItem>
-                    <SelectItem value="sans">Sans</SelectItem>
-                    <SelectItem value="mono">Mono</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[0.75rem] leading-snug text-text-secondary">
-                  Shared with Settings. Applies to the story title and reading text.
-                </p>
+                <Hint id="html-export-theme-status">{themeStatusText}</Hint>
+                {showSetFileTheme && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSetFileTheme(options.theme);
+                      setLocalFileTheme(options.theme);
+                    }}
+                    className="self-start rounded-md border border-border-color px-2.5 py-1 text-[0.75rem] font-medium text-text-primary transition-colors hover:bg-editor-bg hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel-bg active:scale-[0.98]"
+                  >
+                    Set file theme to {themeName}
+                  </button>
+                )}
+                <Hint id="html-export-font-hint">
+                  Typeface is shared with Settings. Fonts load from the web when the page opens.
+                </Hint>
               </div>
-            </div>
-          </div>
+            </Section>
 
-          {/* Options Section */}
-          <div className="flex flex-col gap-4">
-            <div className="text-[0.875rem] font-semibold tracking-tight text-text-emphasis">Options</div>
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <Label id="include-readme-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setOptions(c => ({...c, includeReadme: !c.includeReadme}))}>
-                    Include README
-                  </Label>
-                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
-                    Adds basic hosting and playback instructions to the ZIP.
-                  </span>
-                </div>
-                <Switch
+            <Section title="Add to ZIP">
+              <div className="flex flex-col gap-4">
+                <ToggleRow
                   id="include-readme-switch"
+                  label="README"
+                  description="Short hosting and playback instructions."
                   checked={options.includeReadme}
-                  aria-labelledby="include-readme-label"
-                  onCheckedChange={(checked) => setOptions((current) => ({
-                    ...current,
-                    includeReadme: checked,
-                  }))}
+                  onCheckedChange={(includeReadme) => update({ includeReadme })}
                 />
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <Label id="include-source-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setOptions(c => ({...c, includeSource: !c.includeSource}))}>
-                    Include editable project source
-                  </Label>
-                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
-                    Adds source.inkpad to the ZIP so the story can be reopened in InkPad. Anyone with the ZIP can read the full source, including comments and unpublished content.
-                  </span>
-                </div>
-                <Switch
+                <ToggleRow
                   id="include-source-switch"
+                  label="Editable project source"
+                  description={
+                    <>
+                      Adds <Code>source.inkpad</Code> so the export can be reopened in InkPad.
+                      Anyone with the ZIP can read the full source, including comments and
+                      unpublished content.
+                    </>
+                  }
                   checked={options.includeSource}
-                  aria-labelledby="include-source-label"
-                  onCheckedChange={(checked) => setOptions((current) => ({
-                    ...current,
-                    includeSource: checked,
-                  }))}
+                  onCheckedChange={(includeSource) => update({ includeSource })}
                 />
               </div>
+            </Section>
 
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <Label id="remember-export-label" className="cursor-pointer text-[0.875rem] font-medium text-text-emphasis" onClick={() => setRememberChoices(c => !c)}>
-                    Remember these choices
-                  </Label>
-                  <span className="text-[0.8125rem] leading-snug text-text-secondary">
-                    Reuse this export profile for this InkPad story next time.
-                  </span>
-                </div>
-                <Switch
-                  id="remember-export-switch"
-                  checked={rememberChoices}
-                  aria-labelledby="remember-export-label"
-                  onCheckedChange={setRememberChoices}
-                />
-              </div>
-            </div>
+            <Section>
+              <ToggleRow
+                id="remember-export-switch"
+                label="Remember these choices"
+                description="Start from these settings the next time you export this story."
+                checked={rememberChoices}
+                onCheckedChange={setRememberChoices}
+              />
+            </Section>
           </div>
-        </div>
 
-        <div className="mt-2 text-[0.75rem] leading-snug text-text-secondary">
-          Story content is embedded in the HTML. InkJS and web fonts still require an internet connection.
-        </div>
-
-        <DialogFooter className="mt-4">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={isExporting}
-            onClick={() => void handleExport()}
-            className="gap-2 bg-success text-editor-bg transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-          >
-            <Download className="h-4 w-4" />
-            {isExporting ? "Preparing…" : "Download ZIP"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="shrink-0 flex-col gap-3 border-t border-border-color/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:space-x-0">
+            <p className="min-w-0 truncate text-[0.75rem] leading-5 text-text-secondary">
+              Downloads as <Code>{zipFilename}</Code>
+            </p>
+            <div className="flex shrink-0 justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="text-text-primary hover:text-text-emphasis"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={isExporting} aria-live="polite">
+                {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
+                {isExporting ? "Preparing…" : "Download ZIP"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

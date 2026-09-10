@@ -40,9 +40,14 @@ import type { ParsedGlobalTags, MetadataField, ThemeName } from "@/lib/tag-inter
 import type { AppTheme, PreviewThemePreference } from "@/types/user-preferences";
 import type { HtmlExportFont } from "@/features/export/html-export-options";
 
+export type SettingsTab = "story" | "inkpad";
+
 interface SettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Controlled active tab. Keep this in the parent so the sheet reopens on the tab you left. */
+  activeTab?: SettingsTab;
+  onActiveTabChange?: (tab: SettingsTab) => void;
   parsedGlobalTags: ParsedGlobalTags;
   currentFileName: string;
   storyTitle: string;
@@ -615,6 +620,8 @@ function StoryThemeRow({
 export function SettingsSheet({
   open,
   onOpenChange,
+  activeTab = "story",
+  onActiveTabChange,
   parsedGlobalTags,
   currentFileName,
   storyTitle,
@@ -699,7 +706,11 @@ export function SettingsSheet({
         side="right"
         className="flex w-[92vw] max-w-lg flex-col overflow-hidden border-border-color bg-panel-bg p-0 text-text-primary"
       >
-        <Tabs defaultValue="story" className="flex min-h-0 flex-1 flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => onActiveTabChange?.(value as SettingsTab)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <SheetHeader className="shrink-0 border-b border-border-color px-5 pt-5 pr-12 text-left">
             <SheetTitle className="text-[1.0625rem] font-semibold tracking-tight text-text-emphasis">
               Settings

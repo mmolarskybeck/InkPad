@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Download, FileArchive, FileText, Braces, MonitorPlay } from "lucide-react";
+import { Download, FileArchive, FileText, Braces, MonitorPlay, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 interface StoryExportMenuProps {
@@ -20,6 +21,38 @@ interface StoryExportMenuProps {
   isExporting?: boolean;
 }
 
+interface ExportMenuItemProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  disabled?: boolean;
+  onSelect: () => void;
+}
+
+function ExportMenuItem({ icon: Icon, title, description, disabled, onSelect }: ExportMenuItemProps) {
+  return (
+    <DropdownMenuItem
+      onSelect={onSelect}
+      disabled={disabled}
+      className="group flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 transition-colors focus:bg-accent focus:outline-none data-[disabled]:opacity-50"
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-text-secondary transition-colors group-focus:text-text-emphasis" />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-[0.875rem] font-medium leading-tight text-text-emphasis">{title}</span>
+        <span className="text-[0.75rem] leading-snug text-text-secondary">{description}</span>
+      </div>
+    </DropdownMenuItem>
+  );
+}
+
+function GroupLabel({ children }: { children: string }) {
+  return (
+    <DropdownMenuLabel className="px-2 pb-1 pt-2 text-[0.75rem] font-medium uppercase tracking-[0.05em] text-text-secondary">
+      {children}
+    </DropdownMenuLabel>
+  );
+}
+
 export function StoryExportMenu({
   onExportInk,
   onExportProject,
@@ -30,14 +63,7 @@ export function StoryExportMenu({
   isExporting = false,
 }: StoryExportMenuProps) {
   const [open, setOpen] = useState(false);
-
-  const runExport = async (exportStory: () => void | Promise<void>) => {
-    try {
-      await exportStory();
-    } finally {
-      setOpen(false);
-    }
-  };
+  const showProjectExports = hasMultipleFiles && Boolean(onExportProject);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -51,107 +77,55 @@ export function StoryExportMenu({
           Export
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[320px] bg-panel-bg border-border-color p-2 shadow-sm">
-        <DropdownMenuLabel className="px-2 pt-1.5 pb-2">
-          <div className="text-[0.9375rem] font-semibold text-text-emphasis tracking-tight">Export Story</div>
-          <div className="text-[0.8125rem] font-normal text-text-secondary mt-0.5">Choose a format to export.</div>
-        </DropdownMenuLabel>
-        
-        <DropdownMenuSeparator className="bg-border-color/50 mb-2" />
-        
-        <div className="grid gap-1">
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.preventDefault();
-              void runExport(onExportInk);
-            }}
+      <DropdownMenuContent align="start" className="w-[288px] border-border-color bg-panel-bg p-1.5 shadow-md">
+        <DropdownMenuGroup>
+          <GroupLabel>Source</GroupLabel>
+          <ExportMenuItem
+            icon={FileText}
+            title="Ink source (.ink)"
+            description="This file, for editing in any Ink tool."
             disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
-          >
-            <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Ink source</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Editable source file</span>
-            </div>
-          </DropdownMenuItem>
-
-          {hasMultipleFiles && onExportProject && (
-            <>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.preventDefault();
-                  void runExport(onExportProject);
-                }}
-                disabled={isExporting}
-                className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
-              >
-                <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
-                  <FileArchive className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">InkPad project</span>
-                  <span className="text-[0.8125rem] text-text-secondary leading-tight">Full project archive</span>
-                </div>
-              </DropdownMenuItem>
-
-              {onExportProjectZip && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void runExport(onExportProjectZip);
-                  }}
-                  disabled={isExporting}
-                  className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
-                >
-                  <div className="shrink-0 rounded bg-accent-blue/10 p-1.5 text-accent-blue">
-                    <FileArchive className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Project ZIP</span>
-                    <span className="text-[0.8125rem] text-text-secondary leading-tight">Standard ZIP format</span>
-                  </div>
-                </DropdownMenuItem>
-              )}
-            </>
+            onSelect={() => void onExportInk()}
+          />
+          {showProjectExports && onExportProject && (
+            <ExportMenuItem
+              icon={FileArchive}
+              title="InkPad project (.inkpad)"
+              description="Every file in this project. Reopens in InkPad."
+              disabled={isExporting}
+              onSelect={() => void onExportProject()}
+            />
           )}
+          {showProjectExports && onExportProjectZip && (
+            <ExportMenuItem
+              icon={FileArchive}
+              title="Project ZIP"
+              description="The same files as a standard ZIP."
+              disabled={isExporting}
+              onSelect={() => void onExportProjectZip()}
+            />
+          )}
+        </DropdownMenuGroup>
 
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.preventDefault();
-              void runExport(onExportJson);
-            }}
-            disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
-          >
-            <div className="shrink-0 rounded bg-success/10 p-1.5 text-success">
-              <Braces className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Compiled JSON</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Compiled for custom engines</span>
-            </div>
-          </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1 bg-border-color/60" />
 
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.preventDefault();
-              setOpen(false);
-              window.setTimeout(onConfigureHtml, 0);
-            }}
+        <DropdownMenuGroup>
+          <GroupLabel>Build</GroupLabel>
+          <ExportMenuItem
+            icon={Braces}
+            title="Compiled JSON"
+            description="Runtime story for inkjs or a custom engine."
             disabled={isExporting}
-            className="flex items-start gap-3 rounded-md p-2.5 cursor-pointer transition-all duration-200 focus:bg-accent focus:outline-none active:scale-[0.98] data-[disabled]:opacity-50"
-          >
-            <div className="shrink-0 rounded bg-warning/10 p-1.5 text-warning">
-              <MonitorPlay className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[0.875rem] font-semibold text-text-emphasis leading-none">Playable HTML</span>
-              <span className="text-[0.8125rem] text-text-secondary leading-tight">Ready-to-play web build</span>
-            </div>
-          </DropdownMenuItem>
-        </div>
+            onSelect={() => void onExportJson()}
+          />
+          <ExportMenuItem
+            icon={MonitorPlay}
+            title="Playable HTML…"
+            description="Standalone web page with theme and typeface options."
+            disabled={isExporting}
+            onSelect={() => window.setTimeout(onConfigureHtml, 0)}
+          />
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

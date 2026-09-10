@@ -92,6 +92,7 @@ import {
   renameProjectFile,
 } from "@/lib/ink-project";
 import { normalizeInkProjectFilePath } from "@/lib/ink-project-paths";
+import type { SettingsTab } from "@/components/editor/settings-sheet";
 
 const LazyCodeMirrorEditor = lazy(() =>
   loadCodeMirrorEditor().then((module) => ({
@@ -427,6 +428,8 @@ export default function Editor() {
   // tab layout shared with mobile. Cleared when the window narrows into true mobile.
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Session-only: the sheet reopens on the tab you last used.
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("story");
   const [inlineRenameRequest, setInlineRenameRequest] = useState<{ fileId: string; key: number } | null>(null);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<string | null>(null);
   const [lastRunSource, setLastRunSource] = useState<string | null>(null);
@@ -1814,6 +1817,8 @@ export default function Editor() {
           <LazySettingsSheet
             open={isSettingsOpen}
             onOpenChange={setIsSettingsOpen}
+            activeTab={settingsTab}
+            onActiveTabChange={setSettingsTab}
             parsedGlobalTags={parsedGlobalTags}
             currentFileName={currentDocument.filename}
             storyTitle={resolvedStoryTitle}
