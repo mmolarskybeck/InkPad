@@ -25,6 +25,9 @@ export function ErrorPanel({
   const errorCount = errors.filter(e => getEditorDiagnosticSeverity(e) === 'error').length;
   const warningCount = errors.filter(e => getEditorDiagnosticSeverity(e) === 'warning').length;
   const statusConfig = getCompileStatusConfig(compileStatus);
+  const sortedErrors = [...errors].sort(
+    (a, b) => getSeverityRank(getEditorDiagnosticSeverity(a)) - getSeverityRank(getEditorDiagnosticSeverity(b)),
+  );
   const StatusIcon = statusConfig.icon;
   const handleCopyMessage = (event: React.MouseEvent<HTMLButtonElement>, error: EditorDiagnostic) => {
     event.stopPropagation();
@@ -74,7 +77,7 @@ export function ErrorPanel({
               No problems detected
             </div>
           ) : (
-            errors.map((error, index) => (
+            sortedErrors.map((error, index) => (
               <div
                 key={index}
                 onClick={() => onErrorClick(error)}
@@ -113,6 +116,12 @@ export function ErrorPanel({
       </div>
     </div>
   );
+}
+
+const SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2, hint: 3 };
+
+function getSeverityRank(severity: string): number {
+  return SEVERITY_RANK[severity] ?? 4;
 }
 
 function getCompileStatusConfig(status: CompileStatus) {

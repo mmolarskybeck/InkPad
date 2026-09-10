@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowLeft,
   BookOpen,
+  CircleAlert,
   Eye,
   Play,
   RotateCcw,
@@ -37,6 +38,7 @@ interface StoryPreviewProps {
   onRun?: () => void;
   onRestart?: () => void;
   hasErrors?: boolean;
+  errorCount?: number;
   onViewProblems?: () => void;
 }
 
@@ -68,6 +70,7 @@ export function StoryPreview({
   metadata,
   sessionKey = 0,
   hasErrors = false,
+  errorCount = 0,
   onViewProblems,
   onMakeChoice,
   onStepBack,
@@ -165,7 +168,28 @@ export function StoryPreview({
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {isStale && onRun ? (
+            {hasErrors && runtimeState ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onViewProblems}
+                    disabled={!onViewProblems}
+                    role="status"
+                    className="h-7 gap-1.5 px-2 text-[0.8125rem] font-medium tabular-nums text-destructive hover:bg-destructive/10 hover:text-destructive disabled:opacity-100"
+                    aria-label={`${errorCount === 1 ? "1 error" : `${errorCount} errors`}. Preview shows the last successful run. View problems.`}
+                  >
+                    <CircleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {errorCount === 1 ? "1 error" : `${errorCount} errors`}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Preview shows the last successful run. Click to view problems.
+                </TooltipContent>
+              </Tooltip>
+            ) : isStale && onRun ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -300,34 +324,30 @@ export function StoryPreview({
                   {hasErrors ? "Fix errors to preview" : "Ready when you are"}
                 </h3>
                 <p className="text-[0.9375rem] leading-[1.6] text-text-secondary text-balance">
-                  {hasErrors 
-                    ? "Your story has errors that prevent preview. Fix them in the Problems panel, then run again." 
+                  {hasErrors
+                    ? "Your story can't run until its errors are fixed. Fix them, and the preview will be ready to run."
                     : "Compile and run your story to start the interactive preview."}
                 </p>
               </div>
               
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center w-full">
-                {onRun ? (
-                  <Button 
-                    onClick={onRun} 
-                    disabled={hasErrors}
-                    className={`h-9 gap-2 px-6 text-[0.875rem] font-semibold tracking-[0.01em] shadow-sm transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none ${
-                      hasErrors 
-                        ? "bg-disabled-bg text-text-secondary shadow-none" 
-                        : "bg-success text-editor-bg hover:brightness-110"
-                    }`}
+                {hasErrors ? (
+                  onViewProblems ? (
+                    <Button
+                      onClick={onViewProblems}
+                      className="h-9 gap-2 bg-destructive px-6 text-[0.875rem] font-semibold tracking-[0.01em] text-destructive-foreground shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                    >
+                      <CircleAlert className="h-3.5 w-3.5" />
+                      {errorCount === 1 ? "View problem" : "View problems"}
+                    </Button>
+                  ) : null
+                ) : onRun ? (
+                  <Button
+                    onClick={onRun}
+                    className="h-9 gap-2 bg-success px-6 text-[0.875rem] font-semibold tracking-[0.01em] text-editor-bg shadow-sm transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
                     Run story
-                  </Button>
-                ) : null}
-                {hasErrors && onViewProblems ? (
-                  <Button
-                    variant="outline"
-                    onClick={onViewProblems}
-                    className="h-9 border-border-color px-6 text-[0.875rem] font-medium text-text-primary hover:border-text-secondary hover:bg-panel-bg shadow-sm transition-all duration-200 active:scale-[0.98]"
-                  >
-                    View problems
                   </Button>
                 ) : null}
               </div>

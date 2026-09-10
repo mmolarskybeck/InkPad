@@ -133,6 +133,51 @@ describe("StoryPreview", () => {
     expect(onRun).toHaveBeenCalledOnce();
   });
 
+  it("keeps the last successful run and points at the problem when compilation fails", async () => {
+    const onRun = vi.fn();
+    const onViewProblems = vi.fn();
+    renderWithTooltips(
+      <StoryPreview
+        runtimeState={runtimeState}
+        isRunning
+        isStale
+        hasErrors
+        errorCount={1}
+        onMakeChoice={() => {}}
+        onRun={onRun}
+        onViewProblems={onViewProblems}
+      />
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("1 error");
+    expect(status).not.toHaveTextContent("Showing last successful run");
+    expect(screen.queryByRole("button", { name: "Re-run to update preview" })).not.toBeInTheDocument();
+    await userEvent.click(status);
+    expect(onViewProblems).toHaveBeenCalledOnce();
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("makes View problems the primary action when no preview has ever run", async () => {
+    const onViewProblems = vi.fn();
+    renderWithTooltips(
+      <StoryPreview
+        runtimeState={null}
+        isRunning={false}
+        hasErrors
+        errorCount={2}
+        onMakeChoice={() => {}}
+        onRun={() => {}}
+        onViewProblems={onViewProblems}
+      />
+    );
+
+    expect(screen.getByText("Fix errors to preview")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Run story/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "View problems" }));
+    expect(onViewProblems).toHaveBeenCalledOnce();
+  });
+
   it("does not render status dots in the preview header", () => {
     renderWithTooltips(
       <StoryPreview

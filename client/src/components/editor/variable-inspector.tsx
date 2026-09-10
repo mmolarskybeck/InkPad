@@ -12,6 +12,7 @@ interface InkVariable {
 interface VariableInspectorProps {
   variables: InkVariable[];
   showHeader?: boolean;
+  compileFailed?: boolean;
 }
 
 const MAX_LIST_ITEMS = 3;
@@ -54,7 +55,7 @@ function ListValue({ value }: { value: ListVariableValue | any }) {
   );
 }
 
-export function VariableInspector({ variables, showHeader = true }: VariableInspectorProps) {
+export function VariableInspector({ variables, showHeader = true, compileFailed = false }: VariableInspectorProps) {
   const getVariableIcon = (type: string) => {
     switch (type) {
       case 'number':
@@ -122,7 +123,7 @@ export function VariableInspector({ variables, showHeader = true }: VariableInsp
         <div className="p-2 space-y-1">
           {variables.length === 0 ? (
             <div className="p-4 text-center text-[0.875rem] text-text-secondary">
-              No variables found
+              {compileFailed ? "Unavailable until errors are fixed" : "No variables found"}
             </div>
           ) : (
             variables.map((variable) => (

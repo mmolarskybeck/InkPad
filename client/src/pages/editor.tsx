@@ -79,7 +79,7 @@ import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
 import { adaptCompilerDiagnostic } from "@/inkLanguage/diagnosticAdapter";
 import { getMissingStartDiagnostic } from "@/inkLanguage/inkDiagnostics";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
-import { getEditorDiagnosticLine } from "@/types/editor-diagnostic";
+import { getEditorDiagnosticLine, getEditorDiagnosticSeverity } from "@/types/editor-diagnostic";
 import {
   createSingleFileProject,
   deleteProjectFile,
@@ -1535,6 +1535,24 @@ export default function Editor() {
     && getProjectFingerprint(currentProjectForSave) !== lastRunSource,
   );
 
+  const handleViewProblems = useCallback(() => {
+    if (isMobile) {
+      setMobileTab("code");
+      setMobileDrawer("problems");
+    } else {
+      if (focusedPanel !== null) {
+        setFocusedPanel("code");
+      }
+      if ((desktopBottomPanelRef.current?.getSize() ?? 25) < 25) {
+        desktopBottomPanelRef.current?.resize(25);
+      }
+    }
+    const firstError = editorDiagnostics.find((d) => getEditorDiagnosticSeverity(d) === "error");
+    if (firstError) {
+      handleErrorClick(firstError);
+    }
+  }, [editorDiagnostics, focusedPanel, handleErrorClick, isMobile]);
+
   const handleErrorPanelOpened = useCallback(() => {
     trackErrorPanelOpened(errorCount + warningCount);
   }, [errorCount, warningCount]);
@@ -1682,6 +1700,8 @@ export default function Editor() {
       metadata={storyMetadata}
       sessionKey={storySessionKey}
       hasErrors={compileStatus === "error"}
+      errorCount={errorCount}
+      onViewProblems={handleViewProblems}
       onMakeChoice={makeChoice}
       onStepBack={stepBack}
       onRun={handleRun}
@@ -1716,8 +1736,8 @@ export default function Editor() {
     />
   );
 
-  const variablesPane = <VariableInspector variables={variables} />;
-  const compactVariablesPane = <VariableInspector variables={variables} showHeader={false} />;
+  const variablesPane = <VariableInspector variables={variables} compileFailed={compileStatus === "error"} />;
+  const compactVariablesPane = <VariableInspector variables={variables} showHeader={false} compileFailed={compileStatus === "error"} />;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
