@@ -1,0 +1,224 @@
+# ink Library
+
+This is a collection of [ink](https://www.inklestudios.com/ink/) resources, samples, tools as well as a running list of projects that use ink. It's an attempt to catalogue everyth**ink** in one place.
+
+We're open to pull requests, so feel free to submit any sample ink, tools that you've found useful, or a link to your own project or game.
+
+## ink Patreon
+
+Inkle has a [patreon page full of tips and tricks](https://www.patreon.com/inkle), please consider donating if you make use of ink!
+
+## ink samples 
+
+* [Snippets](https://github.com/inkle/ink-library/tree/master/Snippets) - re-useable functions, examples of techniques,  etc.
+* [Stories](https://github.com/inkle/ink-library/tree/master/Stories/) - entire playable stories written in ink.
+
+If you want to submit a sample, please make sure to put a header comment at the top of your (main) file that gives an overview of your snippet, or an overview of your story.
+
+Please be aware that any sample content contributed to this repo becomes MIT licensed.
+
+## ink Tools
+
+### ink Engine ports, wrappers and integration
+
+The repositories marked with ⭐️ are compatible with the latest version of Ink. Those marked with ⚙️ includes a native compiler. **Warning**: the others may be incomplete or works in progress.
+
+- [Ink-Unity-integration](https://github.com/inkle/ink-unity-integration) ⭐️⚙️ - Official integration for Unity from inkle.
+- [inkjs](https://github.com/y-lohse/inkjs) ⭐️⚙️ – A JavaScript port of ink (runtime and compiler).
+- [godot-ink](https://github.com/paulloz/godot-ink) ⭐️ - Official implementation integrated in Godot through mono.
+- [inkgd](https://github.com/ephread/inkgd) ⭐️ – A GDScript port of ink for Godot.
+- [blade-ink](https://github.com/bladecoder/blade-ink) ⭐️ – Inkle Ink runtime implementation in Java.
+- [UnrealInk](https://github.com/DavidColson/UnrealInk) ⭐️ - Integration of the Ink language into Unreal 4.
+- [GMInk](https://marketplace.yoyogames.com/assets/5852/gmink) ⭐️ – Ink integration for Gamemaker Studio.
+- [Tinta](https://github.com/smwhr/tinta) ⭐️ - Ink integration for Lua (including Love2d, Playdate and Picotron)
+- [inkpot](https://github.com/The-Chinese-Room/Inkpot) ⭐️  - A container for Ink within the Unreal Engine (v5.4 or later)
+- [inkcpp](https://github.com/JBenda/inkcpp) - Ink runtime in C++ with an additional JSON to binary converter. At time of writing, many but not all features supported.
+- [mica-ink](https://github.com/micabytes/mica-ink) – A Kotlin implementation of inkle's open source scripting language (ink) for writing interactive narrative. 
+- [inkhaxe](https://github.com/Glidias/inkhaxe) – Ink port from C# to Haxe.
+- [bladeink (Rust)](https://github.com/bladecoder/blade-ink-rs) - A port of ink in Rust, from the same people that brought you [the Java port](https://github.com/bladecoder/blade-ink).
+- [inkrs](https://github.com/facelesspanda/inkrs) – A port/rewrite of inkle/ink in rust.
+- [pink](https://github.com/premek/pink) – An attempt to implement a subset of ink in lpeg.
+- [ink-iOS](https://github.com/russellquinn/ink-iOS) – An iOS wrapper for the [JavaScript port](https://github.com/y-lohse/inkjs) (see above) of Inkle's Ink scripting language.
+- [Narrator](https://github.com/astrochili/narrator) - An Ink parser and runtime implementation in Lua. Also works with Defold.
+- [Inklecate-Wasm](https://github.com/furkleindustries/inklecate-wasm) - WASM port for in-browser and node.js compilation (last update: early 2020)
+- [StreamINK](https://rothiotome.itch.io/streamink) - play conversational adventures in your Twitch Streams
+
+### Analysis and visualisation
+
+- [graphink](https://yannick-lohse.fr/graphink/) - A graphing tool for visualising ink by the creator of inkjs (deprecated)
+
+### Editors and extensions
+
+#### General
+
+- [Inky](https://github.com/inkle/inky) - Inky is the offical ink editor developed by inkle.
+- [Borogove](https://borogove.app/) - Tool to write, play and share interactive fiction entirely online, with support for ink.
+- [Quill](https://github.com/MattConrad/Quill) – Quill is an online tool for playing and sandbox testing Ink stories.
+- [Ink Language Server](https://github.com/ephread/ink/tree/language-server/inklecate/LanguageServerProtocol) – A language server for inkle's Ink, that adheres to the Language Server Protocol (LSP).
+- [Yarn Editor](https://yarnspinnertool.github.io/YarnEditor/) - A Pwa Desktop/Mobile 📱💻 app that can author, play and compile ink files via the inklecate wasm port and inkjs.
+- [VisualInk](https://visualink.mavnn.eu/) - A website for creating and sharing visual novels with ink, focussed on first time writers and quick prototyping.
+
+#### Atom extensions
+
+- [atom-language-ink](https://github.com/bladecoder/atom-language-ink) – Adds syntax highlighting and snippets to Ink files in Atom.
+- [language-ink-atom](https://github.com/isakgrozny/language-ink-atom) • [Atom Package](https://atom.io/packages/language-ink-atom) - Atom port of the SublimeText 3 language grammar for inkle's ink language.
+
+#### Emacs extension
+
+- [ink-mode](https://github.com/Kungsgeten/ink-mode) – syntax highlighting, automatic indentation, snippets, play testing inside Emacs.
+
+#### VS Code extensions
+
+- [inkle-vscode](https://github.com/RenderBr/ink-vscode) • [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=rageave.inkle-vscode) – Up-to date and maintained Ink scripting language support for Visual Studio Code
+- [ink](https://github.com/sequitur/ink-vscode) • [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=bruno-dias.ink) – Inkle's Ink scripting language support for Visual Studio Code
+- ink • [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=tommisundstrom.ink) - This one seems less complete than the above.
+
+#### CodeMirror extensions
+
+- [CodeMirror grammar for ink](https://github.com/mavnn/codemirror-lang-ink) - Syntax highlighting and code folding for the [CodeMirror](https://codemirror.net/) javascript editor (also the editor used in the Obsidian knowledge base application)
+
+### Frameworks, templates and command line utilities
+
+- [ink-soaked](https://github.com/wickedlyethan/ink-soaked) - A template for creating hypertext fiction that acts like most Twine story formats.
+- [inkjs template](https://code.oreolek.ru/oreolek/inkjs-boilerplate) to work with webpack and autorebuild-on-edit
+  - [Another version](https://code.oreolek.ru/oreolek/inkjs-linux) without compatibility with Mac and Windows (without inklecate-wasm)
+- [ink-vn-engine](https://github.com/paulloz/ink-vn-engine/) - An engine for building browser-based visual novels with ink.
+- [Mutter](https://github.com/rabidgremlin/Mutters) – A framework for building bot brains.
+- [Paper Engine](https://github.com/inkle/ink/issues/408) – Paper Engine is designed to allow game writers to create (nearly) their entire (more than Text) game without ever leaving Ink.
+- [Atrament](https://github.com/technix/atrament) – A simple interface to Inkjs, which can be used as a core engine for your game app.
+- [Blotter](https://github.com/sequitur/blotter) – A front-end engine for publishing Ink stories on the web.
+- [Gall](https://github.com/sequitur/gall) – A a simple command-line tool for assembling Ink stories with Blotter.
+- [PalimpsestNW](https://github.com/isakgrozny/PalimpsestNW) – A basic template for deploying a game written in ink as a stand-alone desktop app.
+- [inkphone](https://github.com/tskaufma/inkphone) – A sample app demonstrating how to turn a web-based Ink project into a mobile app with PhoneGap.
+- [StoryBytes Android](https://github.com/micabytes/storybytes-android) / [StoryBytes Desktop](https://github.com/micabytes/storybytes-desktop) – Story viewer built on top of blade-ink.
+- [Ink-Fungus Gateway](https://maurovanetti.itch.io/ifg) ([source code](https://github.com/maurovanetti/inkfungus-template)) – A tool to connect the Ink Unity Integration Plugin with Fungus.
+- [ink-proof](https://chromy.github.io/ink-proof/) ([source code](https://github.com/chromy/ink-proof)) – Conformance testing for Ink compilers and runtimes.
+- [ink-tools](https://github.com/v20100v/ink-tools) - Wrapper around command-line ink compiler that has a watch mode for automatic re-compilation.
+- [binksi](https://smwhr.github.io/binksi) - A bitsi-like tool for making small lo-fi graphical adventure games where a character explores a world and interacts with its inhabitants.
+- [Ink Story Template](https://remyvim.github.io/ink-if-story-template/) ([source](https://github.com/RemyVim/ink-if-story-template)) – A web template for publishing Ink stories with built-in saves, accessibility, and media support. No coding required.
+
+### Package Management
+
+- [homebrew-ink](https://github.com/ephread/homebrew-ink) – Homebrew tap for inklecate (macOS only).
+- [Unofficial NuGet package](https://www.nuget.org/packages/Ink.Engine.Runtime-Unofficial/) – A community supported NuGet package of the runtime.
+
+## ink games (and non-games!)
+
+### By inkle
+
+* [TR-49](https://www.inklestudios.com/tr-49)
+* [A Highland Song](https://www.inklestudios.com/a-highland-song/)
+* [Overboard!](https://www.inklestudios.com/overboard/) and [Expelled!](https://www.inklestudios.com/expelled/)
+* [Pendragon](https://www.inklestudios.com/pendragon/)
+* [Heaven's Vault](http://www.inklestudios.com/heavensvault)
+* [80 days](http://www.inklestudios.com/80days)
+* [Sorcery](http://www.inklestudios.com/sorcery)
+* [Frankenstein](https://www.inklestudios.com/frankenstein/)
+* [Down Among the Dead Men](https://www.inklestudios.com/downAmongTheDeadMen/)
+* [The Intercept](https://www.inklestudios.com/ink/theintercept/)
+
+### By the community
+
+* [Thirsty Suitors](https://store.steampowered.com/app/1617220/Thirsty_Suitors/)
+* [The Wreck](https://store.steampowered.com/app/1687960/The_Wreck/)
+* [Sky Caravan](https://store.steampowered.com/app/1792270/Sky_Caravan/)
+* [Sable](https://store.steampowered.com/app/757310/Sable/)
+* [Haven](https://store.steampowered.com/app/983970/Haven/)
+* [Goodbye Volcano High](https://store.steampowered.com/app/1310330/Goodbye_Volcano_High/)
+* [Where the Water Tastes Like Wine](https://www.wherethewatertasteslikewine.com/)
+* [Neocab](https://www.neocabgame.com/)
+* [Falcon Age](https://falconage.com/)
+* [Over the Alps](https://store.steampowered.com/app/1227400/Over_the_Alps/)
+* [Closed Hands](http://closed-hands.com)
+* [Sea of Thieves](https://www.seaofthieves.com) - doesn't use the engine but uses a subset of the format
+* [Southern Monsters](http://www.bravemule.com/southernmonsters/)
+* [Shapeshifting Detective](https://shapeshiftingdetective.com/)
+* [Bury Me My Love](http://burymemylove.arte.tv/)
+* [Fête de Famille (Familly Gathering)](https://www.arte.tv/digitalproductions/fr/fete-de-famille-1/)
+* [Total Darkness](http://totaldarkness.sciencemuseum.org.uk/)
+* [The Uber Game](https://ig.ft.com/uber-game/)
+* [A Place for the Unwilling](http://www.alpixelgames.com/a-place-for-the-unwilling/)
+* [Dust and Salt](https://www.primegames.bg/en/dust-and-salt)
+* [Dust and Salt: The Battle for Murk](https://www.primegames.bg/en/games/view/4/dust-and-salt-the-battle-for-murk)
+* [Fabled Lands](https://store.steampowered.com/app/1299620/Fabled_Lands/)
+* [Wayward Strand](http://www.waywardstrand.com/)
+* [Johnny Bonasera (ep 2+)](http://bladecoder.com/bonasera/)
+* [Le Royaume d'Istyald](https://fantasy.bnf.fr/jouer) (French)
+* [Powerless](https://www.powerlessgame.co.uk/)
+* [Du Lac & Fey: Dance of Death](https://www.salixgames.com/)
+* [Debris](http://debristhegame.com/)
+* [True Legacy](http://mcro.org/truelegacy)
+* [Several games from Sand Gardeners](https://sandgardeners.itch.io/)
+* [Heaven Will Be Mine](https://pillowfight.io/games/#/heaven-will-be-mine/)
+* [Pirates and Traders 2](https://play.google.com/store/apps/details?id=com.micabytes.pirates2)
+* [Dance of Death: Du Lac & Fey](https://store.steampowered.com/app/976920/Dance_of_Death_Du_Lac__Fey/)
+* [Nox Caelo](https://evangelinepapanicola.itch.io/nox-caelo)
+* [Way Down](https://stapz33.itch.io/waydown)
+* [Vampire: The Masquerade - Coteries of New York](https://drawdistance.dev/vampire-the-masquerade-coteries-of-new-york/)
+* [Your daily crush](https://play.google.com/store/apps/details?id=com.InspiredMedia.YourDailyCrush)
+* [Linda & Joan](https://www.lindajoan.com/four-months-earlier)
+* [Signs of the Sojourner](https://store.steampowered.com/app/1058690/Signs_of_the_Sojourner/)
+* [Dragon Audit](https://dragonaudit.com/)
+* [Stay?](https://ejadelomax.itch.io/stay)
+* [Railways of Love](https://play.google.com/store/apps/details?id=com.provodnik.wagon)
+* [Dull Grey](https://provodnikgames.com/dull_grey)
+* [Dialogue Box: The Road Less Traveled](https://store.steampowered.com/app/1559930/Dialogue_Box_The_Road_Less_Traveled/)
+* [Cien Años Después](https://princessinternetcafe.itch.io/cien-anos-despues) (Spanish) - made using binksi
+* [Kraken Whispers](https://www.aricmcbay.org/kw/) - a browser-based text adventure
+* [Automated Border City](https://maurovanetti.itch.io/abc) (English/Italian)
+* [Experimenting With Knives](https://worldenddisk.itch.io/experimenting-with-knives)
+
+#### Game jams, competitions, experiments and demos
+
+* [inkJam2024](https://itch.io/jam/inkjam-2024)
+* [inkJam2023](https://itch.io/jam/inkjam-2023)
+* [inkJam2022](https://itch.io/jam/inkjam-2022)
+* [inkJam2021](https://itch.io/jam/inkjam-2021)
+* [inkJam2020](https://itch.io/jam/inkjam-2020)
+* [inkJam2019](https://itch.io/jam/inkjam-2019)
+* [inkJam2018](https://itch.io/jam/inkjam)
+* [Lucerne](http://gamejolt.com/games/lucerne/150140)
+* [The Rats in the Bulkhead](https://brunodias.itch.io/rats)
+* [Fog Lights and Foul Deeds](https://tomsykes.itch.io/fog-lights-and-foul-deeds)
+* [Witchwood Academy](https://celia14.itch.io/witchwood-academy)
+* [dripping with the waters of sheol](https://grrozny.itch.io/sheol)
+* [⏰](https://stralor.itch.io/ld41)
+* [ink_roguelike](https://github.com/nbush/ink_roguelike)
+* [Cloak of Darkness (parser IF demo)](http://ink-test-parser.surge.sh/)
+* [Whole souls](https://drumclem.itch.io/whole-souls)
+* [YEETmas carol](https://tomsh.itch.io/christmas-shitpost)
+* [/THERE USED TO BE A SHOW NAMED CHEERS BUT IT DOESN'T EXIST ANYMORE/](https://int-litstudio.itch.io/there-used-to-be-a-show-named-cheers-but-it-doesnt-exist-anymore)
+* [I live next to a train track](https://greenclovers.itch.io/i-live-next-to-a-train-track)
+* [Outside](https://elliotherriman.itch.io/outside)
+* [Catfish Fish Cat](https://gamejolt.com/games/catfish/493125)
+* [The Tetris Killer](https://nicosaraintaris.itch.io/the-tetris-killer)
+* [Scoop (Act One)](http://tommartin.itch.io/scoop-act-one)
+* [The Bitter Drop](https://ladyisak.itch.io/the-bitter-drop-1)
+* [Lost in Myself](https://artsomepasta.itch.io/lost-in-myself)
+* [It Is An Innkeeper](https://ifcoltransg.itch.io/innkeeper)
+* [Crime Scene (binksi demo)](https://smwhr.itch.io/crime-scene)
+
+#### Upcoming games
+
+* [Nighthawks](https://store.steampowered.com/app/1221950/Nighthawks/)
+* [Windrush Tales](https://www.twitter.com/taleswindrush)
+* [Battlecakes](http://volcanobean.com/games/battlecakes)
+* [The Last Night](http://oddtales.net/)
+* [Trip the Ark Fantastic](https://www.tripthearkfantastic.com/)
+* [Crowns and Pawns: Kingdom of Deceit](http://www.crownsandpawns.com/)
+* [MORSE](https://www.youtube.com/watch?v=6xaOfBSNJv0)
+* [Negative Nancy](https://store.steampowered.com/app/1276750/Negative_Nancy/)
+* [NeuroSlicers](https://store.steampowered.com/app/420040/NeuroSlicers/)
+* [Hauma](https://store.steampowered.com/app/1443470/Hauma/)
+
+#### Non Games
+
+* [Air New Zealand's chatbot Oscar](https://www.airnewzealand.co.nz/press-release-2017-oscar-airnz-chatbot) ([source](https://github.com/rabidgremlin/Mutters))
+* [Virginia Interactive Boating Safety Course](https://www.ilearntoboat.com/virginia/)
+* [Beacon Virtua](http://museum.wa.gov.au/BeaconVirtua)
+* [thul, a Keybase bot](https://keybase.io/thul)
+* [The Sorting Hat Chats](https://ejadelomax.itch.io/sortinghatchats)
+
+#### Ink courses
+
+* [Coding Games with a Story](https://www.thinkersmeetup.com/scholars/michael-newton) - Online 5 week courses on writing visual novels with ink for 9-18 year olds.
