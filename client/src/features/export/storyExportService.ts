@@ -111,6 +111,8 @@ export async function exportStoryHtml(options: StoryExportOptions): Promise<void
     title: metadata.title,
     includeReadme: htmlOptions.includeReadme,
     sourceBundle,
+    theme: htmlOptions.theme,
+    font: htmlOptions.font,
   });
   const filename = replaceFilenameExtension(
     options.filename ?? getFilename(metadata.title, ".ink"),

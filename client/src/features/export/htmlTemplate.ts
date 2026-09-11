@@ -1,4 +1,7 @@
 import { validateTitle } from "@/lib/filename-utils";
+import { escapeHtml } from "./escapeHtml";
+
+export { escapeHtml };
 import inkRuntimeSource from "inkjs-runtime-source?raw";
 import {
   HTML_EXPORT_FONTS,
@@ -61,14 +64,6 @@ export async function buildStoryHtml(
   return renderStoryHtmlTemplate(htmlTemplate, compiledJson, metadata);
 }
 
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 export function serializeJsonForHtml(value: unknown): string {
   return JSON.stringify(value)

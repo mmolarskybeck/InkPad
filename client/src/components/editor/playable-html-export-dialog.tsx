@@ -223,7 +223,7 @@ export function PlayableHtmlExportDialog({
             Export playable HTML
           </DialogTitle>
           <DialogDescription className="text-[0.8125rem] text-text-secondary">
-            A ZIP with a standalone web page that plays this story. The story and Ink runtime are
+            A ZIP with a standalone index.html that plays this story. The story and Ink runtime are
             embedded, so it works from any host or a local folder.
           </DialogDescription>
         </DialogHeader>
@@ -346,8 +346,8 @@ export function PlayableHtmlExportDialog({
               <div className="flex flex-col gap-4">
                 <ToggleRow
                   id="include-readme-switch"
-                  label="README"
-                  description="Short hosting and playback instructions."
+                  label="Author guide (README.html)"
+                  description="How to publish the story and customize its colors and layout."
                   checked={options.includeReadme}
                   onCheckedChange={(includeReadme) => update({ includeReadme })}
                 />

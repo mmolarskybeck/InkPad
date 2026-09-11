@@ -92,6 +92,9 @@ describe("story export filenames", () => {
       html: "<html></html>",
       title: "Export-only Title",
       includeReadme: false,
+      sourceBundle: undefined,
+      theme: "high-contrast",
+      font: "mono",
     });
   });
 });

@@ -47,13 +47,28 @@ interface StoryPreviewProps {
   onViewProblems?: () => void;
 }
 
-function TranscriptEntry({ entry }: { entry: StoryTranscriptEntry }) {
+function passageEchoesChoice(passageText: string, choiceText: string): boolean {
+  const firstLine = passageText.split("\n", 1)[0].trim();
+  return firstLine.length > 0 && firstLine === choiceText.trim();
+}
+
+function TranscriptEntry({ entry, hideLabel = false }: { entry: StoryTranscriptEntry; hideLabel?: boolean }) {
   if (entry.type === "choice") {
+    // A divider marks every choice, like Inky. The label is shown only when Ink
+    // didn't already echo the choice text as the next passage's first line.
     return (
-      <div className="story-entry flex items-center gap-3 py-[0.25em] text-[0.9375em] italic leading-[var(--story-leading)] text-text-secondary">
+      <div
+        role="separator"
+        aria-label={`Chose: ${entry.choice.text}`}
+        className="story-entry flex items-center gap-3 py-[0.75em] text-[0.9375em] italic leading-[var(--story-leading)] text-text-secondary"
+      >
         <span aria-hidden="true" className="h-px flex-1 bg-border-color" />
-        <span className="max-w-[80%] text-center">{entry.choice.text}</span>
-        <span aria-hidden="true" className="h-px flex-1 bg-border-color" />
+        {hideLabel ? null : (
+          <>
+            <span className="max-w-[80%] truncate text-center">{entry.choice.text}</span>
+            <span aria-hidden="true" className="h-px flex-1 bg-border-color" />
+          </>
+        )}
       </div>
     );
   }
@@ -317,7 +332,16 @@ export function StoryPreview({
                 </header>
               ) : null}
               <div className="space-y-[0.75em]">
-                {visibleEntries.map((entry) => <TranscriptEntry key={entry.id} entry={entry} />)}
+                {visibleEntries.map((entry, index) => {
+                  // Ink echoes an unbracketed choice ("* paris?") as the first line of
+                  // the next passage, like Inky. Skip the marker then so the pick reads once.
+                  const next = visibleEntries[index + 1];
+                  const echoed =
+                    entry.type === "choice" &&
+                    next?.type === "passage" &&
+                    passageEchoesChoice(next.passage.text, entry.choice.text);
+                  return <TranscriptEntry key={entry.id} entry={entry} hideLabel={echoed} />;
+                })}
               </div>
 
               {restoreNotice ? <RestoreNotice failure={restoreNotice} knot={restoreNoticeKnot} onDismiss={onDismissRestoreNotice} /> : null}

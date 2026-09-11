@@ -1,235 +1,373 @@
 <!DOCTYPE html>
-<!--
-  InkPad portable HTML export.
-  Story content and the InkJS runtime are embedded, so the story plays offline.
-  Web fonts are fetched from Google Fonts when online and fall back to system fonts otherwise.
--->
+<!-- =====================================================================
+     INKPAD PLAYABLE STORY
+
+     This single file is your whole story. It plays offline: the Ink
+     runtime and your compiled story are embedded below.
+
+     The file is divided into labeled sections:
+
+       1. QUICK CUSTOMIZATION   safe to edit: colors, size, spacing
+       2. BUILT-IN STYLES       the page layout (advanced, but safe)
+       3. ADVANCED CUSTOM CSS   an empty space for your own CSS
+       4. INK RUNTIME           do not edit
+       5. PAGE STRUCTURE        the HTML skeleton (advanced)
+       6. COMPILED STORY DATA   do not edit; re-export from InkPad
+       7. PLAYER SCRIPT         JavaScript that runs the story (advanced)
+
+     Open README.html in the same folder for a friendlier walkthrough.
+     ===================================================================== -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="author" content="{{STORY_AUTHOR}}">
+    <meta name="generator" content="InkPad">
     <title>{{STORY_TITLE}}</title>
+
+    <!-- =================================================================
+         1. INKPAD — QUICK CUSTOMIZATION (safe to edit)
+
+         Change the value after each colon and keep the semicolon.
+         Save the file and reload it in your browser to see the result.
+
+         Colors can be any CSS color: #8a4936, darkslategray,
+         hsl(24, 31%, 16%), rgb(36, 36, 58), and so on.
+
+         The theme blocks lower down (body.theme-dark, body.theme-sepia,
+         ...) override these for the theme chosen at export time. To
+         change the colors of THAT theme, edit its block instead. The
+         current theme is set on the <body> tag near section 5.
+         ================================================================= -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+        :root {
+            /* Colors (used by the Light theme; other themes override below) */
+            --page-color: hsl(228, 30%, 96%);       /* page background        */
+            --text-color: hsl(230, 40%, 20%);       /* story text             */
+            --choice-color: hsl(230, 25%, 35%);     /* choice button text     */
+            --muted-color: hsl(230, 15%, 55%);      /* author line, end notes */
+            --rule-color: hsl(228, 20%, 85%);       /* thin dividing lines    */
+            --accent-color: hsl(240, 90%, 65%);     /* arrows, hover tint     */
+            --error-color: hsl(340, 80%, 55%);
 
-        * {
-            box-sizing: border-box;
+            /* Layout */
+            --story-width: 68ch;        /* width of the text column     */
+            --story-font-size: 18px;    /* base size of the story text  */
+            --story-line-height: 1.7;   /* space between lines          */
+            --paragraph-gap: 0.75em;    /* space between paragraphs     */
+            --page-padding: 64px 24px;  /* space around the whole story */
+
+            /* Typeface: the export sets font-serif, font-sans or font-mono
+               on <body>. To change the actual fonts, edit the matching
+               body.font-* block at the top of section 2. */
         }
 
-        :root,
-        body.theme-light,
-        body.theme-system {
-            --page: hsl(228, 30%, 96%);
-            --surface: hsl(228, 30%, 93%);
-            --border: hsl(228, 20%, 85%);
-            --text: hsl(230, 40%, 20%);
-            --muted: hsl(230, 15%, 55%);
-            --accent: hsl(240, 90%, 65%);
-            --accent-hover: hsl(240, 61%, 54%);
-            --button-text: hsl(228, 30%, 96%);
-            --error: hsl(340, 80%, 55%);
-        }
-
+        /* Theme colors. Each block overrides the Light values above. */
         body.theme-dark {
-            --page: hsl(235, 19%, 13%);
-            --surface: hsl(230, 26%, 16%);
-            --border: hsl(228, 23%, 21%);
-            --text: hsl(226, 70%, 88%);
-            --muted: hsl(229, 39%, 75%);
-            --accent: hsl(227, 92%, 72%);
-            --accent-hover: hsl(200, 100%, 75%);
-            --button-text: hsl(235, 19%, 13%);
-            --error: hsl(349, 89%, 72%);
+            --page-color: hsl(235, 19%, 13%);
+            --text-color: hsl(226, 70%, 88%);
+            --choice-color: hsl(229, 39%, 75%);
+            --muted-color: hsl(229, 25%, 62%);
+            --rule-color: hsl(228, 23%, 21%);
+            --accent-color: hsl(227, 92%, 72%);
+            --error-color: hsl(349, 89%, 72%);
         }
 
         body.theme-sepia {
-            --page: #eee7da;
-            --surface: #e2d7c5;
-            --border: #c8b89e;
-            --text: #45372b;
-            --muted: #6f5b49;
-            --accent: #8a4936;
-            --accent-hover: #673225;
-            --button-text: #fffaf2;
-            --error: #9f2d32;
+            --page-color: hsl(39, 37%, 91%);
+            --text-color: hsl(24, 31%, 16%);
+            --choice-color: hsl(27, 24%, 27%);
+            --muted-color: hsl(28, 16%, 39%);
+            --rule-color: hsl(34, 22%, 72%);
+            --accent-color: hsl(17, 49%, 39%);
+            --error-color: #9f2d32;
         }
 
         body.theme-high-contrast {
-            --page: #000000;
-            --surface: #101010;
-            --border: #ffffff;
-            --text: #ffffff;
-            --muted: #e0e0e0;
-            --accent: #ffff00;
-            --accent-hover: #00ffff;
-            --button-text: #000000;
-            --error: #ff7b7b;
+            --page-color: #000000;
+            --text-color: #ffffff;
+            --choice-color: #ffffff;
+            --muted-color: #d6d6d6;
+            --rule-color: #ffffff;
+            --accent-color: #ffff00;
+            --error-color: #ff7b7b;
+        }
+    </style>
+    <!-- END QUICK CUSTOMIZATION -->
+
+    <!-- =================================================================
+         2. INKPAD — BUILT-IN STYLES
+
+         The page layout. You can edit this if you know CSS, but most
+         tweaks are easier in section 1 or section 3. This mirrors the
+         story preview inside InkPad.
+         ================================================================= -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
+        /* Typeface stacks. Web fonts load when online; the fallbacks are
+           system fonts so the page always renders. */
         body.font-serif {
-            --story-font: 'Lora', Georgia, serif;
+            --story-font: 'Lora', Georgia, 'Times New Roman', serif;
+            --story-title-tracking: 0;
         }
 
         body.font-sans {
-            --story-font: 'Inter', system-ui, sans-serif;
+            --story-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --story-title-tracking: -0.01em;
         }
 
         body.font-mono {
-            --story-font: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+            --story-font: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+            --story-title-tracking: 0;
+        }
+
+        body.font-mono {
+            --story-width: 60ch;
+        }
+
+        /* "System" follows the reader's OS preference. */
+        @media (prefers-color-scheme: dark) {
+            body.theme-system {
+                --page-color: hsl(235, 19%, 13%);
+                --text-color: hsl(226, 70%, 88%);
+                --choice-color: hsl(229, 39%, 75%);
+                --muted-color: hsl(229, 25%, 62%);
+                --rule-color: hsl(228, 23%, 21%);
+                --accent-color: hsl(227, 92%, 72%);
+                --error-color: hsl(349, 89%, 72%);
+            }
+        }
+
+        html {
+            background: var(--page-color);
         }
 
         body {
             margin: 0;
             min-height: 100vh;
-            padding: 60px 20px;
-            background: var(--page);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            line-height: 1.7;
+            padding: var(--page-padding);
+            background: var(--page-color);
+            color: var(--text-color);
+            font-family: var(--story-font, Georgia, serif);
+            font-size: var(--story-font-size);
+            line-height: var(--story-line-height);
             -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
 
         .story-container {
-            width: min(100%, 680px);
+            width: 100%;
+            max-width: var(--story-width);
             margin: 0 auto;
+            padding-bottom: 4rem;
         }
 
+        .story-container > * + * {
+            margin-top: 1.25em;
+        }
+
+        /* Title block */
         .story-header {
-            margin-bottom: 56px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--border);
+            padding-bottom: 1em;
+            border-bottom: 1px solid var(--rule-color);
         }
 
         .story-title {
             margin: 0;
-            color: var(--accent);
-            font-family: var(--story-font, 'Lora', Georgia, serif);
-            font-size: clamp(2rem, 8vw, 2.75rem);
-            font-weight: 500;
-            letter-spacing: -0.02em;
-            line-height: 1.15;
+            color: var(--text-color);
+            font-size: 1.5em;
+            font-weight: 600;
+            letter-spacing: var(--story-title-tracking, 0);
+            line-height: 1.25;
             text-wrap: balance;
         }
 
         .story-author {
-            margin: 10px 0 0;
-            color: var(--muted);
-            font-size: 0.95rem;
+            margin: 0.5em 0 0;
+            color: var(--muted-color);
+            font-size: 0.8125em;
+            letter-spacing: 0.01em;
         }
 
         .story-author[hidden] {
             display: none;
         }
 
-        .story-content {
-            margin-bottom: 40px;
-        }
-
-        .story-text {
-            margin-bottom: 32px;
-            color: var(--text);
-            font-family: var(--story-font, 'Lora', Georgia, serif);
-            font-size: 1.25rem;
-            line-height: 1.85;
+        /* Transcript: passages and the choices already taken */
+        .story-content > * + * {
+            margin-top: var(--paragraph-gap);
         }
 
         .story-text p {
-            margin: 0 0 1.5em;
+            margin: 0;
+            color: var(--text-color);
+            white-space: pre-wrap;
             text-wrap: pretty;
         }
 
-        .story-text p:last-child {
-            margin-bottom: 0;
+        .story-text p + p {
+            margin-top: var(--paragraph-gap);
         }
 
+        .choice-marker {
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            padding: 0.75em 0;
+            color: var(--muted-color);
+            font-size: 0.9375em;
+            font-style: italic;
+        }
+
+        .choice-marker::before,
+        .choice-marker::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--rule-color);
+        }
+
+        .choice-marker span {
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* Bare divider: Ink already printed the choice text as story output. */
+        .choice-marker-bare span,
+        .choice-marker-bare::after {
+            display: none;
+        }
+
+        .story-entry {
+            animation: story-entry-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes story-entry-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        /* Current choices */
         .choices {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: 40px;
+            border-top: 1px solid var(--rule-color);
+            border-bottom: 1px solid var(--rule-color);
         }
 
-        .choice,
-        .restart-btn {
-            min-height: 48px;
-            border-radius: 6px;
-            font-family: var(--story-font, 'Lora', Georgia, serif);
-            font-size: 1rem;
-            font-weight: 500;
-            line-height: 1.4;
-            cursor: pointer;
-            transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+        .choices:empty {
+            display: none;
         }
 
         .choice {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5em;
             width: 100%;
-            padding: 14px 20px;
-            border: 1px solid var(--border);
+            margin: 0;
+            padding: 0.625em 0.75em;
+            border: 0;
+            border-top: 1px solid var(--rule-color);
+            border-radius: 0;
             background: transparent;
-            color: var(--accent);
+            color: var(--choice-color);
+            font: inherit;
             text-align: left;
+            cursor: pointer;
+            transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                        color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                        opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        .choice:hover {
-            border-color: var(--accent);
-            background: var(--surface);
-            color: var(--accent-hover);
-            transform: translateX(3px);
+        .choice:first-child {
+            border-top: 0;
+        }
+
+        .choice::before {
+            content: "\2192";
+            flex: none;
+            color: var(--accent-color);
+        }
+
+        .choice:hover:not(:disabled),
+        .choice:focus-visible {
+            background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+            color: var(--text-color);
+        }
+
+        .choice[data-selected="true"] {
+            background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+            color: var(--text-color);
+        }
+
+        .choice[data-dimmed="true"] {
+            opacity: 0.4;
+        }
+
+        .choice:disabled {
+            cursor: default;
         }
 
         .choice:focus-visible,
         .restart-btn:focus-visible {
-            outline: 3px solid var(--accent);
-            outline-offset: 3px;
+            outline: 2px solid var(--accent-color);
+            outline-offset: -2px;
         }
 
+        /* End of story */
         .story-end {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5em;
+            padding-top: 1em;
+            border-top: 1px solid var(--rule-color);
+            text-align: center;
         }
 
         .story-end[hidden] {
             display: none;
         }
 
-        .story-end h2 {
-            margin: 0 0 8px;
-            color: var(--accent);
-            font-family: var(--story-font, 'Lora', Georgia, serif);
-            font-size: 1.75rem;
-            font-style: italic;
-            font-weight: 500;
-            line-height: 1.3;
-        }
-
         .story-end p {
             margin: 0;
-            color: var(--muted);
+            color: var(--muted-color);
+            font-size: 0.875em;
         }
 
         .restart-btn {
-            margin-top: 28px;
-            padding: 12px 24px;
-            border: 0;
-            background: var(--accent);
-            color: var(--button-text);
-            font-weight: 600;
+            margin: 0;
+            padding: 0.4em 0.9em;
+            border: 1px solid var(--rule-color);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--choice-color);
+            font: inherit;
+            font-size: 0.875em;
+            cursor: pointer;
+            transition: background-color 180ms ease, color 180ms ease;
         }
 
         .restart-btn:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
+            background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+            color: var(--text-color);
         }
 
+        /* Errors */
         .error-message {
-            margin-bottom: 24px;
-            padding: 16px;
-            border: 1px solid var(--error);
+            padding: 0.75em 1em;
+            border: 1px solid var(--error-color);
             border-radius: 6px;
-            color: var(--error);
-            font-size: 0.95rem;
+            color: var(--error-color);
+            font-size: 0.875em;
         }
 
         .error-message[hidden] {
@@ -238,15 +376,7 @@
 
         @media (max-width: 640px) {
             body {
-                padding: 36px 20px;
-            }
-
-            .story-header {
-                margin-bottom: 40px;
-            }
-
-            .story-text {
-                font-size: 1.125rem;
+                --page-padding: 32px 20px;
             }
         }
 
@@ -255,24 +385,55 @@
             .restart-btn {
                 transition: none;
             }
-        }
 
-        @media (prefers-color-scheme: dark) {
-            body.theme-system {
-                --page: hsl(235, 19%, 13%);
-                --surface: hsl(230, 26%, 16%);
-                --border: hsl(228, 23%, 21%);
-                --text: hsl(226, 70%, 88%);
-                --muted: hsl(229, 39%, 75%);
-                --accent: hsl(227, 92%, 72%);
-                --accent-hover: hsl(200, 100%, 75%);
-                --button-text: hsl(235, 19%, 13%);
-                --error: hsl(349, 89%, 72%);
+            .story-entry {
+                animation: none;
             }
         }
     </style>
+    <!-- END BUILT-IN STYLES -->
+
+    <!-- =================================================================
+         3. INKPAD — ADVANCED CUSTOM CSS
+
+         Add your own CSS here. It loads after the built-in styles, so
+         anything you write overrides them. Useful selectors:
+
+           .story-title      the story's title
+           .story-author     the "by ..." line
+           .story-text       a passage of story text
+           .story-text p     one paragraph
+           .choice-marker    the line showing a choice you already made
+           .choices          the list of current choices
+           .choice           one choice button
+           .story-end        the "Story complete" block
+           .restart-btn      the Play again button
+         ================================================================= -->
+    <style>
+        /* Your custom CSS goes here. */
+    </style>
+    <!-- END ADVANCED CUSTOM CSS -->
+
+    <!-- =================================================================
+         4. INK RUNTIME (inkjs) — DO NOT EDIT
+
+         This is the engine that plays Ink stories in a browser.
+         ================================================================= -->
     <script>{{INK_RUNTIME}}</script>
+    <!-- END INK RUNTIME -->
 </head>
+
+<!-- =====================================================================
+     5. PAGE STRUCTURE
+
+     The theme and typeface chosen at export are set on the <body>
+     class below (theme-light, theme-dark, theme-sepia,
+     theme-high-contrast, theme-system / font-serif, font-sans,
+     font-mono). You can change them here.
+
+     The player script fills in the elements with an id, so keep the
+     ids if you rearrange things.
+     ===================================================================== -->
 <body class="theme-{{STORY_THEME}} font-{{STORY_FONT}}">
     <main class="story-container">
         <header class="story-header">
@@ -285,17 +446,33 @@
         <div id="choices" class="choices"></div>
 
         <section id="story-end" class="story-end" hidden>
-            <h2>The End</h2>
-            <p>Thank you for playing.</p>
-            <button id="restart" class="restart-btn" type="button">Play Again</button>
+            <p>Story complete.</p>
+            <button id="restart" class="restart-btn" type="button">Play again</button>
         </section>
     </main>
+    <!-- END PAGE STRUCTURE -->
 
+    <!-- =================================================================
+         6. COMPILED STORY DATA — DO NOT EDIT
+
+         This is your story, compiled by InkPad into the format the Ink
+         runtime reads. It is not meant to be edited by hand. To change
+         the story, edit your ink project in InkPad and export again.
+         ================================================================= -->
     <script id="story-data" type="application/json">{{STORY_DATA}}</script>
     <script id="story-metadata" type="application/json">{{STORY_METADATA}}</script>
+    <!-- END COMPILED STORY DATA -->
+
+    <!-- =================================================================
+         7. PLAYER SCRIPT (advanced)
+
+         Runs the story: shows passages, lists choices, and restarts.
+         Edit only if you are comfortable with JavaScript.
+         ================================================================= -->
     <script>
         let story;
         let storyData;
+        let choiceLocked = false;
 
         function readJsonElement(id) {
             const element = document.getElementById(id);
@@ -305,7 +482,6 @@
 
         function applyMetadata(metadata) {
             document.title = metadata.title;
-            document.body.className = `theme-${metadata.theme} font-${metadata.font}`;
             document.getElementById("story-title").textContent = metadata.title;
 
             const authorElement = document.getElementById("story-author");
@@ -330,49 +506,63 @@
                 const namedReferences = {
                     amp: "&",
                     apos: "'",
-                    copy: "\u00a9",
-                    emsp: "\u2003",
-                    ensp: "\u2002",
+                    copy: "©",
+                    emsp: " ",
+                    ensp: " ",
                     gt: ">",
-                    hellip: "\u2026",
-                    laquo: "\u00ab",
-                    ldquo: "\u201c",
-                    lsquo: "\u2018",
+                    hellip: "…",
+                    laquo: "«",
+                    ldquo: "“",
+                    lsquo: "‘",
                     lt: "<",
-                    mdash: "\u2014",
-                    nbsp: "\u00a0",
-                    ndash: "\u2013",
+                    mdash: "—",
+                    nbsp: " ",
+                    ndash: "–",
                     quot: "\"",
-                    raquo: "\u00bb",
-                    rdquo: "\u201d",
-                    reg: "\u00ae",
-                    rsquo: "\u2019",
-                    shy: "\u00ad",
-                    thinsp: "\u2009",
-                    trade: "\u2122",
+                    raquo: "»",
+                    rdquo: "”",
+                    reg: "®",
+                    rsquo: "’",
+                    shy: "­",
+                    thinsp: " ",
+                    trade: "™",
                 };
                 return namedReferences[String(named).toLowerCase()] || match;
             });
         }
 
+        // Blank lines separate paragraphs; single newlines stay as line
+        // breaks inside one paragraph, matching the InkPad preview.
         function appendStoryText(content) {
-            const lines = content
-                .trim()
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean);
-            if (lines.length === 0) return;
+            const paragraphs = content
+                .split(/\n\s*\n/)
+                .map((paragraph) => paragraph.replace(/^\n+|\n+$/g, ""))
+                .filter((paragraph) => paragraph.trim().length > 0);
+            if (paragraphs.length === 0) return null;
 
             const passage = document.createElement("div");
-            passage.className = "story-text";
+            passage.className = "story-text story-entry";
 
-            for (const line of lines) {
-                const paragraph = document.createElement("p");
-                paragraph.textContent = decodeHtmlCharacterReferences(line);
-                passage.appendChild(paragraph);
+            for (const paragraph of paragraphs) {
+                const element = document.createElement("p");
+                element.textContent = decodeHtmlCharacterReferences(paragraph);
+                passage.appendChild(element);
             }
 
             document.getElementById("story-content").appendChild(passage);
+            return passage;
+        }
+
+        function appendChoiceMarker(text) {
+            const marker = document.createElement("div");
+            marker.className = "choice-marker story-entry";
+            marker.setAttribute("role", "separator");
+            marker.setAttribute("aria-label", `Chose: ${text}`);
+            const label = document.createElement("span");
+            label.textContent = text;
+            marker.appendChild(label);
+            document.getElementById("story-content").appendChild(marker);
+            return marker;
         }
 
         function renderChoices() {
@@ -384,7 +574,7 @@
                 button.type = "button";
                 button.className = "choice";
                 button.textContent = decodeHtmlCharacterReferences(choice.text);
-                button.addEventListener("click", () => makeChoice(index));
+                button.addEventListener("click", () => makeChoice(index, button));
                 choicesElement.appendChild(button);
             });
         }
@@ -393,10 +583,12 @@
             try {
                 let content = "";
                 while (story.canContinue) {
-                    content += story.Continue();
+                    // Each continued line ends with "\n"; adding one more makes
+                    // every line its own paragraph, like the InkPad preview.
+                    content += (story.Continue() || "") + "\n";
                 }
 
-                appendStoryText(content);
+                const passage = appendStoryText(content);
 
                 const storyEndElement = document.getElementById("story-end");
                 if (story.currentChoices.length > 0) {
@@ -406,28 +598,67 @@
                     document.getElementById("choices").replaceChildren();
                     storyEndElement.hidden = false;
                 }
+                return passage;
             } catch (error) {
                 showError(`Story error: ${error.message}`);
+                return null;
             }
         }
 
-        function makeChoice(choiceIndex) {
-            try {
-                document.getElementById("story-content").replaceChildren();
-                story.ChooseChoiceIndex(choiceIndex);
-                continueStory();
-            } catch (error) {
-                showError(`Choice error: ${error.message}`);
-            }
+        function makeChoice(choiceIndex, button) {
+            if (choiceLocked) return;
+            choiceLocked = true;
+
+            const buttons = Array.from(document.querySelectorAll("#choices .choice"));
+            buttons.forEach((other) => {
+                other.disabled = true;
+                if (other === button) {
+                    other.dataset.selected = "true";
+                } else {
+                    other.dataset.dimmed = "true";
+                }
+            });
+
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            window.setTimeout(() => {
+                try {
+                    const choiceText = button ? button.textContent : "";
+                    story.ChooseChoiceIndex(choiceIndex);
+                    const marker = appendChoiceMarker(choiceText);
+                    const passage = continueStory();
+                    // A divider marks every choice, like Inky. Ink echoes an
+                    // unbracketed choice ("* paris?") as the next passage's first
+                    // line, so the label is hidden then and the pick reads once.
+                    const firstLine = passage ? passage.querySelector("p") : null;
+                    if (firstLine && firstLine.textContent.trim() === choiceText.trim()) {
+                        marker.classList.add("choice-marker-bare");
+                    }
+                    scrollToLatest();
+                } catch (error) {
+                    showError(`Choice error: ${error.message}`);
+                } finally {
+                    choiceLocked = false;
+                }
+            }, reduceMotion ? 0 : 160);
+        }
+
+        function scrollToLatest() {
+            const entries = document.querySelectorAll("#story-content .story-entry");
+            const latest = entries[entries.length - 1];
+            if (!latest) return;
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            latest.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
         }
 
         function restartStory() {
             story = new inkjs.Story(storyData);
+            choiceLocked = false;
             document.getElementById("story-content").replaceChildren();
             document.getElementById("choices").replaceChildren();
             document.getElementById("story-end").hidden = true;
             document.getElementById("error").hidden = true;
             continueStory();
+            window.scrollTo({ top: 0 });
         }
 
         function showError(message) {
@@ -450,5 +681,6 @@
         document.getElementById("restart").addEventListener("click", restartStory);
         window.addEventListener("load", initStory);
     </script>
+    <!-- END PLAYER SCRIPT -->
 </body>
 </html>

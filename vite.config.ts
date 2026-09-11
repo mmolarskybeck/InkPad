@@ -47,6 +47,9 @@ export default defineConfig({
       "@lezer/highlight",
       "@lezer/lr",
     ],
+    // The runtime source is inlined as text via the alias above; the optimizer
+    // cannot pre-bundle a ?raw asset.
+    exclude: ["inkjs-runtime-source?raw", "inkjs-runtime-source"],
   },
 
   // The editor is lazy-loaded, so without this Vite only discovers the
@@ -66,6 +69,9 @@ export default defineConfig({
       "@lezer/highlight",
       "@lezer/lr",
     ],
+    // The runtime source is inlined as text via the alias above; the optimizer
+    // cannot pre-bundle a ?raw asset.
+    exclude: ["inkjs-runtime-source?raw", "inkjs-runtime-source"],
   },
 
   plugins: [

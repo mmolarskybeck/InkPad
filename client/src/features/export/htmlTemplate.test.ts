@@ -95,7 +95,7 @@ Literal <script>alert("no")</script>
     expect(parsedDocument.getElementById("story-metadata")?.textContent)
       .toContain('"font":"mono"');
     expect(html).toContain("font-family: var(--story-font");
-    expect(html).toContain("--page: hsl(228, 30%, 96%)");
+    expect(html).toContain("--page-color: hsl(228, 30%, 96%)");
     expect(html).not.toContain("#fbfaf7");
     expect(html).not.toContain("{{STORY_");
   });
@@ -125,7 +125,7 @@ Literal <script>alert("no")</script>
     );
 
     expect(template).toContain("decodeHtmlCharacterReferences");
-    expect(template).toContain("paragraph.textContent = decodeHtmlCharacterReferences(line);");
+    expect(template).toContain("element.textContent = decodeHtmlCharacterReferences(paragraph);");
     expect(template).toContain("button.textContent = decodeHtmlCharacterReferences(choice.text);");
     expect(template).not.toContain(".innerHTML");
   });
