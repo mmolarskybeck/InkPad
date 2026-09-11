@@ -89,6 +89,7 @@ export default defineConfig({
             if (id.includes("vite/preload-helper")) return "vendor";
             if (id.includes("node_modules")) {
               if (id.includes("/inkjs/")) return "inkjs";
+              if (id.includes("/@codemirror/") || id.includes("/@lezer/")) return "codemirror-vendor";
               if (id.includes("/jszip/")) return "zip-vendor";
               if (id.includes("/file-saver/")) return "download-vendor";
               if (id.includes("/@radix-ui/") || id.includes("/vaul/")) return "ui-vendor";
