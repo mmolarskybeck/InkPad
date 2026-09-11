@@ -1,4 +1,4 @@
-import { List, Hash, Tag, XCircle } from "lucide-react";
+import { List, XCircle } from "lucide-react";
 import { isListVariableValue, type ListVariableValue } from "@/lib/ink-variable-utils";
 
 interface InkVariable {
@@ -44,17 +44,17 @@ function ListValue({ value }: { value: ListVariableValue | any }) {
   return <span className={`${VALUE_CLASS} text-text-secondary`}>(empty)</span>;
 }
 
-function getVariableIcon(type: string) {
-  const iconClass = "h-3.5 w-3.5 shrink-0";
+function getTypeLabel(type: string): { code: string; label: string } {
   switch (type) {
     case 'number':
-      return <Hash className={`${iconClass} text-syntax-number`} aria-hidden="true" />;
+      return { code: "NUM", label: "Number" };
     case 'list':
-      return <List className={`${iconClass} text-accent-blue`} aria-hidden="true" />;
-    case 'string':
+      return { code: "LIST", label: "List" };
     case 'boolean':
+      return { code: "BOOL", label: "Boolean" };
+    case 'string':
     default:
-      return <Tag className={`${iconClass} text-syntax-keyword`} aria-hidden="true" />;
+      return { code: "STR", label: "String" };
   }
 }
 
@@ -108,13 +108,20 @@ export function VariableInspector({ variables, showHeader = true, compileFailed 
             className="grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] p-2"
             aria-label="Story variables"
           >
-            {variables.map((variable) => (
+            {variables.map((variable) => {
+              const typeLabel = getTypeLabel(variable.type);
+              return (
               <div
                 key={variable.name}
                 className="col-span-2 grid grid-cols-subgrid items-center gap-x-4 rounded px-2 py-1.5 transition-colors hover:bg-accent"
               >
-                <dt className="flex min-w-0 max-w-[16rem] items-center gap-2">
-                  {getVariableIcon(variable.type)}
+                <dt className="flex min-w-0 max-w-[18rem] items-center gap-2.5">
+                  <span
+                    className="w-10 shrink-0 pt-px font-mono text-[0.6875rem] font-medium leading-5 tracking-wider text-text-secondary"
+                    aria-label={typeLabel.label}
+                  >
+                    {typeLabel.code}
+                  </span>
                   <span className="truncate font-mono text-[0.8125rem] leading-5 text-text-emphasis" title={variable.name}>
                     {variable.name}
                   </span>
@@ -130,7 +137,8 @@ export function VariableInspector({ variables, showHeader = true, compileFailed 
                   }
                 </dd>
               </div>
-            ))}
+              );
+            })}
           </dl>
         )}
       </div>

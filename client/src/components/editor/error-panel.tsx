@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Copy, Info, Loader2, TriangleAlert, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Loader2 } from "lucide-react";
 import type { CompileStatus } from "@/hooks/use-ink-story";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import {
@@ -26,12 +26,12 @@ function getSeverityRank(severity: string): number {
 function getSeverityPresentation(severity: DiagnosticSeverity) {
   switch (severity) {
     case "warning":
-      return { icon: TriangleAlert, label: "Warning", className: "text-warning" };
+      return { code: "WARN", label: "Warning", className: "text-warning" };
     case "info":
     case "hint":
-      return { icon: Info, label: "Info", className: "text-text-secondary" };
+      return { code: "INFO", label: "Info", className: "text-text-secondary" };
     default:
-      return { icon: XCircle, label: "Error", className: "text-error" };
+      return { code: "ERR", label: "Error", className: "text-error" };
   }
 }
 
@@ -106,7 +106,6 @@ export function ErrorPanel({
           <ul className="p-2" aria-label="Problems">
             {sortedErrors.map((error, index) => {
               const severity = getSeverityPresentation(getEditorDiagnosticSeverity(error));
-              const SeverityIcon = severity.icon;
               return (
                 <li key={index} className="group relative">
                   <button
@@ -114,11 +113,15 @@ export function ErrorPanel({
                     onClick={() => onErrorClick(error)}
                     className="flex w-full items-start gap-2.5 rounded px-2 py-1.5 pr-9 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    <SeverityIcon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${severity.className}`} aria-hidden="true" />
-                    <span className="sr-only">{severity.label}:</span>
+                    <span
+                      className={`w-10 shrink-0 pt-px font-mono text-[0.6875rem] font-bold leading-5 tracking-wider ${severity.className}`}
+                      aria-label={severity.label}
+                    >
+                      {severity.code}
+                    </span>
                     <span className="min-w-0 flex-1 font-mono text-[0.8125rem] leading-5">
+                      <span className="mr-2 text-text-secondary">{formatLocation(error)}</span>
                       <span className="text-text-emphasis">{error.message}</span>
-                      <span className="ml-2 whitespace-nowrap text-[0.75rem] text-text-secondary">{formatLocation(error)}</span>
                     </span>
                   </button>
                   <button
