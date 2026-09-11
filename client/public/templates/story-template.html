@@ -9,10 +9,10 @@
 
        1. QUICK CUSTOMIZATION   safe to edit: colors, size, spacing
        2. BUILT-IN STYLES       the page layout (advanced, but safe)
-       3. ADVANCED CUSTOM CSS   an empty space for your own CSS
-       4. INK RUNTIME           do not edit
+       3. ADVANCED CUSTOM CSS   add your own CSS here
+       4. INK RUNTIME           do NOT edit this!
        5. PAGE STRUCTURE        the HTML skeleton (advanced)
-       6. COMPILED STORY DATA   do not edit; re-export from InkPad
+       6. COMPILED STORY DATA   do not edit; re-export from InkPad and replace entirely
        7. PLAYER SCRIPT         JavaScript that runs the story (advanced)
 
      Open README.html in the same folder for a friendlier walkthrough.
@@ -28,16 +28,16 @@
     <!-- =================================================================
          1. INKPAD — QUICK CUSTOMIZATION (safe to edit)
 
-         Change the value after each colon and keep the semicolon.
+         Here you can tweak colors, spacing, and fonts to your liking.
          Save the file and reload it in your browser to see the result.
 
          Colors can be any CSS color: #8a4936, darkslategray,
          hsl(24, 31%, 16%), rgb(36, 36, 58), and so on.
 
-         The theme blocks lower down (body.theme-dark, body.theme-sepia,
-         ...) override these for the theme chosen at export time. To
-         change the colors of THAT theme, edit its block instead. The
-         current theme is set on the <body> tag near section 5.
+         There are multiple themes: theme blocks override these settings
+         for the theme chosen at export time. To change the colors of THAT
+         theme, edit its block instead. The current theme is set on the <body>
+         tag near section 5.
          ================================================================= -->
     <style>
         :root {
@@ -62,7 +62,7 @@
                body.font-* block at the top of section 2. */
         }
 
-        /* Theme colors. Each block overrides the Light values above. */
+        /* Theme colors. Each theme option overrides the Light values above. */
         body.theme-dark {
             --page-color: hsl(235, 19%, 13%);
             --text-color: hsl(226, 70%, 88%);
@@ -98,9 +98,7 @@
     <!-- =================================================================
          2. INKPAD — BUILT-IN STYLES
 
-         The page layout. You can edit this if you know CSS, but most
-         tweaks are easier in section 1 or section 3. This mirrors the
-         story preview inside InkPad.
+         The page layout. Feel free to edit this if you know CSS.
          ================================================================= -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -109,8 +107,7 @@
             box-sizing: border-box;
         }
 
-        /* Typeface stacks. Web fonts load when online; the fallbacks are
-           system fonts so the page always renders. */
+        /* Web fonts load when online, the fallbacks are system fonts. */
         body.font-serif {
             --story-font: 'Lora', Georgia, 'Times New Roman', serif;
             --story-title-tracking: 0;
@@ -198,7 +195,6 @@
             display: none;
         }
 
-        /* Transcript: passages and the choices already taken */
         .story-content > * + * {
             margin-top: var(--paragraph-gap);
         }
@@ -240,7 +236,6 @@
             text-align: center;
         }
 
-        /* Bare divider: Ink already printed the choice text as story output. */
         .choice-marker-bare span,
         .choice-marker-bare::after {
             display: none;
@@ -426,15 +421,22 @@
 <!-- =====================================================================
      5. PAGE STRUCTURE
 
-     The theme and typeface chosen at export are set on the <body>
-     class below (theme-light, theme-dark, theme-sepia,
-     theme-high-contrast, theme-system / font-serif, font-sans,
-     font-mono). You can change them here.
+     Theme options:
+     - theme-light
+     - theme-dark
+     - theme-sepia
+     - theme-high-contrast
+     - theme-system
+
+     Font options:
+     - font-serif
+     - font-sans
+     - font-mono
 
      The player script fills in the elements with an id, so keep the
      ids if you rearrange things.
      ===================================================================== -->
-<body class="theme-{{STORY_THEME}} font-{{STORY_FONT}}">
+<body class="theme-{{STORY_THEME}} font-{{STORY_FONT}}"> <!-- EDIT THIS to change color theme and font family -->
     <main class="story-container">
         <header class="story-header">
             <h1 id="story-title" class="story-title">{{STORY_TITLE}}</h1>
@@ -455,9 +457,9 @@
     <!-- =================================================================
          6. COMPILED STORY DATA — DO NOT EDIT
 
-         This is your story, compiled by InkPad into the format the Ink
-         runtime reads. It is not meant to be edited by hand. To change
-         the story, edit your ink project in InkPad and export again.
+         This is your story, in JSON format. It is not meant to be
+         edited by hand. To change the story, edit your ink project in
+         InkPad and export again.
          ================================================================= -->
     <script id="story-data" type="application/json">{{STORY_DATA}}</script>
     <script id="story-metadata" type="application/json">{{STORY_METADATA}}</script>
@@ -626,9 +628,6 @@
                     story.ChooseChoiceIndex(choiceIndex);
                     const marker = appendChoiceMarker(choiceText);
                     const passage = continueStory();
-                    // A divider marks every choice, like Inky. Ink echoes an
-                    // unbracketed choice ("* paris?") as the next passage's first
-                    // line, so the label is hidden then and the pick reads once.
                     const firstLine = passage ? passage.querySelector("p") : null;
                     if (firstLine && firstLine.textContent.trim() === choiceText.trim()) {
                         marker.classList.add("choice-marker-bare");
