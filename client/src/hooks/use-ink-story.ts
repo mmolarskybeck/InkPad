@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Story } from 'inkjs';
 import {
   compileInkScript,
@@ -16,7 +16,6 @@ import {
 } from '@/lib/tag-interpreter';
 import { parseTagsFromSource } from '@/lib/ink-source-tags';
 import type { StoryRuntimeState } from '@/types/story-runtime';
-import { debounce } from '@/lib/debounce';
 import {
   advanceStory,
   bindIssueSink,
@@ -57,7 +56,29 @@ function getEntrySource(sourceOrInput: CompileSource): string {
   return sourceOrInput.files[sourceOrInput.entryFile] ?? "";
 }
 
-export type CompileStatus = 'idle' | 'queued' | 'compiling' | 'success' | 'warning' | 'error';
+export type CompileStatus = 'idle' | 'compiling' | 'success' | 'warning' | 'error';
+
+/**
+ * Live-compile trigger.
+ *
+ * While the preview is visible, the editor reports commit-like moments (space,
+ * Enter, sentence punctuation, moving to another line, leaving the editor) and
+ * the pending compile fires at once, so the preview echoes each finished word
+ * without ever echoing mid-word. Anything else (a mid-word pause, a deletion)
+ * falls back to an idle timer. Compiling is cheap; this is about when the
+ * preview is allowed to move.
+ *
+ * While the preview is hidden (phone on the code tab, or a collapsed preview
+ * panel) signals are ignored and only the idle timer runs, keeping diagnostics
+ * current. Revealing the preview fires any pending compile immediately.
+ */
+export type EditCommitSignal = 'space' | 'newline' | 'punctuation' | 'line-change' | 'blur';
+const LIVE_COMPILE_SIGNALS: ReadonlySet<EditCommitSignal> = new Set<EditCommitSignal>([
+  'space', 'newline', 'punctuation', 'line-change', 'blur',
+]);
+const LIVE_COMPILE_IDLE_MS = 1500;
+/** Only show "Compiling" once a compile has run this long; quick ones stay silent. */
+const COMPILING_STATUS_DELAY_MS = 150;
 
 export function useInkStory() {
   const [latestCompiledRuntimeStory, setLatestCompiledRuntimeStory] = useState<Story | null>(null);
@@ -250,58 +271,134 @@ export function useInkStory() {
     }
   }, [restoreRunningSession, updateVariablesFromCompiledJson]);
 
-  const debouncedLiveCompile = useMemo(
-    () => debounce(async (inkSource: CompileSource, requestId: string) => {
-      if (requestId !== latestCompileRequestId.current) return;
+  // Live-compile scheduler. One compile in flight at a time; while it runs,
+  // only the newest source waits behind it (the worker cannot abort, so every
+  // request we send is work it will do).
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveWaitingRef = useRef<CompileSource | null>(null);
+  const inFlightRef = useRef(false);
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-      setIsCompiling(true);
-      setCompileStatus('compiling');
-      const result = await compileInkScript(inkSource, requestId);
-      if (
-        requestId !== latestCompileRequestId.current ||
-        result.requestId !== latestCompileRequestId.current
-      ) {
-        return;
+  const clearLiveTimer = useCallback(() => {
+    if (liveTimerRef.current !== null) clearTimeout(liveTimerRef.current);
+    liveTimerRef.current = null;
+  }, []);
+
+  const clearStatusTimer = useCallback(() => {
+    if (statusTimerRef.current !== null) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = null;
+  }, []);
+
+  /** Flip to "Compiling" only if this request is still current and unfinished after the delay. */
+  const armCompilingStatus = useCallback((requestId: string) => {
+    clearStatusTimer();
+    statusTimerRef.current = setTimeout(() => {
+      statusTimerRef.current = null;
+      if (requestId === latestCompileRequestId.current && inFlightRef.current) {
+        setCompileStatus('compiling');
       }
+    }, COMPILING_STATUS_DELAY_MS);
+  }, [clearStatusTimer]);
 
-      applyCompileResult(result, getEntrySource(inkSource), { restoreRunningSession: true });
-      setIsCompiling(false);
-    }, 500),
-    [applyCompileResult]
-  );
-
-  useEffect(() => {
-    return () => {
-      debouncedLiveCompile.cancel();
-    };
-  }, [debouncedLiveCompile]);
-
-  const compileLive = useCallback((inkSource: CompileSource) => {
+  const runCompile = useCallback(async (
+    inkSource: CompileSource,
+    options: CompileOptions,
+    showStatusImmediately: boolean,
+  ): Promise<InkCompileResult | null> => {
     const requestId = createCompilerRequestId();
     latestCompileRequestId.current = requestId;
-    setCompileStatus('queued');
-    debouncedLiveCompile(inkSource, requestId);
-  }, [debouncedLiveCompile]);
-
-  const compileNow = useCallback(async (inkSource: CompileSource, options: CompileOptions = { restoreRunningSession: false }) => {
-    debouncedLiveCompile.cancel();
-    const requestId = createCompilerRequestId();
-    latestCompileRequestId.current = requestId;
+    inFlightRef.current = true;
     setIsCompiling(true);
-    setCompileStatus('compiling');
-
-    const result = await compileInkScript(inkSource, requestId);
-    if (
-      requestId !== latestCompileRequestId.current ||
-      result.requestId !== latestCompileRequestId.current
-    ) {
-      return null;
+    if (showStatusImmediately) {
+      clearStatusTimer();
+      setCompileStatus('compiling');
+    } else {
+      armCompilingStatus(requestId);
     }
 
+    let result: InkCompileResult | null = null;
+    try {
+      result = await compileInkScript(inkSource, requestId);
+    } finally {
+      if (requestId === latestCompileRequestId.current) {
+        inFlightRef.current = false;
+        clearStatusTimer();
+      }
+    }
+
+    if (requestId !== latestCompileRequestId.current || result.requestId !== requestId) {
+      return null;
+    }
     applyCompileResult(result, getEntrySource(inkSource), options);
     setIsCompiling(false);
     return result;
-  }, [applyCompileResult, debouncedLiveCompile]);
+  }, [applyCompileResult, armCompilingStatus, clearStatusTimer]);
+
+  const startLiveCompile = useCallback(async (inkSource: CompileSource) => {
+    await runCompile(inkSource, { restoreRunningSession: true }, false);
+    const waiting = liveWaitingRef.current;
+    if (waiting !== null && !inFlightRef.current) {
+      liveWaitingRef.current = null;
+      void startLiveCompile(waiting);
+    }
+  }, [runCompile]);
+
+  const dispatchLiveCompile = useCallback((inkSource: CompileSource) => {
+    if (inFlightRef.current) {
+      liveWaitingRef.current = inkSource;
+      return;
+    }
+    liveWaitingRef.current = null;
+    void startLiveCompile(inkSource);
+  }, [startLiveCompile]);
+
+  const livePendingSourceRef = useRef<CompileSource | null>(null);
+  const previewVisibleRef = useRef(true);
+
+  const compileLive = useCallback((inkSource: CompileSource) => {
+    clearLiveTimer();
+    livePendingSourceRef.current = inkSource;
+    liveTimerRef.current = setTimeout(() => {
+      liveTimerRef.current = null;
+      livePendingSourceRef.current = null;
+      dispatchLiveCompile(inkSource);
+    }, LIVE_COMPILE_IDLE_MS);
+  }, [clearLiveTimer, dispatchLiveCompile]);
+
+  const flushLiveCompile = useCallback(() => {
+    const pending = livePendingSourceRef.current;
+    if (pending === null) return;
+    clearLiveTimer();
+    livePendingSourceRef.current = null;
+    dispatchLiveCompile(pending);
+  }, [clearLiveTimer, dispatchLiveCompile]);
+
+  /** A commit-like edit moment: sends any pending live compile now, if the preview can show it. */
+  const commitLiveCompile = useCallback((signal: EditCommitSignal) => {
+    if (!previewVisibleRef.current || !LIVE_COMPILE_SIGNALS.has(signal)) return;
+    flushLiveCompile();
+  }, [flushLiveCompile]);
+
+  /** Tell the scheduler whether the preview is on screen. Revealing it flushes a pending compile. */
+  const setPreviewVisible = useCallback((visible: boolean) => {
+    const wasVisible = previewVisibleRef.current;
+    previewVisibleRef.current = visible;
+    if (visible && !wasVisible) flushLiveCompile();
+  }, [flushLiveCompile]);
+
+  useEffect(() => () => {
+    clearLiveTimer();
+    clearStatusTimer();
+    liveWaitingRef.current = null;
+  }, [clearLiveTimer, clearStatusTimer]);
+
+  const compileNow = useCallback(async (inkSource: CompileSource, options: CompileOptions = { restoreRunningSession: false }) => {
+    // An explicit Run compiles the latest source; anything waiting is obsolete.
+    clearLiveTimer();
+    liveWaitingRef.current = null;
+    livePendingSourceRef.current = null;
+    return runCompile(inkSource, options, true);
+  }, [clearLiveTimer, runCompile]);
 
   const stopStory = useCallback(() => {
     activeRuntimeStoryRef.current = null;
@@ -476,6 +573,8 @@ export function useInkStory() {
     makeChoice,
     stepBack,
     compileLive,
+    commitLiveCompile,
+    setPreviewVisible,
     compileNow,
     jumpToKnot
   };

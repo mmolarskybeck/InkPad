@@ -496,6 +496,8 @@ export default function Editor() {
     makeChoice,
     stepBack,
     compileLive,
+    commitLiveCompile,
+    setPreviewVisible,
     compileNow,
     jumpToKnot,
     restoreNotice,
@@ -503,6 +505,13 @@ export default function Editor() {
     dismissRestoreNotice,
     stopStory,
   } = useInkStory();
+
+  // The live compiler only echoes edits while the preview is on screen.
+  const isPreviewVisible = isMobile ? mobileTab === "preview" : focusedPanel !== "code";
+  useEffect(() => {
+    setPreviewVisible(isPreviewVisible);
+  }, [isPreviewVisible, setPreviewVisible]);
+
 
   const commitBufferedSource = useCallback((latestSource: string) => {
     setCurrentProject((project) => withProjectFileSource(project, activeFileId, latestSource));
@@ -1664,6 +1673,7 @@ export default function Editor() {
           editorRef={editorRef}
           value={currentDocument.source}
           onChange={handleSourceChange}
+          onEditCommit={commitLiveCompile}
           onControlStateChange={setEditorControlState}
           errors={editorDiagnostics}
           symbols={projectSymbols}

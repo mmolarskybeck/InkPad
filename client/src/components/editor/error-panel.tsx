@@ -126,12 +126,6 @@ function getSeverityRank(severity: string): number {
 
 function getCompileStatusConfig(status: CompileStatus) {
   switch (status) {
-    case "queued":
-      return {
-        icon: Clock3,
-        label: "Queued",
-        className: "text-text-secondary",
-      };
     case "compiling":
       return {
         icon: Loader2,

@@ -44,6 +44,7 @@ import {
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
+  type ViewUpdate,
   keymap,
   lineNumbers,
   rectangularSelection,
@@ -66,9 +67,14 @@ import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import type { InkSymbol } from "@/inkLanguage/inkSymbols";
 
+/** A moment that plausibly marks the end of an edit, offered to the live compiler. */
+export type EditCommitSignal = "space" | "newline" | "punctuation" | "line-change" | "blur";
+
 export interface CodeMirrorEditorProps {
   value: string;
   onChange: (value: string) => void;
+  /** Fired on commit-like moments. Doc-changing signals flush `onChange` first. */
+  onEditCommit?: (signal: EditCommitSignal) => void;
   onControlStateChange?: (state: CodeMirrorEditorControlState) => void;
   errors: EditorDiagnostic[];
   symbols?: InkSymbol[];
@@ -362,6 +368,22 @@ function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout:
   }, { dark: isDark });
 }
 
+/** Classify a single typed character as a commit signal, or null for anything else. */
+function typedCommitSignal(update: ViewUpdate): EditCommitSignal | null {
+  let inserted: string | null = null;
+  let edits = 0;
+  update.changes.iterChanges((_fromA, _toA, _fromB, _toB, text) => {
+    edits += 1;
+    inserted = text.toString();
+  });
+  if (edits !== 1 || inserted === null || (inserted as string).length !== 1) return null;
+  const ch = inserted as string;
+  if (ch === " ") return "space";
+  if (ch === "\n") return "newline";
+  if (ch === "." || ch === "!" || ch === "?") return "punctuation";
+  return null;
+}
+
 function hasSearchPanelDom(view: EditorView) {
   return Boolean(view.dom.querySelector(".cm-ink-search"));
 }
@@ -388,6 +410,7 @@ function reconcileSearchPanelDom(view: EditorView) {
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(({
   value,
   onChange,
+  onEditCommit,
   onControlStateChange,
   errors,
   symbols = [],
@@ -417,6 +440,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const lastEmittedValueRef = useRef(value);
   const lastSyncedDocumentIdRef = useRef(documentId);
   const onChangeRef = useRef(onChange);
+  const onEditCommitRef = useRef(onEditCommit);
+  const lastHeadLineRef = useRef<number | null>(null);
   const onControlStateChangeRef = useRef(onControlStateChange);
   const errorsRef = useRef(errors);
   const symbolsRef = useRef(symbols);
@@ -438,6 +463,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  useEffect(() => {
+    onEditCommitRef.current = onEditCommit;
+  }, [onEditCommit]);
 
   useEffect(() => {
     onControlStateChangeRef.current = onControlStateChange;
@@ -597,18 +625,36 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       if (!update.docChanged && !update.selectionSet && !update.transactions.length) return;
       updateControlState(update.view);
       if (update.docChanged && !syncingRef.current) {
-        scheduleChangeEmit();
+        const signal = typedCommitSignal(update);
+        if (signal) {
+          emitChangeNow();
+          onEditCommitRef.current?.(signal);
+        } else {
+          scheduleChangeEmit();
+        }
+      }
+      if (update.selectionSet) {
+        const line = update.state.doc.lineAt(update.state.selection.main.head).number;
+        const previous = lastHeadLineRef.current;
+        lastHeadLineRef.current = line;
+        if (previous !== null && previous !== line && !update.docChanged) {
+          emitChangeNow();
+          onEditCommitRef.current?.("line-change");
+        }
       }
     }),
-    isMobileLayout
-      ? EditorView.domEventHandlers({
-          focus: () => setMobileZoomLocked(true),
-          blur: () => setMobileZoomLocked(false),
-        })
-      : [],
+    EditorView.domEventHandlers({
+      focus: () => { if (isMobileLayout) setMobileZoomLocked(true); },
+      blur: () => {
+        if (isMobileLayout) setMobileZoomLocked(false);
+        emitChangeNow();
+        onEditCommitRef.current?.("blur");
+      },
+    }),
   ], [
     effectiveFontSize,
     effectiveTheme,
+    emitChangeNow,
     fileName,
     getActiveFileSymbols,
     isMobileLayout,

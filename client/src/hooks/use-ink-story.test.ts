@@ -323,7 +323,7 @@ describe("useInkStory live restore", () => {
       result.current.compileLive(source);
     });
     await act(async () => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(1600);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -771,5 +771,165 @@ Start
     expect(result.current.variables).toContainEqual(
       expect.objectContaining({ name: "score", value: 5 })
     );
+  });
+});
+
+
+describe("useInkStory live compile scheduling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function deferredCompile() {
+    const pending: Array<{ requestId: string; resolve: () => void }> = [];
+    vi.mocked(compileInkScript).mockImplementation((_source, requestId) =>
+      new Promise((resolve) => {
+        pending.push({
+          requestId,
+          resolve: () => resolve({ requestId, runtimeStory: null, errors: [], knots: [], compiledJson: null }),
+        });
+      })
+    );
+    return pending;
+  }
+
+  async function flush() {
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  it("compiles at once on a commit signal, otherwise after the idle wait", async () => {
+    const pending = deferredCompile();
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.compileLive("Hello wor"));
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(compileInkScript).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(600); });
+    expect(compileInkScript).toHaveBeenCalledTimes(1);
+    act(() => pending[0].resolve());
+    await flush();
+
+    act(() => result.current.compileLive("Hello world "));
+    act(() => result.current.commitLiveCompile("space"));
+    expect(compileInkScript).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(compileInkScript).mock.calls[1][0]).toBe("Hello world ");
+    act(() => pending[1].resolve());
+    await flush();
+
+    // A signal with nothing pending is a no-op.
+    act(() => result.current.commitLiveCompile("newline"));
+    expect(compileInkScript).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores commit signals while the preview is hidden and flushes when it is revealed", async () => {
+    const pending = deferredCompile();
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.setPreviewVisible(false));
+    act(() => result.current.compileLive("Hidden edit "));
+    act(() => result.current.commitLiveCompile("space"));
+    act(() => result.current.commitLiveCompile("blur"));
+    expect(compileInkScript).not.toHaveBeenCalled();
+
+    act(() => result.current.setPreviewVisible(true));
+    expect(compileInkScript).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(compileInkScript).mock.calls[0][0]).toBe("Hidden edit ");
+    act(() => pending[0].resolve());
+    await flush();
+
+    // Revealing again with nothing pending does nothing; the idle timer still works while hidden.
+    act(() => result.current.setPreviewVisible(false));
+    act(() => result.current.setPreviewVisible(true));
+    expect(compileInkScript).toHaveBeenCalledTimes(1);
+    act(() => result.current.setPreviewVisible(false));
+    act(() => result.current.compileLive("Hidden edit 2"));
+    await act(async () => { vi.advanceTimersByTime(1600); });
+    expect(compileInkScript).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps one compile in flight and only the newest source waiting behind it", async () => {
+    const pending = deferredCompile();
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.compileLive("A"));
+    await act(async () => { vi.advanceTimersByTime(1520); });
+    expect(pending).toHaveLength(1);
+
+    act(() => result.current.compileLive("A "));
+    await act(async () => { vi.advanceTimersByTime(1520); });
+    act(() => result.current.compileLive("A B"));
+    await act(async () => { vi.advanceTimersByTime(1600); });
+    // Still only the first request has reached the worker.
+    expect(pending).toHaveLength(1);
+
+    act(() => pending[0].resolve());
+    await flush();
+    expect(pending).toHaveLength(2);
+    expect(vi.mocked(compileInkScript).mock.calls[1][0]).toBe("A B");
+
+    act(() => pending[1].resolve());
+    await flush();
+    expect(pending).toHaveLength(2);
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  it("never shows Compiling for a quick compile, and shows it once for a slow one", async () => {
+    const pending = deferredCompile();
+    const { result } = renderHook(() => useInkStory());
+    const seen: string[] = [];
+
+    act(() => result.current.compileLive("Quick"));
+    await act(async () => { vi.advanceTimersByTime(1520); });
+    seen.push(result.current.compileStatus);
+    await act(async () => { vi.advanceTimersByTime(50); });
+    act(() => pending[0].resolve());
+    await flush();
+    seen.push(result.current.compileStatus);
+    await act(async () => { vi.advanceTimersByTime(300); });
+    seen.push(result.current.compileStatus);
+    expect(seen).toEqual(["idle", "success", "success"]);
+    expect(seen).not.toContain("compiling");
+
+    act(() => result.current.compileLive("Slow "));
+    await act(async () => { vi.advanceTimersByTime(1520); });
+    expect(result.current.compileStatus).toBe("success");
+    await act(async () => { vi.advanceTimersByTime(160); });
+    expect(result.current.compileStatus).toBe("compiling");
+    act(() => pending[1].resolve());
+    await flush();
+    expect(result.current.compileStatus).toBe("success");
+  });
+
+  it("does not let a superseded request's status timer overwrite a newer result", async () => {
+    const pending = deferredCompile();
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.compileLive("Old"));
+    await act(async () => { vi.advanceTimersByTime(1520); });
+    expect(pending).toHaveLength(1);
+
+    // Explicit Run supersedes the live request and resolves first.
+    let runPromise: Promise<unknown> | null = null;
+    act(() => { runPromise = result.current.compileNow("New"); });
+    expect(pending).toHaveLength(2);
+    act(() => pending[1].resolve());
+    await flush();
+    await runPromise;
+    expect(result.current.compileStatus).toBe("success");
+
+    await act(async () => { vi.advanceTimersByTime(300); });
+    expect(result.current.compileStatus).toBe("success");
+
+    act(() => pending[0].resolve());
+    await flush();
+    expect(result.current.compileStatus).toBe("success");
+    expect(result.current.isCompiling).toBe(false);
   });
 });
