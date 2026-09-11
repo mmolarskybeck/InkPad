@@ -50,17 +50,26 @@ interface StoryPreviewProps {
 function TranscriptEntry({ entry }: { entry: StoryTranscriptEntry }) {
   if (entry.type === "choice") {
     return (
-      <div className="ml-3 border-l-2 border-accent-blue/35 pl-4 text-[0.875em] italic leading-[1.7] text-text-secondary">
-        {entry.choice.text}
+      <div className="story-entry flex items-center gap-3 py-[0.25em] text-[0.9375em] italic leading-[var(--story-leading)] text-text-secondary">
+        <span aria-hidden="true" className="h-px flex-1 bg-border-color" />
+        <span className="max-w-[80%] text-center">{entry.choice.text}</span>
+        <span aria-hidden="true" className="h-px flex-1 bg-border-color" />
       </div>
     );
   }
 
-  return entry.passage.text ? (
-    <div className="whitespace-pre-wrap text-[1em] leading-[1.75] tracking-[0.005em] text-text-emphasis">
-      {entry.passage.text}
+  if (!entry.passage.text) return null;
+  // Blank lines separate paragraphs; single newlines stay as line breaks inside one.
+  const paragraphs = entry.passage.text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+  return (
+    <div className="story-entry space-y-[0.75em]">
+      {paragraphs.map((paragraph, index) => (
+        <p key={index} className="whitespace-pre-wrap text-pretty text-[1em] leading-[var(--story-leading)] text-text-emphasis">
+          {paragraph}
+        </p>
+      ))}
     </div>
-  ) : null;
+  );
 }
 
 const RESTORE_NOTICE_DETAIL: Record<ReplayFailure, string> = {
@@ -289,32 +298,32 @@ export function StoryPreview({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`story-preview-copy story-preview-font-${storyTypeface} relative min-h-0 flex-1 overflow-auto bg-editor-bg p-5 sm:p-6`}
+        className={`story-preview-copy story-preview-font-${storyTypeface} relative min-h-0 flex-1 overflow-auto bg-editor-bg px-5 pb-5 pt-8 sm:px-6 sm:pt-10`}
         style={{ "--preview-font-size": `${previewFontSize}px` } as React.CSSProperties}
       >
-        <div className="mx-auto max-w-[68ch] space-y-6 pb-8">
+        <div className="mx-auto max-w-[var(--story-measure)] space-y-[1.25em] pb-16">
           {runtimeState ? (
             <>
               {metadata ? (
-                <header className="border-b border-border-color pb-5">
-                  <h1 className="text-balance text-[1.5em] font-semibold leading-tight tracking-[-0.02em] text-text-emphasis">
+                <header className="border-b border-border-color pb-4">
+                  <h1 className="text-balance text-[1.5em] font-semibold leading-[1.25] tracking-[var(--story-title-tracking)] text-text-emphasis">
                     {metadata.title}
                   </h1>
                   {metadata.author ? (
-                    <p className="mt-1.5 text-[0.8125em] text-text-secondary">
+                    <p className="mt-2 text-[0.8125em] tracking-[0.01em] text-text-secondary">
                       by {metadata.author}
                     </p>
                   ) : null}
                 </header>
               ) : null}
-              <div className="space-y-3">
+              <div className="space-y-[0.75em]">
                 {visibleEntries.map((entry) => <TranscriptEntry key={entry.id} entry={entry} />)}
               </div>
 
               {restoreNotice ? <RestoreNotice failure={restoreNotice} knot={restoreNoticeKnot} onDismiss={onDismissRestoreNotice} /> : null}
 
               {runtimeState.choices.length > 0 ? (
-                <div className="space-y-2 pt-1">
+                <div className="divide-y divide-border-color border-y border-border-color pt-0">
                   {runtimeState.choices.map((choice) => (
                     <Button
                       key={choice.index}
@@ -322,26 +331,35 @@ export function StoryPreview({
                       disabled={selectedChoiceIndex !== null}
                       aria-pressed={selectedChoiceIndex === choice.index}
                       variant="outline"
-                      className={`h-auto w-full justify-start whitespace-normal p-3 text-left text-[0.9375em] leading-[1.6] disabled:opacity-100 ${
-                        selectedChoiceIndex === choice.index
-                          ? "border-accent-blue bg-accent text-text-emphasis"
-                          : "border-border-color bg-transparent text-text-primary hover:border-accent-blue hover:bg-accent hover:text-text-emphasis"
-                      }`}
+                      data-selected={selectedChoiceIndex === choice.index ? "true" : undefined}
+                      data-dimmed={selectedChoiceIndex !== null && selectedChoiceIndex !== choice.index ? "true" : undefined}
+                      className="story-choice h-auto w-full justify-start gap-2 whitespace-normal rounded-none border-0 px-3 py-2.5 text-left text-[1em] leading-[var(--story-leading)] disabled:opacity-100"
                     >
-                      <span aria-hidden="true">&rarr;&nbsp;</span>{choice.text}
+                      <span aria-hidden="true" className="text-accent-blue">&rarr;</span>
+                      <span>{choice.text}</span>
                     </Button>
                   ))}
                 </div>
               ) : null}
 
               {runtimeState.isComplete ? (
-                <div className="flex flex-col items-center gap-3 border-t border-border-color pt-6 text-center">
-                  <p className="text-[0.875rem] text-text-secondary">Story complete.</p>
+                <div className="flex flex-col items-center gap-1.5 border-t border-border-color pt-4 text-center">
+                  <p className="text-[0.875em] text-text-secondary">Story complete.</p>
                   {onRestart ? (
-                    <Button variant="outline" size="sm" onClick={onRestart} className="gap-1.5 border-border-color text-[0.875rem] text-text-primary hover:border-accent-blue">
-                      <RotateCcw className="h-3 w-3" />
-                      Play again
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={onRestart}
+                          aria-label="Play again"
+                          className="story-choice h-8 w-8 rounded text-text-secondary"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Play again</TooltipContent>
+                    </Tooltip>
                   ) : null}
                 </div>
               ) : null}

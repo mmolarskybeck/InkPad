@@ -400,12 +400,62 @@
 .story-preview-copy {
   font-size: var(--preview-font-size, 16px);
   font-family: var(--story-font, 'Lora', Georgia, 'Times New Roman', serif);
+  line-height: var(--story-leading);
 }
 
-/* Mirrors body.font-* in public/templates/story-template.html so the preview matches the export. */
-.story-preview-font-serif { --story-font: 'Lora', Georgia, 'Times New Roman', serif; }
-.story-preview-font-sans { --story-font: var(--font-sans, 'Inter'), system-ui, sans-serif; }
-.story-preview-font-mono { --story-font: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace; }
+/* Mirrors body.font-* in public/templates/story-template.html so the preview matches the export.
+   Leading, measure, and title tracking are tuned per family: serif wants air,
+   mono runs wide so it gets a shorter measure and no negative tracking. */
+.story-preview-font-serif {
+  --story-font: 'Lora', Georgia, 'Times New Roman', serif;
+  --story-leading: 1.7;
+  --story-measure: 68ch;
+  --story-title-tracking: 0;
+}
+.story-preview-font-sans {
+  --story-font: var(--font-sans, 'Inter'), system-ui, sans-serif;
+  --story-leading: 1.6;
+  --story-measure: 68ch;
+  --story-title-tracking: -0.01em;
+}
+.story-preview-font-mono {
+  --story-font: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --story-leading: 1.55;
+  --story-measure: 60ch;
+  --story-title-tracking: 0;
+}
+
+/* Live choice rows. Hover/selection use an accent-blue tint (like the editor's
+   active line) instead of --accent, which is nearly invisible against the light
+   theme's editor-bg. Works across dark, light, high-contrast, and sepia. */
+.story-choice {
+  background-color: transparent;
+  color: var(--text-primary);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.story-choice:active { transform: none; }
+.story-choice:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent-blue) 10%, transparent);
+  color: var(--text-emphasis);
+}
+.story-choice[data-selected="true"] {
+  background-color: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+  color: var(--text-emphasis);
+}
+.story-choice[data-dimmed="true"] { opacity: 0.4; }
+
+/* New transcript entries ease in rather than popping. */
+.story-entry { animation: story-entry-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes story-entry-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-choice { transition: none; }
+  .story-entry { animation: none; }
+}
 
 .story-preview-theme-system {
   --background: hsl(228, 30%, 96%);
