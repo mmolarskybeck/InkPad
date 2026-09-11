@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import { AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -790,7 +790,7 @@ export function EditorWorkspace({
           <Tabs defaultValue="problems" className="flex h-full min-h-0 flex-col min-[1100px]:hidden">
             <TabsList className="flex h-10 w-full shrink-0 justify-start rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
               <TabsTrigger value="problems" className="relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue">
-                <AlertTriangle className="mr-2 h-3.5 w-3.5 text-error" />
+                <AlertCircle className="mr-2 h-3.5 w-3.5 text-accent-blue" />
                 Problems
                 <span className="ml-2 tabular-nums text-text-secondary">{problemCount}</span>
               </TabsTrigger>

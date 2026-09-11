@@ -1,6 +1,4 @@
-import { List, RefreshCw, Hash, Tag } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { List, Hash, Tag, XCircle } from "lucide-react";
 import { isListVariableValue, type ListVariableValue } from "@/lib/ink-variable-utils";
 
 interface InkVariable {
@@ -16,6 +14,7 @@ interface VariableInspectorProps {
 }
 
 const MAX_LIST_ITEMS = 3;
+const VALUE_CLASS = "min-w-0 truncate font-mono text-[0.8125rem] leading-5";
 
 function formatListItems(items: string[]): string {
   if (items.length <= MAX_LIST_ITEMS) return items.join(', ');
@@ -24,130 +23,116 @@ function formatListItems(items: string[]): string {
 }
 
 function ListValue({ value }: { value: ListVariableValue | any }) {
-  const baseClass = "text-[0.875rem] leading-6 font-mono";
-
   if (!isListVariableValue(value)) {
-    return (
-      <span className={`${baseClass} text-text-secondary`}>(empty)</span>
-    );
+    return <span className={`${VALUE_CLASS} text-text-secondary`}>(empty)</span>;
   }
 
   const { active, possible } = value;
 
   if (active.length > 0) {
-    return (
-      <span className={`${baseClass} text-text-primary`}>
-        {formatListItems(active)}
-      </span>
-    );
+    return <span className={`${VALUE_CLASS} text-text-primary`} title={active.join(', ')}>{formatListItems(active)}</span>;
   }
 
   if (possible.length > 0) {
     return (
-      <span className={`${baseClass} text-text-secondary`}>
+      <span className={`${VALUE_CLASS} text-text-secondary`} title={possible.join(', ')}>
         ({formatListItems(possible)})
       </span>
     );
   }
 
-  return (
-    <span className={`${baseClass} text-text-secondary`}>(empty)</span>
-  );
+  return <span className={`${VALUE_CLASS} text-text-secondary`}>(empty)</span>;
+}
+
+function getVariableIcon(type: string) {
+  const iconClass = "h-3.5 w-3.5 shrink-0";
+  switch (type) {
+    case 'number':
+      return <Hash className={`${iconClass} text-syntax-number`} aria-hidden="true" />;
+    case 'list':
+      return <List className={`${iconClass} text-accent-blue`} aria-hidden="true" />;
+    case 'string':
+    case 'boolean':
+    default:
+      return <Tag className={`${iconClass} text-syntax-keyword`} aria-hidden="true" />;
+  }
+}
+
+function formatValue(value: any, type: string): string {
+  switch (type) {
+    case 'string':
+      return `"${value}"`;
+    case 'number':
+      return value.toString();
+    case 'boolean':
+      return value ? 'true' : 'false';
+    default:
+      return JSON.stringify(value);
+  }
+}
+
+function getValueClass(type: string): string {
+  switch (type) {
+    case 'number':
+      return 'text-syntax-number';
+    case 'string':
+      return 'text-syntax-string';
+    case 'boolean':
+      return 'text-syntax-keyword';
+    default:
+      return 'text-text-primary';
+  }
 }
 
 export function VariableInspector({ variables, showHeader = true, compileFailed = false }: VariableInspectorProps) {
-  const getVariableIcon = (type: string) => {
-    switch (type) {
-      case 'number':
-        return <Hash className="text-syntax-number text-xs" />;
-      case 'list':
-        return <List className="text-accent-blue text-xs" />;
-      case 'string':
-      case 'boolean':
-      default:
-        return <Tag className="text-syntax-keyword text-xs" />;
-    }
-  };
-
-  const formatValue = (value: any, type: string) => {
-    switch (type) {
-      case 'string':
-        return `"${value}"`;
-      case 'number':
-        return value.toString();
-      case 'boolean':
-        return value ? 'true' : 'false';
-      default:
-        return JSON.stringify(value);
-    }
-  };
-
-  const getValueClass = (type: string) => {
-    switch (type) {
-      case 'number':
-        return 'text-syntax-number';
-      case 'string':
-        return 'text-syntax-string';
-      case 'boolean':
-        return 'text-syntax-keyword';
-      default:
-        return 'text-text-primary';
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       {showHeader && (
-        <div className="bg-panel-bg px-4 h-11 shrink-0 border-b border-border-color flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <List className="shrink-0 text-sm text-accent-blue" />
-            <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">Variables</span>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-[0.8125rem] text-text-secondary hover:text-text-primary hover:bg-accent p-1 transition-colors"
-                aria-label="Refresh variable list"
-              >
-                <RefreshCw className="w-3 h-3" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Refresh variables</TooltipContent>
-          </Tooltip>
+        <div className="bg-panel-bg px-4 h-11 shrink-0 border-b border-border-color flex items-center gap-2">
+          <List className="shrink-0 text-sm text-accent-blue" />
+          <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">Variables</span>
+          {variables.length > 0 && (
+            <span className="text-[0.75rem] tabular-nums text-text-secondary">{variables.length}</span>
+          )}
         </div>
       )}
 
       <div className="flex-1 overflow-auto bg-editor-bg">
-        <div className="p-2 space-y-1">
-          {variables.length === 0 ? (
-            <div className="p-4 text-center text-[0.875rem] text-text-secondary">
-              {compileFailed ? "Unavailable until errors are fixed" : "No variables found"}
-            </div>
-          ) : (
-            variables.map((variable) => (
-              <div key={variable.name} className="flex items-center justify-between p-2 hover:bg-accent transition-colors rounded w-full">
-                <div className="flex items-center space-x-2 min-w-0 shrink">
+        {variables.length === 0 ? (
+          <div className="flex h-full min-h-[6rem] items-center justify-center gap-2 p-4 text-center text-[0.875rem] text-text-secondary">
+            {compileFailed && <XCircle className="h-4 w-4 shrink-0 text-error" aria-hidden="true" />}
+            {compileFailed ? "Unavailable until errors are fixed" : "No variables declared"}
+          </div>
+        ) : (
+          <dl
+            className="grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] p-2"
+            aria-label="Story variables"
+          >
+            {variables.map((variable) => (
+              <div
+                key={variable.name}
+                className="col-span-2 grid grid-cols-subgrid items-center gap-x-4 rounded px-2 py-1.5 transition-colors hover:bg-accent"
+              >
+                <dt className="flex min-w-0 max-w-[16rem] items-center gap-2">
                   {getVariableIcon(variable.type)}
-                  <span className="text-[0.875rem] leading-6 font-mono text-text-emphasis truncate">
+                  <span className="truncate font-mono text-[0.8125rem] leading-5 text-text-emphasis" title={variable.name}>
                     {variable.name}
                   </span>
-                </div>
-                <div className="shrink-0 ml-2">
+                </dt>
+                <dd className="flex min-w-0">
                   {variable.type === 'list'
                     ? <ListValue value={variable.value} />
                     : (
-                      <span className={`text-[0.875rem] leading-6 font-mono tabular-nums ${getValueClass(variable.type)}`}>
+                      <span className={`${VALUE_CLASS} tabular-nums ${getValueClass(variable.type)}`}>
                         {formatValue(variable.value, variable.type)}
                       </span>
                     )
                   }
-                </div>
+                </dd>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </dl>
+        )}
       </div>
     </div>
   );

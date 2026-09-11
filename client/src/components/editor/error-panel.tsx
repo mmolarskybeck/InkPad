@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock3, Copy, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Info, Loader2, TriangleAlert, XCircle } from "lucide-react";
 import type { CompileStatus } from "@/hooks/use-ink-story";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import {
@@ -15,6 +15,41 @@ interface ErrorPanelProps {
   showCompactStatus?: boolean;
 }
 
+type DiagnosticSeverity = ReturnType<typeof getEditorDiagnosticSeverity>;
+
+const SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2, hint: 3 };
+
+function getSeverityRank(severity: string): number {
+  return SEVERITY_RANK[severity] ?? 4;
+}
+
+function getSeverityPresentation(severity: DiagnosticSeverity) {
+  switch (severity) {
+    case "warning":
+      return { icon: TriangleAlert, label: "Warning", className: "text-warning" };
+    case "info":
+    case "hint":
+      return { icon: Info, label: "Info", className: "text-text-secondary" };
+    default:
+      return { icon: XCircle, label: "Error", className: "text-error" };
+  }
+}
+
+function formatLocation(error: EditorDiagnostic): string {
+  const column = getEditorDiagnosticColumn(error);
+  const position = `${getEditorDiagnosticLine(error)}${column ? `:${column}` : ""}`;
+  return error.fileId ? `${error.fileId}:${position}` : `line ${position}`;
+}
+
+function CompilingIndicator() {
+  return (
+    <span className="flex items-center gap-1.5 text-[0.75rem] text-text-secondary" role="status">
+      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+      Compiling
+    </span>
+  );
+}
+
 export function ErrorPanel({
   errors,
   compileStatus,
@@ -24,23 +59,20 @@ export function ErrorPanel({
 }: ErrorPanelProps) {
   const errorCount = errors.filter(e => getEditorDiagnosticSeverity(e) === 'error').length;
   const warningCount = errors.filter(e => getEditorDiagnosticSeverity(e) === 'warning').length;
-  const statusConfig = getCompileStatusConfig(compileStatus);
+  const isCompiling = compileStatus === "compiling";
   const sortedErrors = [...errors].sort(
     (a, b) => getSeverityRank(getEditorDiagnosticSeverity(a)) - getSeverityRank(getEditorDiagnosticSeverity(b)),
   );
-  const StatusIcon = statusConfig.icon;
   const handleCopyMessage = (event: React.MouseEvent<HTMLButtonElement>, error: EditorDiagnostic) => {
     event.stopPropagation();
-    const fileLabel = error.fileId ? `${error.fileId} ` : "";
-    const location = `${fileLabel}line ${getEditorDiagnosticLine(error)}${getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ""}`;
-    void navigator.clipboard?.writeText(`${location} - ${error.message}`);
+    void navigator.clipboard?.writeText(`${formatLocation(error)} - ${error.message}`);
   };
 
   return (
     <div className="flex flex-col h-full">
       {showHeader && (
         <div className="bg-panel-bg px-4 h-11 shrink-0 border-b border-border-color flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <AlertCircle className="shrink-0 text-sm text-accent-blue" />
             <span className="text-[0.875rem] font-medium tracking-[0.01em] text-text-emphasis">Problems</span>
             {errorCount > 0 && (
@@ -54,107 +86,56 @@ export function ErrorPanel({
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-1.5 text-[0.75rem] tabular-nums ${statusConfig.className}`}>
-            <StatusIcon className={`h-3.5 w-3.5 ${compileStatus === "compiling" ? "animate-spin" : ""}`} />
-            <span>{statusConfig.label}</span>
-          </div>
+          {isCompiling && <CompilingIndicator />}
         </div>
       )}
 
-      {!showHeader && showCompactStatus && (
-        <div className={`flex h-9 shrink-0 items-center justify-end border-b border-border-color px-4 text-[0.75rem] tabular-nums ${statusConfig.className}`}>
-          <div className="flex items-center gap-1.5">
-            <StatusIcon className={`h-3.5 w-3.5 ${compileStatus === "compiling" ? "animate-spin" : ""}`} />
-            <span>{statusConfig.label}</span>
-          </div>
+      {!showHeader && showCompactStatus && isCompiling && (
+        <div className="flex h-9 shrink-0 items-center justify-end border-b border-border-color px-4">
+          <CompilingIndicator />
         </div>
       )}
-      
+
       <div className="flex-1 overflow-auto bg-editor-bg">
-        <div className="p-2 space-y-1">
-          {errors.length === 0 ? (
-            <div className="p-4 text-center text-[0.875rem] text-text-secondary">
-              No problems detected
-            </div>
-          ) : (
-            sortedErrors.map((error, index) => (
-              <div
-                key={index}
-                onClick={() => onErrorClick(error)}
-                className="group flex items-start gap-3 p-2 hover:bg-accent rounded cursor-pointer transition-colors"
-              >
-                <div className="flex-1 min-w-0 font-mono text-[0.875rem] leading-relaxed">
-                  <span className={`inline-block w-10 text-[0.6875rem] font-bold tracking-wider ${
-                    getEditorDiagnosticSeverity(error) === "warning"
-                      ? "text-warning"
-                      : getEditorDiagnosticSeverity(error) === "info" || getEditorDiagnosticSeverity(error) === "hint"
-                      ? "text-text-secondary"
-                      : "text-error"
-                  }`}>
-                    {getEditorDiagnosticSeverity(error) === "warning" ? "WARN" : getEditorDiagnosticSeverity(error) === "error" ? "ERR" : "INFO"}
-                  </span>
-                  <span className="text-[0.8125rem] text-text-secondary mr-2">
-                    line {getEditorDiagnosticLine(error)}{getEditorDiagnosticColumn(error) ? `:${getEditorDiagnosticColumn(error)}` : ''}
-                    {error.fileId && ` ${error.fileId}`}
-                    {" -"}
-                  </span>
-                  <span className="text-text-emphasis">{error.message}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={(event) => handleCopyMessage(event, error)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-panel-bg hover:text-text-emphasis opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                  aria-label="Copy problem message"
-                  title="Copy problem message"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+        {errors.length === 0 ? (
+          <div className="flex h-full min-h-[6rem] items-center justify-center gap-2 p-4 text-[0.875rem] text-text-secondary">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            No problems
+          </div>
+        ) : (
+          <ul className="p-2" aria-label="Problems">
+            {sortedErrors.map((error, index) => {
+              const severity = getSeverityPresentation(getEditorDiagnosticSeverity(error));
+              const SeverityIcon = severity.icon;
+              return (
+                <li key={index} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => onErrorClick(error)}
+                    className="flex w-full items-start gap-2.5 rounded px-2 py-1.5 pr-9 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <SeverityIcon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${severity.className}`} aria-hidden="true" />
+                    <span className="sr-only">{severity.label}:</span>
+                    <span className="min-w-0 flex-1 font-mono text-[0.8125rem] leading-5">
+                      <span className="text-text-emphasis">{error.message}</span>
+                      <span className="ml-2 whitespace-nowrap text-[0.75rem] text-text-secondary">{formatLocation(error)}</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => handleCopyMessage(event, error)}
+                    className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-text-secondary opacity-0 transition-[opacity,color,background-color] hover:bg-panel-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
+                    aria-label="Copy problem message"
+                    title="Copy problem message"
+                  >
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
-}
-
-const SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2, hint: 3 };
-
-function getSeverityRank(severity: string): number {
-  return SEVERITY_RANK[severity] ?? 4;
-}
-
-function getCompileStatusConfig(status: CompileStatus) {
-  switch (status) {
-    case "compiling":
-      return {
-        icon: Loader2,
-        label: "Compiling",
-        className: "text-accent-blue",
-      };
-    case "success":
-      return {
-        icon: CheckCircle2,
-        label: "Updated",
-        className: "text-success",
-      };
-    case "warning":
-      return {
-        icon: AlertTriangle,
-        label: "Warnings",
-        className: "text-warning",
-      };
-    case "error":
-      return {
-        icon: XCircle,
-        label: "Failed",
-        className: "text-error",
-      };
-    default:
-      return {
-        icon: Clock3,
-        label: "Waiting",
-        className: "text-text-secondary",
-      };
-  }
 }
