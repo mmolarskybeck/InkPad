@@ -68,38 +68,89 @@ class CompilerResponseError extends Error {
   }
 }
 
+interface PendingCompile {
+  resolve: (response: CompilerSuccessResponse) => void;
+  reject: (error: Error) => void;
+}
+
+/**
+ * One long-lived compiler worker for the whole page.
+ *
+ * Booting a worker and loading the inkjs compiler bundle costs far more than a
+ * typical recompile, so the worker is created lazily on first use and reused.
+ * Requests are matched to responses by requestId. The worker compiles
+ * synchronously and serially, so a superseded in-flight request cannot be
+ * aborted; it simply completes and the caller discards it by requestId (the
+ * hook already does this). If the worker crashes, every pending request is
+ * rejected and the next compile creates a fresh worker.
+ */
+let sharedWorker: Worker | null = null;
+const pendingCompiles = new Map<string, PendingCompile>();
+
+function failAllPending(error: Error) {
+  const pending = Array.from(pendingCompiles.values());
+  pendingCompiles.clear();
+  pending.forEach((entry) => entry.reject(error));
+}
+
+function getCompilerWorker(): Worker {
+  if (sharedWorker) return sharedWorker;
+
+  const worker = new CompilerWorker();
+  worker.onmessage = (e: MessageEvent<CompilerResponse>) => {
+    const entry = pendingCompiles.get(e.data.requestId);
+    if (!entry) return; // Superseded or unknown request; ignore.
+    pendingCompiles.delete(e.data.requestId);
+    if (e.data.type === "compile-success") {
+      // CRITICAL: Worker sends JSON string, not parsed object
+      entry.resolve(e.data);
+    } else {
+      entry.reject(new CompilerResponseError(e.data));
+    }
+  };
+  worker.onerror = (event) => {
+    const message = event instanceof ErrorEvent && event.message
+      ? event.message
+      : "Compiler worker crashed.";
+    disposeCompilerWorker(new Error(message));
+  };
+  sharedWorker = worker;
+  return worker;
+}
+
+/** Terminate the shared worker (tests, HMR). Pending requests are rejected. */
+export function disposeCompilerWorker(reason = new Error("Compiler worker disposed.")): void {
+  if (sharedWorker) {
+    sharedWorker.terminate();
+    sharedWorker = null;
+  }
+  failAllPending(reason);
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => disposeCompilerWorker());
+}
+
 async function compileInkViaWorker(
   input: InkCompileInput,
   requestId: string
 ): Promise<CompilerSuccessResponse> {
-  const worker = new CompilerWorker();
+  const worker = getCompilerWorker();
 
   return new Promise((resolve, reject) => {
-    worker.onmessage = (e: MessageEvent<CompilerResponse>) => {
-      worker.terminate();
-      if (e.data.requestId !== requestId) {
-        reject(new Error("Compiler response requestId did not match the request."));
-        return;
-      }
-
-      if (e.data.type === "compile-success") {
-        // CRITICAL: Worker sends JSON string, not parsed object
-        resolve(e.data);
-      } else {
-        reject(new CompilerResponseError(e.data));
-      }
-    };
-    worker.onerror = (err) => {
-      worker.terminate();
-      reject(err);
-    };
-    worker.postMessage({
-      type: "compile",
-      requestId,
-      entryFile: input.entryFile,
-      files: input.files,
-      unresolvedIncludePolicy: input.unresolvedIncludePolicy,
-    });
+    pendingCompiles.set(requestId, { resolve, reject });
+    try {
+      worker.postMessage({
+        type: "compile",
+        requestId,
+        entryFile: input.entryFile,
+        files: input.files,
+        unresolvedIncludePolicy: input.unresolvedIncludePolicy,
+      });
+    } catch (error) {
+      pendingCompiles.delete(requestId);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }
 
