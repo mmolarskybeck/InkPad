@@ -307,7 +307,7 @@ export function StoryPreview({
                   ) : null}
                 </header>
               ) : null}
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {visibleEntries.map((entry) => <TranscriptEntry key={entry.id} entry={entry} />)}
               </div>
 

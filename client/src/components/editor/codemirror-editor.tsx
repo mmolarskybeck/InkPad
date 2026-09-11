@@ -213,17 +213,21 @@ function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout:
       backgroundColor: "var(--editor-bg)",
       color: "var(--text-secondary)",
       border: "none",
-      paddingRight: isMobileLayout ? "6px" : "10px",
     },
     ".cm-lineNumbers .cm-gutterElement": {
       minWidth: isMobileLayout ? "1.6em" : "2.5em",
       padding: isMobileLayout ? "0 3px 0 1px" : "0 4px 0 8px",
     },
+    // Right-most gutter carries the spacing between the gutter and code so the
+    // active-line tint runs edge to edge instead of stopping at a padded strip.
+    ".cm-gutter:last-child .cm-gutterElement": {
+      paddingRight: isMobileLayout ? "6px" : "10px",
+    },
     ".cm-activeLine": {
       backgroundColor: "color-mix(in srgb, var(--accent-blue) 9%, transparent)",
     },
     ".cm-activeLineGutter": {
-      backgroundColor: "transparent",
+      backgroundColor: "color-mix(in srgb, var(--accent-blue) 9%, transparent)",
       color: "var(--text-emphasis)",
     },
     ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
