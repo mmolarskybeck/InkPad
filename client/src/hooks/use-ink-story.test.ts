@@ -619,6 +619,129 @@ In place
     expect(result.current.runtimeState?.transcript).toHaveLength(3);
   });
 
+  const midJumpSource = `VAR score = 1
+Opening
+* [Raise]
+  ~ score = 5
+  raised
+  * * [Leave]
+      left
+      -> END
+== place ==
+score is {score}
+* [P]
+  after p
+  -> END`;
+
+  it("restores a mid-route jump with earlier variables intact and only post-jump transcript and history", async () => {
+    const story = compile(midJumpSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.jumpToKnot("place"));
+    act(() => result.current.makeChoice(0));
+
+    const edited = midJumpSource.replace("after p", "after p edited");
+    mockCompile(edited);
+    await liveCompile(result, edited);
+
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.variables).toContainEqual(expect.objectContaining({ name: "score", value: 5 }));
+    expect(result.current.runtimeState?.transcript.map((entry) => entry.type)).toEqual([
+      "passage",
+      "choice",
+      "passage",
+    ]);
+    expect(result.current.runtimeState?.transcript[0]).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "score is 5" }),
+    });
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "after p edited" }),
+    });
+
+    // Back returns to the knot's choices, then stops: it cannot cross the jump.
+    expect(result.current.runtimeState?.canStepBack).toBe(true);
+    act(() => result.current.stepBack());
+    expect(result.current.runtimeState?.transcript).toHaveLength(1);
+    expect(result.current.runtimeState?.choices[0]?.text).toBe("P");
+    expect(result.current.runtimeState?.canStepBack).toBe(false);
+  });
+
+  it("restarts cleanly when the root jump's knot no longer exists", async () => {
+    const story = compile(midJumpSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.jumpToKnot("place"));
+
+    const renamed = midJumpSource.replace("== place ==", "== elsewhere ==");
+    mockCompile(renamed);
+    await liveCompile(result, renamed);
+
+    expect(result.current.restoreNotice).toBe("jump-missing");
+    expect(result.current.restoreNoticeKnot).toBe("place");
+    expect(result.current.runtimeState?.transcript).toHaveLength(1);
+    expect(result.current.runtimeState?.transcript[0]).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "Opening" }),
+    });
+    expect(result.current.runtimeState?.choices[0]?.text).toBe("Raise");
+    expect(result.current.runtimeState?.canStepBack).toBe(false);
+  });
+
+  it("restarts with initial variable values when a mid-route jump's knot no longer exists", async () => {
+    const story = compile(midJumpSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.jumpToKnot("place"));
+
+    const renamed = midJumpSource.replace("== place ==", "== elsewhere ==");
+    mockCompile(renamed);
+    await liveCompile(result, renamed);
+
+    expect(result.current.restoreNotice).toBe("jump-missing");
+    expect(result.current.variables).toContainEqual(expect.objectContaining({ name: "score", value: 1 }));
+    expect(result.current.runtimeState?.transcript[0]).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "Opening" }),
+    });
+    expect(result.current.errors.some((e) => e.type === "error")).toBe(false);
+  });
+
+  it("discards the obsolete route when the writer chooses after a jump-missing restart", async () => {
+    const story = compile(midJumpSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.jumpToKnot("place"));
+
+    const renamed = midJumpSource.replace("== place ==", "== elsewhere ==");
+    mockCompile(renamed);
+    await liveCompile(result, renamed);
+    expect(result.current.restoreNotice).toBe("jump-missing");
+
+    act(() => result.current.makeChoice(0));
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.restoreNoticeKnot).toBeNull();
+
+    mockCompile(renamed);
+    await liveCompile(result, renamed);
+
+    const lastReplay = vi.mocked(replayPath).mock.calls.at(-1);
+    expect(lastReplay?.[1]).toEqual([{ kind: "choice", index: 0, text: "Raise" }]);
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "raised" }),
+    });
+  });
+
   it("reflects variables from the newly compiled story after a restore", async () => {
     const varSource = `VAR score = 1
 Start

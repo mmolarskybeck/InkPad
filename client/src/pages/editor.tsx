@@ -499,6 +499,7 @@ export default function Editor() {
     compileNow,
     jumpToKnot,
     restoreNotice,
+    restoreNoticeKnot,
     dismissRestoreNotice,
     stopStory,
   } = useInkStory();
@@ -1688,6 +1689,7 @@ export default function Editor() {
       runtimeState={runtimeState}
       isRunning={isRunning}
       restoreNotice={restoreNotice}
+      restoreNoticeKnot={restoreNoticeKnot}
       onDismissRestoreNotice={dismissRestoreNotice}
       showHeader={!isMobile && focusedPanel === null}
       previewMode={currentDocument.previewMode ?? "transcript"}

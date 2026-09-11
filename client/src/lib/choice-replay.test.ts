@@ -151,6 +151,78 @@ In place
     expect(first.type === "passage" && first.passage.text).toBe("In place");
   });
 
+  const jumpStory = `VAR score = 1
+Start
+* [Raise]
+  ~ score = 5
+  raised
+  * * [Leave]
+      left
+      -> END
+== place ==
+score is {score}
+* [P]
+  after p
+  -> END`;
+
+  it("replays a mid-route jump with the variables set before it, showing only post-jump output", () => {
+    const story = compile(jumpStory);
+    const draft = createDraft();
+    bindIssueSink(story, draft);
+
+    const result = replayPath(
+      story,
+      [
+        { kind: "choice", index: 0, text: "Raise" },
+        { kind: "jump", knot: "place" },
+        { kind: "choice", index: 0, text: "P" },
+      ],
+      draft
+    );
+
+    expect(result).toEqual({ replayedCount: 3, outcome: "full" });
+    expect(draft.transcript.map((entry) => entry.type)).toEqual(["passage", "choice", "passage"]);
+    const first = draft.transcript[0];
+    expect(first.type === "passage" && first.passage.text).toBe("score is 5");
+    // Rewind history holds only the post-jump choice: Back must not cross the jump.
+    expect(draft.history).toHaveLength(1);
+    expect(draft.history[0].transcriptLength).toBe(1);
+  });
+
+  it("reports jump-missing for a root jump to a knot that no longer exists, without advancing", () => {
+    const story = compile(jumpStory);
+    const draft = createDraft();
+    bindIssueSink(story, draft);
+
+    const result = replayPath(story, [{ kind: "jump", knot: "gone" }], draft);
+
+    expect(result).toEqual({ replayedCount: 0, outcome: "partial", failure: "jump-missing", missingKnot: "gone" });
+    expect(draft.transcript).toHaveLength(0);
+    expect(story.variablesState.$("score")).toBe(1);
+  });
+
+  it("reports jump-missing for a mid-route jump before replaying any earlier choice", () => {
+    const story = compile(jumpStory);
+    const draft = createDraft();
+    bindIssueSink(story, draft);
+
+    const result = replayPath(
+      story,
+      [
+        { kind: "choice", index: 0, text: "Raise" },
+        { kind: "jump", knot: "gone" },
+      ],
+      draft
+    );
+
+    expect(result.failure).toBe("jump-missing");
+    expect(result.missingKnot).toBe("gone");
+    expect(result.replayedCount).toBe(0);
+    // Validation happens up front, so the story is untouched and safe to start fresh.
+    expect(draft.transcript).toHaveLength(0);
+    expect(story.variablesState.$("score")).toBe(1);
+  });
+
   it("reports a partial runtime-error outcome when advancing raises a runtime error", () => {
     // A tunnel-return (->->) with no tunnel on the stack raises a genuine ink
     // RUNTIME ERROR through story.onError without throwing.

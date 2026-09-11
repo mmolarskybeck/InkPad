@@ -2,6 +2,7 @@ import type { Story } from 'inkjs';
 import type { StoryChoice } from '@/types/story-runtime';
 import {
   advanceStory,
+  clearDraftOutput,
   hasRuntimeError,
   readChoices,
   recordChoice,
@@ -18,17 +19,48 @@ import {
  */
 
 export type ChoiceStep = { kind: 'choice'; index: number; text: string };
+/**
+ * A jump can sit anywhere in a route. Steps before it are replayed purely to
+ * rebuild story state (variables, visit counts); like the live jump, it wipes
+ * the visible transcript and rewind history so only post-jump output remains.
+ */
 export type JumpStep = { kind: 'jump'; knot: string };
-/** A jump step is only ever valid at position 0 (a route rooted at a knot). */
 export type ReplayStep = ChoiceStep | JumpStep;
 
-export type ReplayFailure = 'choice-missing' | 'choice-changed' | 'ambiguous-text' | 'runtime-error';
+export type ReplayFailure =
+  | 'choice-missing'
+  | 'choice-changed'
+  | 'ambiguous-text'
+  | 'runtime-error'
+  | 'jump-missing';
 
 export interface ReplayResult {
-  /** Steps successfully applied (a root jump counts as one). */
+  /** Steps successfully applied (a jump counts as one). */
   replayedCount: number;
   outcome: 'full' | 'partial';
   failure?: ReplayFailure;
+  /** Set with `jump-missing`: the knot (or knot.stitch) that no longer exists. */
+  missingKnot?: string;
+}
+
+/** True when `ChoosePathString(path)` would land somewhere. Accepts `knot` or `knot.stitch`. */
+export function hasKnotPath(story: Story, path: string): boolean {
+  const [knot, stitch, ...rest] = path.split('.');
+  if (!knot || rest.length > 0) return false;
+  const container = story.KnotContainerWithName(knot);
+  if (!container) return false;
+  return stitch === undefined || container.namedContent.has(stitch);
+}
+
+/**
+ * Every jump in a route must resolve before replay starts. Validating up
+ * front means a missing knot never leaves a half-replayed Story behind.
+ */
+export function findMissingJump(story: Story, path: ReplayStep[]): JumpStep | null {
+  for (const step of path) {
+    if (step.kind === 'jump' && !hasKnotPath(story, step.knot)) return step;
+  }
+  return null;
 }
 
 /** Unicode-normalize, trim, collapse whitespace, lowercase. Punctuation is preserved on purpose. */
@@ -71,18 +103,18 @@ export function classifyMiss(choices: StoryChoice[], step: ChoiceStep): ReplayFa
  * decision to commit or discard the draft afterwards.
  */
 export function replayPath(story: Story, path: ReplayStep[], draft: SessionDraft): ReplayResult {
+  const missingJump = findMissingJump(story, path);
+  if (missingJump) {
+    return { replayedCount: 0, outcome: 'partial', failure: 'jump-missing', missingKnot: missingJump.knot };
+  }
+
   let replayedCount = 0;
   let i = 0;
 
   try {
-    // A root jump must happen before the first advance so the opening passage is never emitted.
-    if (path[0]?.kind === 'jump') {
-      story.ChoosePathString(path[0].knot);
-      replayedCount = 1;
-      i = 1;
-    }
-
     for (;;) {
+      // Always advance before a jump, exactly as the live session did: the
+      // passage the writer was reading ran its side effects before they jumped.
       const issues = advanceStory(story, draft);
       if (hasRuntimeError(issues)) {
         return { replayedCount, outcome: 'partial', failure: 'runtime-error' };
@@ -92,9 +124,12 @@ export function replayPath(story: Story, path: ReplayStep[], draft: SessionDraft
       }
 
       const step = path[i];
-      if (step.kind !== 'choice') {
-        // A jump anywhere but position 0 is a programming error; stop safely.
-        return { replayedCount, outcome: 'partial', failure: 'choice-missing' };
+      if (step.kind === 'jump') {
+        story.ChoosePathString(step.knot);
+        clearDraftOutput(draft);
+        replayedCount += 1;
+        i += 1;
+        continue;
       }
 
       const choices = readChoices(story);

@@ -28,6 +28,8 @@ interface StoryPreviewProps {
   runtimeState: StoryRuntimeState | null;
   isRunning: boolean;
   restoreNotice?: ReplayFailure | null;
+  /** Knot named by a `jump-missing` notice. */
+  restoreNoticeKnot?: string | null;
   onDismissRestoreNotice?: () => void;
   showHeader?: boolean;
   previewMode?: PreviewMode;
@@ -66,9 +68,23 @@ const RESTORE_NOTICE_DETAIL: Record<ReplayFailure, string> = {
   "choice-changed": "The choices at this point changed. Pick one to continue.",
   "ambiguous-text": "The choice you picked moved, and more than one choice here has the same text, so InkPad stopped rather than guess.",
   "runtime-error": "The story hit a runtime error while replaying your choices.",
+  "jump-missing": "The knot you jumped to no longer exists, so the preview restarted.",
 };
 
-function RestoreNotice({ failure, onDismiss }: { failure: ReplayFailure; onDismiss?: () => void }) {
+function restoreNoticeCopy(failure: ReplayFailure, knot: string | null | undefined) {
+  if (failure === "jump-missing") {
+    return {
+      title: "Preview restarted.",
+      detail: knot
+        ? `The knot ‘${knot}’ no longer exists, so the preview restarted.`
+        : RESTORE_NOTICE_DETAIL[failure],
+    };
+  }
+  return { title: "Preview updated — this choice path changed.", detail: RESTORE_NOTICE_DETAIL[failure] };
+}
+
+function RestoreNotice({ failure, knot, onDismiss }: { failure: ReplayFailure; knot?: string | null; onDismiss?: () => void }) {
+  const copy = restoreNoticeCopy(failure, knot);
   return (
     <div
       role="status"
@@ -77,8 +93,8 @@ function RestoreNotice({ failure, onDismiss }: { failure: ReplayFailure; onDismi
       className="my-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[0.8125rem] leading-snug text-text-secondary"
     >
       <div className="flex-1">
-        <div className="font-medium text-warning">Preview updated — this choice path changed.</div>
-        <div>{RESTORE_NOTICE_DETAIL[failure]}</div>
+        <div className="font-medium text-warning">{copy.title}</div>
+        <div>{copy.detail}</div>
       </div>
       {onDismiss ? (
         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onDismiss} aria-label="Dismiss notice">
@@ -93,6 +109,7 @@ export function StoryPreview({
   runtimeState,
   isRunning,
   restoreNotice = null,
+  restoreNoticeKnot = null,
   onDismissRestoreNotice,
   showHeader = true,
   previewMode = "transcript",
@@ -294,7 +311,7 @@ export function StoryPreview({
                 {visibleEntries.map((entry) => <TranscriptEntry key={entry.id} entry={entry} />)}
               </div>
 
-              {restoreNotice ? <RestoreNotice failure={restoreNotice} onDismiss={onDismissRestoreNotice} /> : null}
+              {restoreNotice ? <RestoreNotice failure={restoreNotice} knot={restoreNoticeKnot} onDismiss={onDismissRestoreNotice} /> : null}
 
               {runtimeState.choices.length > 0 ? (
                 <div className="space-y-2 pt-1">

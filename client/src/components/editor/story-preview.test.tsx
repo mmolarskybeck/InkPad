@@ -152,6 +152,23 @@ describe("StoryPreview", () => {
     );
   });
 
+  it("renders the jump-missing notice with the knot name and a restart headline", () => {
+    renderWithTooltips(
+      <StoryPreview
+        runtimeState={runtimeState}
+        isRunning
+        restoreNotice="jump-missing"
+        restoreNoticeKnot="cellar"
+        onMakeChoice={() => {}}
+      />
+    );
+
+    const notice = screen.getByTestId("restore-notice");
+    expect(notice).toHaveTextContent("Preview restarted.");
+    expect(notice).toHaveTextContent("The knot ‘cellar’ no longer exists, so the preview restarted.");
+    expect(notice).not.toHaveTextContent("this choice path changed");
+  });
+
   it("does not render a restore notice when there is nothing to report", () => {
     renderWithTooltips(
       <StoryPreview

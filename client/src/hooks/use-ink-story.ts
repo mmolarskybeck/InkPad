@@ -71,6 +71,8 @@ export function useInkStory() {
   const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
   const [parsedGlobalTags, setParsedGlobalTags] = useState<ParsedGlobalTags>(() => parseGlobalTags([]));
   const [restoreNotice, setRestoreNotice] = useState<ReplayFailure | null>(null);
+  /** With `jump-missing`: the knot the writer had jumped to, for the notice copy. */
+  const [restoreNoticeKnot, setRestoreNoticeKnot] = useState<string | null>(null);
 
   const activeRuntimeStoryRef = useRef<Story | null>(null);
   const latestCompiledStoryJsonRef = useRef<string | null>(null);
@@ -89,11 +91,23 @@ export function useInkStory() {
     setIsRunning(running);
   }, []);
 
-  const resetRoute = useCallback((path: ReplayStep[] = []) => {
-    replayPathRef.current = path;
-    replayedCountRef.current = path.length;
+  const clearRestoreNotice = useCallback(() => {
     setRestoreNotice(null);
+    setRestoreNoticeKnot(null);
   }, []);
+
+  const resetRoute = useCallback(() => {
+    replayPathRef.current = [];
+    replayedCountRef.current = 0;
+    clearRestoreNotice();
+  }, [clearRestoreNotice]);
+
+  /** Drop the stale tail left by a partial restore, then append one live step. */
+  const appendRouteStep = useCallback((step: ReplayStep) => {
+    replayPathRef.current = [...replayPathRef.current.slice(0, replayedCountRef.current), step];
+    replayedCountRef.current = replayPathRef.current.length;
+    clearRestoreNotice();
+  }, [clearRestoreNotice]);
 
   const updateVariablesFromCompiledJson = useCallback((compiledJsonData: any) => {
     try {
@@ -159,8 +173,18 @@ export function useInkStory() {
 
     activeRuntimeStoryRef.current = fresh;
     activeRuntimeStoryJsonRef.current = compiledJson;
+    if (result.failure === 'jump-missing') {
+      // The route is unusable; the story starts over. Replay validated every
+      // jump before touching state, so `fresh` is still at the beginning.
+      advanceStory(fresh, draft);
+      replayPathRef.current = [];
+      replayedCountRef.current = 0;
+      setRestoreNoticeKnot(result.missingKnot ?? null);
+    } else {
+      replayedCountRef.current = result.replayedCount;
+      setRestoreNoticeKnot(null);
+    }
     publish(fresh, draft, names);
-    replayedCountRef.current = result.replayedCount;
     setRestoreNotice(result.outcome === 'partial' ? result.failure ?? null : null);
     if (draft.issues.length > 0) {
       setErrors(prefixRuntimeIssues('Error restoring preview', draft.issues));
@@ -374,13 +398,7 @@ export function useInkStory() {
       }
 
       publish(runtimeStory, draft);
-      // After a partial restore the old tail is invalid: truncate, then append.
-      replayPathRef.current = [
-        ...replayPathRef.current.slice(0, replayedCountRef.current),
-        { kind: 'choice', index: choiceIndex, text: choice.text },
-      ];
-      replayedCountRef.current = replayPathRef.current.length;
-      setRestoreNotice(null);
+      appendRouteStep({ kind: 'choice', index: choiceIndex, text: choice.text });
     } catch (error) {
       rollback();
       console.error('Error making choice:', error);
@@ -390,7 +408,7 @@ export function useInkStory() {
         type: 'error'
       }]);
     }
-  }, [isRunning, publish]);
+  }, [appendRouteStep, isRunning, publish]);
 
   const stepBack = useCallback(() => {
     const runtimeStory = activeRuntimeStoryRef.current;
@@ -406,7 +424,7 @@ export function useInkStory() {
       updateRuntimeState(runtimeStory);
       replayPathRef.current = replayPathRef.current.slice(0, Math.max(0, replayedCountRef.current - 1));
       replayedCountRef.current = replayPathRef.current.length;
-      setRestoreNotice(null);
+      clearRestoreNotice();
     } catch (error) {
       console.error('Error stepping back:', error);
       setErrors([{
@@ -415,7 +433,7 @@ export function useInkStory() {
         type: 'error',
       }]);
     }
-  }, [isRunning, updateRuntimeState]);
+  }, [clearRestoreNotice, isRunning, updateRuntimeState]);
 
   const jumpToKnot = useCallback((knotName: string) => {
     const runtimeStory = activeRuntimeStoryRef.current;
@@ -424,8 +442,9 @@ export function useInkStory() {
       runtimeStory.ChoosePathString(knotName);
       draftRef.current = createDraft();
       updateRuntimeState(runtimeStory);
-      // A jump roots a new route; replay applies it before the first advance.
-      resetRoute([{ kind: 'jump', knot: knotName }]);
+      // Earlier steps stay recorded so replay can rebuild the variables they
+      // set; the jump itself wipes the visible transcript, as it just did here.
+      appendRouteStep({ kind: 'jump', knot: knotName });
     } catch (error) {
       console.error('Error jumping to knot:', error);
       setErrors([{
@@ -434,9 +453,9 @@ export function useInkStory() {
         type: 'error'
       }]);
     }
-  }, [isRunning, resetRoute, updateRuntimeState]);
+  }, [appendRouteStep, isRunning, updateRuntimeState]);
 
-  const dismissRestoreNotice = useCallback(() => setRestoreNotice(null), []);
+  const dismissRestoreNotice = clearRestoreNotice;
 
   return {
     runtimeStory: latestCompiledRuntimeStory,
@@ -449,6 +468,7 @@ export function useInkStory() {
     compileStatus,
     parsedGlobalTags,
     restoreNotice,
+    restoreNoticeKnot,
     dismissRestoreNotice,
     runStory,
     restartStory,

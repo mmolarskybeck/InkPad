@@ -58,6 +58,18 @@ export function createDraft(): SessionDraft {
   return { transcript: [], history: [], entryId: 0, issues: [], currentPassage: null };
 }
 
+/**
+ * Drop everything visible in a draft (transcript, rewind history, passage,
+ * entry counter) while keeping the issue sink intact. This is what a knot
+ * jump does to the live session, so replay must do the same.
+ */
+export function clearDraftOutput(draft: SessionDraft): void {
+  draft.transcript = [];
+  draft.history = [];
+  draft.entryId = 0;
+  draft.currentPassage = null;
+}
+
 export function cloneDraft(draft: SessionDraft): SessionDraft {
   return {
     transcript: [...draft.transcript],
