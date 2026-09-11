@@ -1,13 +1,20 @@
 import { act, renderHook } from "@testing-library/react";
 import { Compiler } from "inkjs/full";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Story } from "inkjs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useInkStory } from "./use-ink-story";
 import { compileInkScript, createCompilerRequestId } from "@/lib/ink-compiler";
+import { replayPath } from "@/lib/choice-replay";
 
 vi.mock("@/lib/ink-compiler", () => ({
   compileInkScript: vi.fn(),
   createCompilerRequestId: vi.fn(() => "request-id"),
 }));
+
+vi.mock("@/lib/choice-replay", async (importOriginal) => {
+  const m = await importOriginal<typeof import("@/lib/choice-replay")>();
+  return { ...m, replayPath: vi.fn(m.replayPath) };
+});
 
 function compile(source: string) {
   return new Compiler(source).Compile();
@@ -273,5 +280,373 @@ Start
 
     expect(compileInkScript).toHaveBeenCalledWith(input, "request-id");
     expect(result.current.parsedGlobalTags.metadata.title).toBe("Project");
+  });
+});
+
+describe("useInkStory live restore", () => {
+  const S1 = `Start
+* [One]
+  After one
+  * * [Two]
+      After two
+      * * * [Three]
+            After three
+            -> END`;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function mockCompile(source: string): Story {
+    const story = compile(source);
+    const json = story.ToJson();
+    vi.mocked(compileInkScript).mockResolvedValue({
+      requestId: "request-id",
+      runtimeStory: story,
+      errors: [],
+      knots: [],
+      compiledJson: json,
+    });
+    return story;
+  }
+
+  async function liveCompile(
+    result: { current: ReturnType<typeof useInkStory> },
+    source: string
+  ) {
+    act(() => {
+      result.current.compileLive(source);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  it("keeps the transcript prefix and lands on the current choices for a full restore", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.makeChoice(0));
+
+    const editedSource = `Start
+* [One]
+  After one
+  * * [Two]
+      After two edited
+      * * * [Three]
+            After three
+            -> END`;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.runtimeState?.transcript).toHaveLength(5);
+    const last = result.current.runtimeState?.transcript[4];
+    expect(last).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "After two edited" }),
+    });
+    expect(result.current.runtimeState?.choices[0]?.text).toBe("Three");
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.runtimeState?.canStepBack).toBe(true);
+
+    act(() => result.current.stepBack());
+    expect(result.current.runtimeState?.transcript).toHaveLength(3);
+    expect(result.current.runtimeState?.choices[0]?.text).toBe("Two");
+  });
+
+  it("truncates the stale tail and reports a partial restore when a later choice changes", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.makeChoice(0));
+    expect(result.current.runtimeState?.isComplete).toBe(true);
+
+    const editedSource = `Start
+* [One]
+  After one
+  * * [Other]
+      Elsewhere
+      -> END`;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.restoreNotice).toBe("choice-changed");
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "After one" }),
+    });
+    expect(result.current.runtimeState?.choices[0]?.text).toBe("Other");
+
+    act(() => result.current.makeChoice(0));
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "Elsewhere" }),
+    });
+
+    const lengthAfterChoice = result.current.runtimeState?.transcript.length;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.runtimeState?.transcript).toHaveLength(lengthAfterChoice!);
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "Elsewhere" }),
+    });
+  });
+
+  it("restores a choice that moved position via its unique text", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+
+    const editedSource = `Start
+* [Brand new]
+  New branch
+  -> END
+* [One]
+  After one
+  * * [Two]
+      After two
+      * * * [Three]
+            After three
+            -> END`;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "After one" }),
+    });
+  });
+
+  it("trusts the recorded index for a duplicate label that still matches there", async () => {
+    const original = `Start
+* [Go]
+  A
+  -> END
+* [Stay]
+  B
+  -> END`;
+    const story = compile(original);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(1));
+
+    const editedSource = `Start
+* [Stay]
+  C
+  -> END
+* [Stay]
+  D
+  -> END
+* [Go]
+  A
+  -> END`;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.restoreNotice).toBeNull();
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "D" }),
+    });
+  });
+
+  it("reports ambiguous-text when a duplicate label no longer matches the recorded index", async () => {
+    const original = `Start
+* [Go]
+  A
+  -> END
+* [Stay]
+  B
+  -> END`;
+    const story = compile(original);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+
+    const editedSource = `Start
+* [X]
+  x
+  -> END
+* [Go]
+  A
+  -> END
+* [Go]
+  A
+  -> END`;
+    mockCompile(editedSource);
+    await liveCompile(result, editedSource);
+
+    expect(result.current.restoreNotice).toBe("ambiguous-text");
+    expect(result.current.runtimeState?.transcript).toHaveLength(1);
+  });
+
+  it("leaves the running preview untouched on a compile error, then restores once fixed", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    expect(result.current.runtimeState?.transcript).toHaveLength(3);
+
+    vi.mocked(compileInkScript).mockResolvedValue({
+      requestId: "request-id",
+      runtimeStory: null,
+      errors: [{ line: 1, message: "boom", type: "error" }],
+      knots: [],
+    });
+    await liveCompile(result, S1);
+
+    expect(result.current.runtimeState?.transcript).toHaveLength(3);
+    expect(result.current.compileStatus).toBe("error");
+
+    const fixedSource = `Start
+* [One]
+  After one fixed
+  * * [Two]
+      After two
+      * * * [Three]
+            After three
+            -> END`;
+    mockCompile(fixedSource);
+    await liveCompile(result, fixedSource);
+
+    expect(result.current.runtimeState?.transcript[2]).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "After one fixed" }),
+    });
+  });
+
+  it("bypasses replay for an explicit Run, restarting from the top", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+
+    mockCompile(S1);
+    await act(async () => {
+      await result.current.compileNow(S1);
+    });
+    expect(replayPath).not.toHaveBeenCalled();
+
+    act(() => result.current.runStory());
+    expect(result.current.runtimeState?.transcript).toHaveLength(1);
+  });
+
+  it("does nothing when no session is running", async () => {
+    const { result } = renderHook(() => useInkStory());
+
+    mockCompile(S1);
+    await liveCompile(result, S1);
+
+    expect(result.current.runtimeState).toBeNull();
+  });
+
+  it("stopStory clears the running session and blocks a subsequent restore", async () => {
+    const story = compile(S1);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+    act(() => result.current.stopStory());
+
+    expect(result.current.runtimeState).toBeNull();
+    expect(result.current.isRunning).toBe(false);
+
+    mockCompile(S1);
+    await liveCompile(result, S1);
+
+    expect(result.current.runtimeState).toBeNull();
+  });
+
+  it("restores a route rooted at a knot jump without emitting an opening passage", async () => {
+    const jumpSource = `Opening
+* [Go]
+  gone
+  -> END
+== place ==
+In place
+* [P]
+  after p
+  -> END`;
+    const story = compile(jumpSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.jumpToKnot("place"));
+    act(() => result.current.makeChoice(0));
+
+    const editedJumpSource = `Opening
+* [Go]
+  gone
+  -> END
+== place ==
+In place
+* [P]
+  after p edited
+  -> END`;
+    mockCompile(editedJumpSource);
+    await liveCompile(result, editedJumpSource);
+
+    expect(result.current.runtimeState?.transcript[0]).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "In place" }),
+    });
+    expect(result.current.runtimeState?.transcript.at(-1)).toMatchObject({
+      type: "passage",
+      passage: expect.objectContaining({ text: "after p edited" }),
+    });
+    expect(result.current.runtimeState?.transcript).toHaveLength(3);
+  });
+
+  it("reflects variables from the newly compiled story after a restore", async () => {
+    const varSource = `VAR score = 1
+Start
+* [Go]
+  ~ score = 5
+  done
+  -> END`;
+    const story = compile(varSource);
+    const { result } = renderHook(() => useInkStory());
+
+    act(() => result.current.runStory(story));
+    act(() => result.current.makeChoice(0));
+
+    const editedVarSource = `VAR mood = "ok"
+VAR score = 1
+Start
+* [Go]
+  ~ score = 5
+  done
+  -> END`;
+    mockCompile(editedVarSource);
+    await liveCompile(result, editedVarSource);
+
+    expect(result.current.variables).toContainEqual(
+      expect.objectContaining({ name: "mood" })
+    );
+    expect(result.current.variables).toContainEqual(
+      expect.objectContaining({ name: "score", value: 5 })
+    );
   });
 });

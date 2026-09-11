@@ -90,6 +90,7 @@ describe("useEditorDocumentActions", () => {
       cancelPendingRecoveryDraft: vi.fn(),
       resetBufferedSource: vi.fn(),
       compileLive: vi.fn(),
+      stopStory: vi.fn(),
     }));
 
     act(() => {
@@ -126,6 +127,7 @@ describe("useEditorDocumentActions", () => {
       cancelPendingRecoveryDraft: vi.fn(),
       resetBufferedSource: vi.fn(),
       compileLive: vi.fn(),
+      stopStory: vi.fn(),
     }));
 
     await act(async () => {
@@ -172,6 +174,7 @@ describe("useEditorDocumentActions", () => {
       cancelPendingRecoveryDraft: vi.fn(),
       resetBufferedSource: vi.fn(),
       compileLive: vi.fn(),
+      stopStory: vi.fn(),
     }));
 
     await act(async () => {

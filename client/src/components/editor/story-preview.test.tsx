@@ -115,22 +115,54 @@ describe("StoryPreview", () => {
     expect(onRestart).toHaveBeenCalledOnce();
   });
 
-  it("offers a compact header re-run action when the preview is stale", async () => {
-    const onRun = vi.fn();
+  it("renders a restore notice with the failure detail and dismiss action", async () => {
+    const onDismissRestoreNotice = vi.fn();
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
         isRunning
-        isStale
+        restoreNotice="choice-changed"
         onMakeChoice={() => {}}
-        onRun={onRun}
+        onDismissRestoreNotice={onDismissRestoreNotice}
       />
     );
 
-    expect(screen.queryByText("Preview is out of date.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Re-run to update preview" })).toHaveTextContent("Re-run to update?");
-    await userEvent.click(screen.getByRole("button", { name: "Re-run to update preview" }));
-    expect(onRun).toHaveBeenCalledOnce();
+    const restoreNotice = screen.getByTestId("restore-notice");
+    expect(restoreNotice).toHaveAttribute("role", "status");
+    expect(restoreNotice).toHaveTextContent("Preview updated — this choice path changed.");
+    expect(restoreNotice).toHaveTextContent("The choices at this point changed. Pick one to continue.");
+
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss notice" }));
+    expect(onDismissRestoreNotice).toHaveBeenCalledOnce();
+  });
+
+  it("renders the restore notice in scene preview mode", () => {
+    renderWithTooltips(
+      <StoryPreview
+        runtimeState={runtimeState}
+        isRunning
+        previewMode="scene"
+        restoreNotice="ambiguous-text"
+        onMakeChoice={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId("restore-notice")).toHaveTextContent(
+      "The choice you picked moved, and more than one choice here has the same text, so InkPad stopped rather than guess."
+    );
+  });
+
+  it("does not render a restore notice when there is nothing to report", () => {
+    renderWithTooltips(
+      <StoryPreview
+        runtimeState={runtimeState}
+        isRunning
+        restoreNotice={null}
+        onMakeChoice={() => {}}
+      />
+    );
+
+    expect(screen.queryByTestId("restore-notice")).not.toBeInTheDocument();
   });
 
   it("keeps the last successful run and points at the problem when compilation fails", async () => {
@@ -140,7 +172,6 @@ describe("StoryPreview", () => {
       <StoryPreview
         runtimeState={runtimeState}
         isRunning
-        isStale
         hasErrors
         errorCount={1}
         onMakeChoice={() => {}}
@@ -189,7 +220,6 @@ describe("StoryPreview", () => {
 
     expect(screen.getByText("Running")).toBeInTheDocument();
     expect(screen.queryByLabelText("Story is running")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Preview is stale")).not.toBeInTheDocument();
   });
 
   it("renders the story masthead in the scrollable preview", () => {

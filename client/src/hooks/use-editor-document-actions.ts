@@ -49,6 +49,7 @@ interface UseEditorDocumentActionsOptions {
   cancelPendingRecoveryDraft: () => void;
   resetBufferedSource: (source: string) => void;
   compileLive: (source: string) => void;
+  stopStory: () => void;
 }
 
 type InkStorageExtension = ".ink" | ".inkpad";
@@ -105,6 +106,7 @@ export function useEditorDocumentActions({
   cancelPendingRecoveryDraft,
   resetBufferedSource,
   compileLive,
+  stopStory,
 }: UseEditorDocumentActionsOptions) {
   const [pendingAction, setPendingAction] = useState<PendingDocumentAction | null>(null);
   const [isSavingBeforeAction, setIsSavingBeforeAction] = useState(false);
@@ -201,6 +203,7 @@ export function useEditorDocumentActions({
       lastSavedAt: savedAt,
     });
     setRecentFiles(FileOperations.getAllFiles());
+    stopStory();
     compileLive(source);
   }, [
     cancelPendingRecoveryDraft,
@@ -210,6 +213,7 @@ export function useEditorDocumentActions({
     setIsRecoveryBannerDismissed,
     setRecentFiles,
     setRecoveredAt,
+    stopStory,
   ]);
 
   const applyLoadedFile = useCallback((file: StoredInkDocument) => {
@@ -283,6 +287,7 @@ export function useEditorDocumentActions({
       updatedAt: Date.now(),
     });
     trackProjectCreated("import");
+    stopStory();
     compileLive(source);
   }, [
     applyLoadedProjectFile,
@@ -290,6 +295,7 @@ export function useEditorDocumentActions({
     compileLive,
     resetBufferedSource,
     setCurrentDocument,
+    stopStory,
   ]);
 
   const createNewDocument = useCallback(() => {
@@ -297,6 +303,7 @@ export function useEditorDocumentActions({
     resetBufferedSource("");
     setRecoveredAt(null);
     setIsRecoveryBannerDismissed(false);
+    stopStory();
     setCurrentDocument({
       id: createInkDocumentId(),
       filename: "untitled.ink",
@@ -314,6 +321,7 @@ export function useEditorDocumentActions({
     setCurrentDocument,
     setIsRecoveryBannerDismissed,
     setRecoveredAt,
+    stopStory,
   ]);
 
   const handleNew = useCallback(() => {

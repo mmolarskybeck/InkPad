@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Story } from 'inkjs';
-import type { ErrorType } from 'inkjs/engine/Error';
 import {
   compileInkScript,
   createCompilerRequestId,
@@ -10,20 +9,26 @@ import {
 import type { InkCompileInput } from '@/types/worker-messages';
 import { extractInkVariables, extractListDefs, convertToUIVariables, convertStateToUIVariables } from '@/lib/ink-variable-utils';
 import { normalizeStoryJson } from '@/lib/json-utils';
-import { decodeHtmlCharacterReferences } from '@/lib/ink-text';
 import {
   attachTagWarningLines,
   parseGlobalTags,
   type ParsedGlobalTags,
 } from '@/lib/tag-interpreter';
 import { parseTagsFromSource } from '@/lib/ink-source-tags';
-import type {
-  StoryChoice,
-  StoryPassage,
-  StoryRuntimeState,
-  StoryTranscriptEntry,
-} from '@/types/story-runtime';
+import type { StoryRuntimeState } from '@/types/story-runtime';
 import { debounce } from '@/lib/debounce';
+import {
+  advanceStory,
+  bindIssueSink,
+  cloneDraft,
+  createDraft,
+  hasRuntimeError,
+  prefixRuntimeIssues,
+  recordChoice,
+  toRuntimeState,
+  type SessionDraft,
+} from '@/lib/story-session';
+import { replayPath, type ReplayFailure, type ReplayStep } from '@/lib/choice-replay';
 
 interface InkVariable {
   name: string;
@@ -31,40 +36,20 @@ interface InkVariable {
   type: 'string' | 'number' | 'boolean' | 'list';
 }
 
-interface ChoiceSnapshot {
-  storyStateJson: string;
-  transcriptLength: number;
-}
-
-type RuntimeIssue = InkCompilerError;
 type CompileSource = string | InkCompileInput;
 
-const INK_RUNTIME_ERROR_TYPE = 2;
+export interface CompileOptions {
+  /**
+   * When true and a preview session is running, rebuild that session from the
+   * new compiled JSON by replaying the writer's choice path. Live (debounced)
+   * compiles set this; explicit Run does not, because Run restarts anyway.
+   */
+  restoreRunningSession?: boolean;
+}
 
 function createRuntimeStoryFromJson(runtimeStory: Story, compiledJson: string): Story {
   const StoryConstructor = runtimeStory.constructor as new (storyData: unknown) => Story;
   return new StoryConstructor(normalizeStoryJson(compiledJson));
-}
-
-function runtimeIssueFromInkError(message: string, type: ErrorType): RuntimeIssue {
-  const lineMatch = message.match(/line\s+(\d+)/i);
-
-  return {
-    line: lineMatch ? Number(lineMatch[1]) : 1,
-    message,
-    type: type === INK_RUNTIME_ERROR_TYPE ? 'error' : 'warning',
-  };
-}
-
-function hasRuntimeError(issues: RuntimeIssue[]) {
-  return issues.some((issue) => issue.type === 'error');
-}
-
-function prefixRuntimeIssues(prefix: string, issues: RuntimeIssue[]): RuntimeIssue[] {
-  return issues.map((issue) => ({
-    ...issue,
-    message: `${prefix}: ${issue.message}`,
-  }));
 }
 
 function getEntrySource(sourceOrInput: CompileSource): string {
@@ -85,19 +70,29 @@ export function useInkStory() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
   const [parsedGlobalTags, setParsedGlobalTags] = useState<ParsedGlobalTags>(() => parseGlobalTags([]));
-  
+  const [restoreNotice, setRestoreNotice] = useState<ReplayFailure | null>(null);
+
   const activeRuntimeStoryRef = useRef<Story | null>(null);
   const latestCompiledStoryJsonRef = useRef<string | null>(null);
   const activeRuntimeStoryJsonRef = useRef<string | null>(null);
   const latestCompileRequestId = useRef<string | null>(null);
-  const transcriptRef = useRef<StoryTranscriptEntry[]>([]);
-  const choiceHistoryRef = useRef<ChoiceSnapshot[]>([]);
-  const entryIdRef = useRef(0);
-  const runtimeIssuesRef = useRef<RuntimeIssue[]>([]);
+  const draftRef = useRef<SessionDraft>(createDraft());
+  const variableNamesRef = useRef<string[]>([]);
+  const isRunningRef = useRef(false);
+  // The route the writer took. Only the first `replayedCountRef` steps are live;
+  // any tail beyond that is stale from a partial restore and is truncated on the next choice.
+  const replayPathRef = useRef<ReplayStep[]>([]);
+  const replayedCountRef = useRef(0);
 
-  const nextEntryId = useCallback((prefix: string) => {
-    entryIdRef.current += 1;
-    return `${prefix}-${entryIdRef.current}`;
+  const setRunning = useCallback((running: boolean) => {
+    isRunningRef.current = running;
+    setIsRunning(running);
+  }, []);
+
+  const resetRoute = useCallback((path: ReplayStep[] = []) => {
+    replayPathRef.current = path;
+    replayedCountRef.current = path.length;
+    setRestoreNotice(null);
   }, []);
 
   const updateVariablesFromCompiledJson = useCallback((compiledJsonData: any) => {
@@ -117,86 +112,62 @@ export function useInkStory() {
     }
   }, []);
 
-  const attachRuntimeErrorHandler = useCallback((runtimeStory: Story) => {
-    runtimeStory.onError = (message, type) => {
-      runtimeIssuesRef.current = [
-        ...runtimeIssuesRef.current,
-        runtimeIssueFromInkError(message, type),
-      ];
-    };
+  /** Commit a draft to visible state. The single place runtime state is published. */
+  const publish = useCallback((story: Story, draft: SessionDraft, names: string[] = variableNamesRef.current) => {
+    draftRef.current = draft;
+    setRuntimeState(toRuntimeState(story, draft));
+    if (story.variablesState && names.length > 0) {
+      setVariables(convertStateToUIVariables(story.variablesState, names));
+    }
   }, []);
 
-  const updateRuntimeState = useCallback((runtimeStory: Story, commitRuntimeErrors = true) => {
-    attachRuntimeErrorHandler(runtimeStory);
-    runtimeIssuesRef.current = [];
-    let text = '';
-    const tags = new Set<string>();
-    while (runtimeStory.canContinue) {
-      const nextText = runtimeStory.Continue();
-      text += (nextText || '') + '\n';
-      runtimeStory.currentTags?.forEach((tag) => tags.add(tag));
-    }
-    const runtimeIssues = runtimeIssuesRef.current;
-    runtimeIssuesRef.current = [];
-
-    if (!commitRuntimeErrors && hasRuntimeError(runtimeIssues)) {
-      return runtimeIssues;
-    }
-
-    const trimmedText = decodeHtmlCharacterReferences(text.trim());
-    let currentPassage: StoryPassage | null = null;
-    if (trimmedText || tags.size > 0) {
-      currentPassage = {
-        id: nextEntryId('passage'),
-        text: trimmedText,
-        tags: Array.from(tags),
-      };
-      transcriptRef.current = [
-        ...transcriptRef.current,
-        {
-          id: currentPassage.id,
-          type: 'passage',
-          passage: currentPassage,
-        },
-      ];
-    } else {
-      const latestPassage = [...transcriptRef.current]
-        .reverse()
-        .find((entry) => entry.type === 'passage');
-      currentPassage = latestPassage?.type === 'passage'
-        ? latestPassage.passage
-        : null;
-    }
-
-    const choices: StoryChoice[] = runtimeStory.currentChoices.map((choice, index) => ({
-      text: decodeHtmlCharacterReferences(choice.text),
-      index,
-      tags: choice.tags ?? [],
-    }));
-
-    setRuntimeState({
-      transcript: transcriptRef.current,
-      currentPassage,
-      choices,
-      canContinue: runtimeStory.canContinue,
-      isComplete: !runtimeStory.canContinue && choices.length === 0,
-      canStepBack: choiceHistoryRef.current.length > 0,
-    });
-
-    // Update variables from the live story state
-    if (runtimeStory.variablesState && variableNames.length > 0) {
-      const uiVariables = convertStateToUIVariables(runtimeStory.variablesState, variableNames);
-      setVariables(uiVariables);
-    }
-
+  const updateRuntimeState = useCallback((runtimeStory: Story) => {
+    const draft = draftRef.current;
+    bindIssueSink(runtimeStory, draft);
+    const runtimeIssues = advanceStory(runtimeStory, draft);
+    publish(runtimeStory, draft);
     if (runtimeIssues.length > 0) {
       setErrors(runtimeIssues);
     }
-
     return runtimeIssues;
-  }, [attachRuntimeErrorHandler, nextEntryId, variableNames]);
+  }, [publish]);
 
-  const applyCompileResult = useCallback((result: InkCompileResult, source: string) => {
+  const startSession = useCallback((runtimeStory: Story, storyJson: string | null) => {
+    activeRuntimeStoryRef.current = runtimeStory;
+    activeRuntimeStoryJsonRef.current = storyJson;
+    draftRef.current = createDraft();
+    resetRoute();
+    setRunning(true);
+    updateRuntimeState(runtimeStory);
+  }, [resetRoute, setRunning, updateRuntimeState]);
+
+  const restoreRunningSession = useCallback((compiledJson: string, sourceStory: Story, names: string[]) => {
+    if (!isRunningRef.current) return;
+
+    let fresh: Story;
+    const draft = createDraft();
+    try {
+      fresh = createRuntimeStoryFromJson(sourceStory, compiledJson);
+      bindIssueSink(fresh, draft);
+    } catch (error) {
+      // Nothing published; the previous preview stays intact.
+      console.error('[InkPad] restoreRunningSession: could not instantiate story:', error);
+      return;
+    }
+
+    const result = replayPath(fresh, replayPathRef.current, draft);
+
+    activeRuntimeStoryRef.current = fresh;
+    activeRuntimeStoryJsonRef.current = compiledJson;
+    publish(fresh, draft, names);
+    replayedCountRef.current = result.replayedCount;
+    setRestoreNotice(result.outcome === 'partial' ? result.failure ?? null : null);
+    if (draft.issues.length > 0) {
+      setErrors(prefixRuntimeIssues('Error restoring preview', draft.issues));
+    }
+  }, [publish]);
+
+  const applyCompileResult = useCallback((result: InkCompileResult, source: string, options: CompileOptions = {}) => {
     // When compilation fails, parse tags directly from source so settings panel
     // stays up to date even when ink has errors elsewhere in the file.
     const nextParsedGlobalTags = result.runtimeStory
@@ -237,16 +208,23 @@ export function useInkStory() {
       
       updateVariablesFromCompiledJson(compiledJsonData);
       // Also store the names of the variables
-      const extractedVars = extractInkVariables(compiledJsonData);
-      setVariableNames(extractedVars.map(v => v.name));
+      const names = extractInkVariables(compiledJsonData).map(v => v.name);
+      variableNamesRef.current = names;
+      setVariableNames(names);
+
+      if (options.restoreRunningSession) {
+        restoreRunningSession(result.compiledJson, result.runtimeStory, names);
+      }
     } else {
       // Clear stale compile-derived state if compilation failed.
+      // The running preview session (if any) is left untouched.
       setLatestCompiledRuntimeStory(null);
       latestCompiledStoryJsonRef.current = null;
       setVariables([]);
+      variableNamesRef.current = [];
       setVariableNames([]);
     }
-  }, [updateVariablesFromCompiledJson]);
+  }, [restoreRunningSession, updateVariablesFromCompiledJson]);
 
   const debouncedLiveCompile = useMemo(
     () => debounce(async (inkSource: CompileSource, requestId: string) => {
@@ -262,7 +240,7 @@ export function useInkStory() {
         return;
       }
 
-      applyCompileResult(result, getEntrySource(inkSource));
+      applyCompileResult(result, getEntrySource(inkSource), { restoreRunningSession: true });
       setIsCompiling(false);
     }, 500),
     [applyCompileResult]
@@ -281,7 +259,7 @@ export function useInkStory() {
     debouncedLiveCompile(inkSource, requestId);
   }, [debouncedLiveCompile]);
 
-  const compileNow = useCallback(async (inkSource: CompileSource) => {
+  const compileNow = useCallback(async (inkSource: CompileSource, options: CompileOptions = { restoreRunningSession: false }) => {
     debouncedLiveCompile.cancel();
     const requestId = createCompilerRequestId();
     latestCompileRequestId.current = requestId;
@@ -296,47 +274,44 @@ export function useInkStory() {
       return null;
     }
 
-    applyCompileResult(result, getEntrySource(inkSource));
+    applyCompileResult(result, getEntrySource(inkSource), options);
     setIsCompiling(false);
     return result;
   }, [applyCompileResult, debouncedLiveCompile]);
 
+  const stopStory = useCallback(() => {
+    activeRuntimeStoryRef.current = null;
+    activeRuntimeStoryJsonRef.current = null;
+    draftRef.current = createDraft();
+    resetRoute();
+    setRunning(false);
+    setRuntimeState(null);
+  }, [resetRoute, setRunning]);
+
   const runStory = useCallback((runtimeStoryToRun?: Story) => {
     let activeRuntimeStory = runtimeStoryToRun || latestCompiledRuntimeStory;
-    if (activeRuntimeStory) {
-      // Always prefer the exact raw JSON from the compiler to avoid inkjs ToJson()/ResetState() bugs
-      const storyJson = latestCompiledStoryJsonRef.current ?? (runtimeStoryToRun ? runtimeStoryToRun.ToJson() : activeRuntimeStory.ToJson());
-
-      if (typeof storyJson === 'string') {
-        try {
-          // Re-instantiate from raw JSON to guarantee a perfectly clean runtime state
-          activeRuntimeStory = createRuntimeStoryFromJson(activeRuntimeStory, storyJson);
-        } catch (e) {
-          console.error('Error instantiating clean story in runStory:', e);
-        }
-      }
-
-      activeRuntimeStoryRef.current = activeRuntimeStory;
-      activeRuntimeStoryJsonRef.current = typeof storyJson === 'string' ? storyJson : null;
-      attachRuntimeErrorHandler(activeRuntimeStory);
-      
-      transcriptRef.current = [];
-      choiceHistoryRef.current = [];
-      entryIdRef.current = 0;
-      setIsRunning(true);
-      updateRuntimeState(activeRuntimeStory);
-    } else {
-      activeRuntimeStoryRef.current = null;
-      activeRuntimeStoryJsonRef.current = null;
-      setIsRunning(false);
-      setRuntimeState(null);
+    if (!activeRuntimeStory) {
+      stopStory();
+      return;
     }
-  }, [latestCompiledRuntimeStory, updateRuntimeState]);
+
+    // Always prefer the exact raw JSON from the compiler to avoid inkjs ToJson()/ResetState() bugs
+    const storyJson = latestCompiledStoryJsonRef.current ?? (runtimeStoryToRun ? runtimeStoryToRun.ToJson() : activeRuntimeStory.ToJson());
+
+    if (typeof storyJson === 'string') {
+      try {
+        // Re-instantiate from raw JSON to guarantee a perfectly clean runtime state
+        activeRuntimeStory = createRuntimeStoryFromJson(activeRuntimeStory, storyJson);
+      } catch (e) {
+        console.error('Error instantiating clean story in runStory:', e);
+      }
+    }
+
+    startSession(activeRuntimeStory, typeof storyJson === 'string' ? storyJson : null);
+  }, [latestCompiledRuntimeStory, startSession, stopStory]);
 
   const restartStory = useCallback(() => {
     const activeStoryJson = latestCompiledStoryJsonRef.current ?? activeRuntimeStoryJsonRef.current;
-    // Keep a reference to the compiled story as a fallback in case JSON instantiation fails.
-    // latestCompiledRuntimeStory is captured in runStory's closure, so use the ref path here.
     let runtimeStory: Story | null = null;
 
     if (activeStoryJson) {
@@ -351,7 +326,6 @@ export function useInkStory() {
     }
 
     if (!runtimeStory) {
-      console.error('[InkPad] restartStory: no story JSON available and no fallback — cannot restart');
       setErrors([{
         line: 1,
         message: 'Could not restart story: no compiled story available. Try clicking Run.',
@@ -360,86 +334,79 @@ export function useInkStory() {
       return;
     }
 
-    console.log('[InkPad] restartStory: fresh story canContinue=', runtimeStory.canContinue, 'choices=', runtimeStory.currentChoices.length);
-
-    activeRuntimeStoryRef.current = runtimeStory;
-    activeRuntimeStoryJsonRef.current = activeStoryJson;
-    attachRuntimeErrorHandler(runtimeStory);
-    transcriptRef.current = [];
-    choiceHistoryRef.current = [];
-    entryIdRef.current = 0;
-    setIsRunning(true);
     try {
-      updateRuntimeState(runtimeStory);
+      startSession(runtimeStory, activeStoryJson);
     } catch (error) {
-      console.error('[InkPad] restartStory: updateRuntimeState threw:', error);
+      console.error('[InkPad] restartStory: failed to start session:', error);
     }
-  }, [updateRuntimeState]);
+  }, [latestCompiledRuntimeStory, startSession]);
 
   const makeChoice = useCallback((choiceIndex: number) => {
-    if (activeRuntimeStoryRef.current && isRunning) {
-      const runtimeStory = activeRuntimeStoryRef.current;
-      const selectedChoice = runtimeStory.currentChoices[choiceIndex];
-      if (!selectedChoice) return;
+    const runtimeStory = activeRuntimeStoryRef.current;
+    if (!runtimeStory || !isRunning) return;
+    if (!runtimeStory.currentChoices[choiceIndex]) return;
 
-      try {
-        const snapshot: ChoiceSnapshot = {
-          storyStateJson: runtimeStory.state.ToJson(),
-          transcriptLength: transcriptRef.current.length,
-        };
-        const choice: StoryChoice = {
-          index: choiceIndex,
-          text: decodeHtmlCharacterReferences(selectedChoice.text),
-          tags: selectedChoice.tags ?? [],
-        };
-        const choiceEntry: StoryTranscriptEntry = {
-          id: nextEntryId('choice'),
-          type: 'choice',
-          choice,
-        };
-
-        choiceHistoryRef.current = [...choiceHistoryRef.current, snapshot];
-        transcriptRef.current = [...transcriptRef.current, choiceEntry];
-        runtimeStory.ChooseChoiceIndex(choiceIndex);
-        const runtimeIssues = updateRuntimeState(runtimeStory, false);
-        if (hasRuntimeError(runtimeIssues)) {
-          choiceHistoryRef.current = choiceHistoryRef.current.slice(0, -1);
-          transcriptRef.current = transcriptRef.current.slice(0, snapshot.transcriptLength);
+    const previousDraft = draftRef.current;
+    const draft = cloneDraft(previousDraft);
+    bindIssueSink(runtimeStory, draft);
+    const rollback = () => {
+      // Only a snapshot recorded during this call may be loaded back.
+      const snapshot = draft.history.length > previousDraft.history.length ? draft.history.at(-1) : undefined;
+      bindIssueSink(runtimeStory, previousDraft);
+      if (snapshot) {
+        try {
           runtimeStory.state.LoadJson(snapshot.storyStateJson);
-          setErrors(prefixRuntimeIssues('Error processing choice', runtimeIssues));
-          return;
+        } catch {
+          // Preserve the original runtime error below.
         }
-      } catch (error) {
-        const snapshot = choiceHistoryRef.current.at(-1);
-        if (snapshot) {
-          choiceHistoryRef.current = choiceHistoryRef.current.slice(0, -1);
-          transcriptRef.current = transcriptRef.current.slice(0, snapshot.transcriptLength);
-          try {
-            runtimeStory.state.LoadJson(snapshot.storyStateJson);
-          } catch {
-            // Preserve the original runtime error below.
-          }
-        }
-        console.error('Error making choice:', error);
-        setErrors([{
-          line: 1,
-          message: 'Error processing choice: ' + (error as Error).message,
-          type: 'error'
-        }]);
       }
+    };
+
+    try {
+      const choice = recordChoice(runtimeStory, draft, choiceIndex);
+      if (!choice) return;
+      runtimeStory.ChooseChoiceIndex(choiceIndex);
+      const runtimeIssues = advanceStory(runtimeStory, draft);
+      if (hasRuntimeError(runtimeIssues)) {
+        rollback();
+        setErrors(prefixRuntimeIssues('Error processing choice', runtimeIssues));
+        return;
+      }
+
+      publish(runtimeStory, draft);
+      // After a partial restore the old tail is invalid: truncate, then append.
+      replayPathRef.current = [
+        ...replayPathRef.current.slice(0, replayedCountRef.current),
+        { kind: 'choice', index: choiceIndex, text: choice.text },
+      ];
+      replayedCountRef.current = replayPathRef.current.length;
+      setRestoreNotice(null);
+    } catch (error) {
+      rollback();
+      console.error('Error making choice:', error);
+      setErrors([{
+        line: 1,
+        message: 'Error processing choice: ' + (error as Error).message,
+        type: 'error'
+      }]);
     }
-  }, [isRunning, nextEntryId, updateRuntimeState]);
+  }, [isRunning, publish]);
 
   const stepBack = useCallback(() => {
     const runtimeStory = activeRuntimeStoryRef.current;
-    const snapshot = choiceHistoryRef.current.at(-1);
+    const snapshot = draftRef.current.history.at(-1);
     if (!runtimeStory || !snapshot || !isRunning) return;
 
     try {
       runtimeStory.state.LoadJson(snapshot.storyStateJson);
-      choiceHistoryRef.current = choiceHistoryRef.current.slice(0, -1);
-      transcriptRef.current = transcriptRef.current.slice(0, snapshot.transcriptLength);
+      const draft = cloneDraft(draftRef.current);
+      draft.history = draft.history.slice(0, -1);
+      draft.transcript = draft.transcript.slice(0, snapshot.transcriptLength);
+      draftRef.current = draft;
       updateRuntimeState(runtimeStory);
+      replayPathRef.current = replayPathRef.current.slice(0, Math.max(0, replayedCountRef.current - 1));
+      replayedCountRef.current = replayPathRef.current.length;
+      setRestoreNotice(null);
     } catch (error) {
       console.error('Error stepping back:', error);
       setErrors([{
@@ -451,23 +418,25 @@ export function useInkStory() {
   }, [isRunning, updateRuntimeState]);
 
   const jumpToKnot = useCallback((knotName: string) => {
-    if (activeRuntimeStoryRef.current && isRunning) {
-      try {
-        // In inkjs, we can use ChoosePathString to jump to a knot
-        activeRuntimeStoryRef.current.ChoosePathString(knotName);
-        transcriptRef.current = [];
-        choiceHistoryRef.current = [];
-        updateRuntimeState(activeRuntimeStoryRef.current);
-      } catch (error) {
-        console.error('Error jumping to knot:', error);
-        setErrors([{
-          line: 1,
-          message: 'Error jumping to knot "' + knotName + '": ' + (error as Error).message,
-          type: 'error'
-        }]);
-      }
+    const runtimeStory = activeRuntimeStoryRef.current;
+    if (!runtimeStory || !isRunning) return;
+    try {
+      runtimeStory.ChoosePathString(knotName);
+      draftRef.current = createDraft();
+      updateRuntimeState(runtimeStory);
+      // A jump roots a new route; replay applies it before the first advance.
+      resetRoute([{ kind: 'jump', knot: knotName }]);
+    } catch (error) {
+      console.error('Error jumping to knot:', error);
+      setErrors([{
+        line: 1,
+        message: 'Error jumping to knot "' + knotName + '": ' + (error as Error).message,
+        type: 'error'
+      }]);
     }
-  }, [isRunning, updateRuntimeState]);
+  }, [isRunning, resetRoute, updateRuntimeState]);
+
+  const dismissRestoreNotice = useCallback(() => setRestoreNotice(null), []);
 
   return {
     runtimeStory: latestCompiledRuntimeStory,
@@ -479,8 +448,11 @@ export function useInkStory() {
     isCompiling,
     compileStatus,
     parsedGlobalTags,
+    restoreNotice,
+    dismissRestoreNotice,
     runStory,
     restartStory,
+    stopStory,
     makeChoice,
     stepBack,
     compileLive,

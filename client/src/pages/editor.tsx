@@ -212,15 +212,6 @@ function getProjectCompileInput(project: InkProject): InkCompileInput {
   return projectToCompileInput(project);
 }
 
-function getProjectFingerprint(project: InkProject): string {
-  return JSON.stringify({
-    entryFile: project.entryFile,
-    files: Object.keys(project.files)
-      .sort()
-      .map((fileId) => [fileId, project.files[fileId].content]),
-  });
-}
-
 function getProjectExportName(project: InkProject): string {
   const baseName = (project.exportNameBase || project.name || project.entryFile.replace(/\.ink$/i, "")).trim();
   return getFilename(baseName.replace(/\.inkpad$/i, ""), ".inkpad");
@@ -432,7 +423,6 @@ export default function Editor() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("story");
   const [inlineRenameRequest, setInlineRenameRequest] = useState<{ fileId: string; key: number } | null>(null);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<string | null>(null);
-  const [lastRunSource, setLastRunSource] = useState<string | null>(null);
   const [storySessionKey, setStorySessionKey] = useState(0);
   const [editorControlState, setEditorControlState] = useState<CodeMirrorEditorControlState>({
     canUndo: false,
@@ -507,7 +497,10 @@ export default function Editor() {
     stepBack,
     compileLive,
     compileNow,
-    jumpToKnot
+    jumpToKnot,
+    restoreNotice,
+    dismissRestoreNotice,
+    stopStory,
   } = useInkStory();
 
   const commitBufferedSource = useCallback((latestSource: string) => {
@@ -653,6 +646,7 @@ export default function Editor() {
     });
     setIsProjectFilesCollapsed(Object.keys(loadedProject.files).length <= 1);
     setRecentFiles(FileOperations.getAllFiles());
+    stopStory();
     compileLive(getProjectCompileInput(loadedProject));
     return true;
   }, [
@@ -661,6 +655,7 @@ export default function Editor() {
     resetBufferedSource,
     setIsRecoveryBannerDismissed,
     setRecoveredAt,
+    stopStory,
   ]);
 
   const getLiveProject = useCallback(() => {
@@ -827,6 +822,7 @@ export default function Editor() {
     cancelPendingRecoveryDraft,
     resetBufferedSource,
     compileLive,
+    stopStory,
   });
 
   // Show error toasts for save failures
@@ -899,7 +895,6 @@ export default function Editor() {
     const sourceToCompile = editorSource || currentDocument.source;
     const projectToCompile = withProjectFileSource(currentProject, activeFileId, sourceToCompile);
     const compileInput = getProjectCompileInput(projectToCompile);
-    const projectFingerprint = getProjectFingerprint(projectToCompile);
     const compileStartedAt = performance.now();
     const result = await compileNow(compileInput);
     const compileTimeMs = performance.now() - compileStartedAt;
@@ -910,7 +905,6 @@ export default function Editor() {
         storyText: sourceToCompile,
         compileTimeMs,
       });
-      setLastRunSource(projectFingerprint);
       runStory(result.runtimeStory); // Pass the freshly compiled runtime story directly
       setStorySessionKey(k => k + 1);
       setMobileTab("preview");
@@ -1536,11 +1530,6 @@ export default function Editor() {
   ]), [currentProject.entryFile, errors, inkpadDiagnostics]);
   const errorCount = errors.filter(e => e.type === "error").length;
   const warningCount = errors.filter(e => e.type === "warning").length;
-  const isPreviewStale = Boolean(
-    runtimeState
-    && lastRunSource !== null
-    && getProjectFingerprint(currentProjectForSave) !== lastRunSource,
-  );
 
   const handleViewProblems = useCallback(() => {
     if (isMobile) {
@@ -1698,7 +1687,8 @@ export default function Editor() {
     <StoryPreview
       runtimeState={runtimeState}
       isRunning={isRunning}
-      isStale={isPreviewStale}
+      restoreNotice={restoreNotice}
+      onDismissRestoreNotice={dismissRestoreNotice}
       showHeader={!isMobile && focusedPanel === null}
       previewMode={currentDocument.previewMode ?? "transcript"}
       previewFontSize={preferences.previewFontSize}

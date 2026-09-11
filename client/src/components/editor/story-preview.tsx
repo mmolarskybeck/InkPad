@@ -8,6 +8,7 @@ import {
   Eye,
   Play,
   RotateCcw,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,6 +19,7 @@ import type {
 } from "@/types/story-runtime";
 import type { StoryMetadata } from "@/lib/tag-interpreter";
 import type { PreviewThemePreference } from "@/types/user-preferences";
+import type { ReplayFailure } from "@/lib/choice-replay";
 
 const CHOICE_CONFIRMATION_DELAY = 160;
 const FOLLOW_BOTTOM_THRESHOLD = 96;
@@ -25,7 +27,8 @@ const FOLLOW_BOTTOM_THRESHOLD = 96;
 interface StoryPreviewProps {
   runtimeState: StoryRuntimeState | null;
   isRunning: boolean;
-  isStale?: boolean;
+  restoreNotice?: ReplayFailure | null;
+  onDismissRestoreNotice?: () => void;
   showHeader?: boolean;
   previewMode?: PreviewMode;
   previewFontSize?: number;
@@ -58,10 +61,39 @@ function TranscriptEntry({ entry }: { entry: StoryTranscriptEntry }) {
   ) : null;
 }
 
+const RESTORE_NOTICE_DETAIL: Record<ReplayFailure, string> = {
+  "choice-missing": "The choices at this point changed. Pick one to continue.",
+  "choice-changed": "The choices at this point changed. Pick one to continue.",
+  "ambiguous-text": "The choice you picked moved, and more than one choice here has the same text, so InkPad stopped rather than guess.",
+  "runtime-error": "The story hit a runtime error while replaying your choices.",
+};
+
+function RestoreNotice({ failure, onDismiss }: { failure: ReplayFailure; onDismiss?: () => void }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="restore-notice"
+      className="my-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[0.8125rem] leading-snug text-text-secondary"
+    >
+      <div className="flex-1">
+        <div className="font-medium text-warning">Preview updated — this choice path changed.</div>
+        <div>{RESTORE_NOTICE_DETAIL[failure]}</div>
+      </div>
+      {onDismiss ? (
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onDismiss} aria-label="Dismiss notice">
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function StoryPreview({
   runtimeState,
   isRunning,
-  isStale = false,
+  restoreNotice = null,
+  onDismissRestoreNotice,
   showHeader = true,
   previewMode = "transcript",
   previewFontSize = 16,
@@ -189,20 +221,6 @@ export function StoryPreview({
                   Preview shows the last successful run. Click to view problems.
                 </TooltipContent>
               </Tooltip>
-            ) : isStale && onRun ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onRun}
-                className="h-7 gap-1.5 px-2 text-[0.8125rem] font-medium text-warning hover:bg-warning/10 hover:text-warning"
-                aria-label="Re-run to update preview"
-              >
-                <Play className="h-3 w-3" />
-                Re-run to update?
-              </Button>
-            ) : isStale ? (
-              <span className="text-[0.8125rem] font-medium text-warning">Preview stale</span>
             ) : isRunning ? (
               <span className="text-[0.8125rem] font-medium text-success">Running</span>
             ) : null}
@@ -275,6 +293,8 @@ export function StoryPreview({
               <div className="space-y-6">
                 {visibleEntries.map((entry) => <TranscriptEntry key={entry.id} entry={entry} />)}
               </div>
+
+              {restoreNotice ? <RestoreNotice failure={restoreNotice} onDismiss={onDismissRestoreNotice} /> : null}
 
               {runtimeState.choices.length > 0 ? (
                 <div className="space-y-2 pt-1">
