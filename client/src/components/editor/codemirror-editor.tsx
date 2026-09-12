@@ -461,6 +461,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const wrappingCompartmentRef = useRef(new Compartment());
   const editableCompartmentRef = useRef(new Compartment());
   const contentAttributesCompartmentRef = useRef(new Compartment());
+  const themeInitializedRef = useRef(false);
+  const wrappingInitializedRef = useRef(false);
+  const contentAttributesInitializedRef = useRef(false);
   const languageCompartmentRef = useRef(new Compartment());
   const { effectiveTheme } = useTheme();
   const [historyState, setHistoryState] = useState({
@@ -933,18 +936,25 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    if (!themeInitializedRef.current) {
+      themeInitializedRef.current = true;
+      return;
+    }
 
     view.dispatch({
       effects: themeCompartmentRef.current.reconfigure(
         createThemeExtension(effectiveFontSize, effectiveTheme !== "light", isMobileLayout),
       ),
     });
-    view.requestMeasure();
   }, [effectiveFontSize, effectiveTheme, isMobileLayout]);
 
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    if (!wrappingInitializedRef.current) {
+      wrappingInitializedRef.current = true;
+      return;
+    }
 
     view.dispatch({
       effects: wrappingCompartmentRef.current.reconfigure(
@@ -957,13 +967,17 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const view = viewRef.current;
     if (!view) return;
 
-    view.dispatch({
-      effects: contentAttributesCompartmentRef.current.reconfigure(
-        EditorView.contentAttributes.of({
-          "aria-label": `Ink editor for ${fileName}`,
-        }),
-      ),
-    });
+    if (!contentAttributesInitializedRef.current) {
+      contentAttributesInitializedRef.current = true;
+    } else {
+      view.dispatch({
+        effects: contentAttributesCompartmentRef.current.reconfigure(
+          EditorView.contentAttributes.of({
+            "aria-label": `Ink editor for ${fileName}`,
+          }),
+        ),
+      });
+    }
 
     const currentValue = view.state.doc.toString();
     const didSwitchDocument = documentId !== lastSyncedDocumentIdRef.current;

@@ -194,10 +194,6 @@ function getSingleTextChange(current: string, next: string) {
   };
 }
 
-if (typeof window !== "undefined" && !isPhoneViewport()) {
-  prefetchCodeMirrorEditor();
-}
-
 interface StartupState {
   document: InkDocument;
   project: InkProject;
@@ -1591,25 +1587,23 @@ export default function Editor() {
     }
   }, [exportHtml, handleProjectSettingsChange]);
 
+  const projectSymbolTables = useMemo(() => (
+    getSortedProjectFileIds(currentProjectForSave).map((fileId) => ({
+      fileId,
+      table: buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId),
+    }))
+  ), [currentProjectForSave]);
   const inkpadDiagnostics = useMemo(() => {
-    const missingStartDiagnostic = getMissingStartDiagnostic(
-      buildSymbolTable(
-        getProjectFileSource(currentProjectForSave, currentProjectForSave.entryFile),
-        currentProjectForSave.entryFile,
-      ),
-    );
+    const entryTable = projectSymbolTables.find(({ fileId }) => fileId === currentProjectForSave.entryFile)?.table;
+    const missingStartDiagnostic = entryTable ? getMissingStartDiagnostic(entryTable) : null;
     return missingStartDiagnostic ? [missingStartDiagnostic] : [];
-  }, [currentProjectForSave]);
+  }, [currentProjectForSave.entryFile, projectSymbolTables]);
   const projectSymbols = useMemo(() => (
-    getSortedProjectFileIds(currentProjectForSave).flatMap((fileId) => (
-      buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId).symbols
-    ))
-  ), [currentProjectForSave]);
+    projectSymbolTables.flatMap(({ table }) => table.symbols)
+  ), [projectSymbolTables]);
   const projectVariables = useMemo(() => (
-    getSortedProjectFileIds(currentProjectForSave).flatMap((fileId) => (
-      buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId).variables
-    ))
-  ), [currentProjectForSave]);
+    projectSymbolTables.flatMap(({ table }) => table.variables)
+  ), [projectSymbolTables]);
   const editorDiagnostics = useMemo<EditorDiagnostic[]>(() => ([
     ...errors.map((error) => adaptCompilerDiagnostic({
       ...error,
