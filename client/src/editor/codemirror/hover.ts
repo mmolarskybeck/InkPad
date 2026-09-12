@@ -10,6 +10,7 @@ import { resolveSymbolAtPosition, type ResolvedInkSymbol } from "./resolve-at-po
 
 type SymbolGetter = () => readonly InkSymbol[];
 type DefinitionJump = (symbol: InkSymbol) => void;
+type ActiveFileIdGetter = () => string;
 
 function formatSymbolKind(symbol: InkSymbol) {
   return symbol.kind === "knot" ? "knot" : "stitch";
@@ -74,9 +75,10 @@ export function createInkInfoTooltipDom(
 export function createInkInfoTooltipSource(
   getSymbols: SymbolGetter,
   jump: DefinitionJump,
+  getActiveFileId: ActiveFileIdGetter,
 ): HoverTooltipSource {
   return (view: EditorView, pos: number): Tooltip | null => {
-    const resolved = resolveSymbolAtPosition(view.state, pos, getSymbols());
+    const resolved = resolveSymbolAtPosition(view.state, pos, getSymbols(), getActiveFileId());
     if (!resolved) return null;
 
     return {
@@ -94,8 +96,12 @@ export function createInkInfoTooltipSource(
   };
 }
 
-export function inkInfoHover(getSymbols: SymbolGetter, jump: DefinitionJump): Extension {
-  return hoverTooltip(createInkInfoTooltipSource(getSymbols, jump), {
+export function inkInfoHover(
+  getSymbols: SymbolGetter,
+  jump: DefinitionJump,
+  getActiveFileId: ActiveFileIdGetter,
+): Extension {
+  return hoverTooltip(createInkInfoTooltipSource(getSymbols, jump, getActiveFileId), {
     hoverTime: 250,
     hideOnChange: "touch",
   });

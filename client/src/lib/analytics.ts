@@ -19,6 +19,7 @@ export type SnippetType =
   | "list"
   | "function"
   | "divert"
+  | "custom"
   | "unknown";
 export type PanelLayout = "split" | "editor_focus" | "preview_focus" | "unknown";
 export type AnalyticsMobileTab = "editor" | "preview" | "errors" | "variables" | "unknown";

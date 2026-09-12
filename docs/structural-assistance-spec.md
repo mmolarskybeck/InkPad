@@ -90,6 +90,16 @@ selection and quick fixes.
   the pinned inkjs adapter recognizes unresolved divert messages, and the
   CodeMirror lint tooltip now offers both **Change to target** and
   **Create knot target** when the signal is confident enough.
+  - Also recognized: **unresolved-variable** (`Unresolved variable: y`) and
+    **unassignable-variable** (`Variable could not be found to assign to: 'x'`),
+    offering **Declare VAR name** and **Declare temp name**.
+  - **loose-end** (apparent loose end / missing `-> DONE`), offering
+    **Add -> END** and **Add -> DONE**.
+  - **unresolved-function** (`Function call target not found: '-> foo'`),
+    offering **Create function name** with arity inferred from the call site.
+  - When an unresolved-divert target has exactly one dot (a knot.stitch
+    path), the tooltip also offers **Create stitch stitch in knot**, ahead
+    of **Change to target**, when the knot exists but the stitch does not.
 - **Shared snippet library (12 snippets)** + compile-verification test:
   `client/src/features/snippets/ink-snippets.ts` / `ink-snippets.test.ts`.
   All 12 round-trip through the compiler. `desktopSnippet` uses `${n:default}`
@@ -505,7 +515,7 @@ test harness how to wrap a fragment so it compiles.
 ### Architectural note — snippets power two surfaces
 
 ```text
-Command palette  = expanded, searchable (desktop popover / mobile sheet) — planned
+Desktop Snippets pane + floating toolbar                                 — ✓ shipped
 Accessory bar    = compact always-available shortcut strip (mobile)      — ✓ shipped
 ```
 

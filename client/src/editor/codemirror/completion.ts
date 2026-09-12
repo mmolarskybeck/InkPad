@@ -11,9 +11,12 @@ import {
 import { Prec, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { getSnippetCompletions } from "@/features/snippets/ink-completion-provider";
-import { isDivertTarget, type InkSymbol } from "@/inkLanguage/inkSymbols";
+import { INK_SNIPPETS, type InkSnippet } from "@/features/snippets/ink-snippets";
+import { isDivertTarget, type InkSymbol, type InkVariableSymbol } from "@/inkLanguage/inkSymbols";
+import { createInkVariableCompletionSource } from "@/editor/codemirror/variable-completion";
 
 type SymbolGetter = () => readonly InkSymbol[];
+type SnippetGetter = () => readonly InkSnippet[];
 
 const DIVERT_VALID_FOR = /^[\w.]*$/;
 
@@ -58,33 +61,40 @@ export function createInkDivertCompletionSource(getSymbols: SymbolGetter): Compl
   };
 }
 
-export const inkSnippetCompletionSource: CompletionSource = (context) => {
-  if (!context.explicit) return null;
+export function createInkSnippetCompletionSource(
+  getSnippets: SnippetGetter,
+): CompletionSource {
+  return (context) => {
+    if (!context.explicit) return null;
 
-  const line = context.state.doc.lineAt(context.pos);
-  const column = context.pos - line.from + 1;
-  const completions = getSnippetCompletions(line.text, column);
+    const line = context.state.doc.lineAt(context.pos);
+    const column = context.pos - line.from + 1;
+    const completions = getSnippetCompletions(line.text, column, getSnippets());
 
-  if (completions.length === 0) return null;
+    if (completions.length === 0) return null;
 
-  const firstReplace = completions[0].replace;
-  const from = line.from + firstReplace.startColumn - 1;
-  const to = line.from + firstReplace.endColumn - 1;
+    const firstReplace = completions[0].replace;
+    const from = line.from + firstReplace.startColumn - 1;
+    const to = line.from + firstReplace.endColumn - 1;
 
-  return {
-    from,
-    to,
-    options: completions.map(({ snippet, matchedAlias }) =>
-      snippetCompletion(snippet.desktopSnippet, {
-        label: matchedAlias,
-        detail: snippet.label,
-        info: snippet.description,
-        type: "keyword",
-      }),
-    ),
-    validFor: /^\S*$/,
+    return {
+      from,
+      to,
+      options: completions.map(({ snippet, matchedAlias }) =>
+        snippetCompletion(snippet.desktopSnippet, {
+          label: matchedAlias,
+          detail: snippet.label,
+          info: snippet.description,
+          type: "keyword",
+        }),
+      ),
+      validFor: /^\S*$/,
+    };
   };
-};
+}
+
+export const inkSnippetCompletionSource: CompletionSource =
+  createInkSnippetCompletionSource(() => INK_SNIPPETS);
 
 // Replaces @codemirror/autocomplete's default completionKeymap, swapping the
 // Enter -> acceptCompletion binding for Tab -> acceptCompletion (VS Code's
@@ -103,13 +113,18 @@ const inkCompletionKeymap = Prec.highest(keymap.of([
   { key: "Tab", run: acceptCompletion },
 ]));
 
-export function inkCompletions(getSymbols: SymbolGetter): Extension {
+export function inkCompletions(
+  getSymbols: SymbolGetter,
+  getSnippets: SnippetGetter = () => INK_SNIPPETS,
+  getVariables: () => readonly InkVariableSymbol[] = () => [],
+): Extension {
   return [
     autocompletion({
       defaultKeymap: false,
       override: [
         createInkDivertCompletionSource(getSymbols),
-        inkSnippetCompletionSource,
+        createInkVariableCompletionSource(getVariables, getSymbols),
+        createInkSnippetCompletionSource(getSnippets),
       ],
     }),
     inkCompletionKeymap,

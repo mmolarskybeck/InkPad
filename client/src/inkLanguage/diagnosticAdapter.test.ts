@@ -8,7 +8,11 @@ import {
   EMPTY_CHOICE_CODE,
   getUnresolvedDivertTarget,
   isEmptyChoiceDiagnostic,
+  LOOSE_END_CODE,
+  UNASSIGNABLE_VARIABLE_CODE,
   UNRESOLVED_DIVERT_CODE,
+  UNRESOLVED_FUNCTION_CODE,
+  UNRESOLVED_VARIABLE_CODE,
 } from "./diagnosticAdapter";
 
 const fixturesDir = path.resolve(process.cwd(), "client/src/workers/__fixtures__/inkjs-diagnostics");
@@ -97,5 +101,56 @@ describe("adaptCompilerDiagnostic", () => {
     };
 
     expect(adaptCompilerDiagnostic(diagnostic)).toEqual(diagnostic);
+  });
+
+  it("adds unresolved-variable metadata with the extracted variable name", () => {
+    const diagnostic: InkCompilerError = {
+      line: 1,
+      message: "Unresolved variable: y",
+      type: "error",
+    };
+
+    expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
+      code: UNRESOLVED_VARIABLE_CODE,
+      variableName: "y",
+    });
+  });
+
+  it("adds unassignable-variable metadata with the extracted variable name", () => {
+    const diagnostic: InkCompilerError = {
+      line: 1,
+      message: "Variable could not be found to assign to: 'x'",
+      type: "error",
+    };
+
+    expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
+      code: UNASSIGNABLE_VARIABLE_CODE,
+      variableName: "x",
+    });
+  });
+
+  it("adds loose-end metadata", () => {
+    const diagnostic: InkCompilerError = {
+      line: 1,
+      message: "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?",
+      type: "error",
+    };
+
+    expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
+      code: LOOSE_END_CODE,
+    });
+  });
+
+  it("adds unresolved-function metadata with the extracted target name", () => {
+    const diagnostic: InkCompilerError = {
+      line: 1,
+      message: "Function call target not found: '-> foo'",
+      type: "error",
+    };
+
+    expect(adaptCompilerDiagnostic(diagnostic)).toMatchObject({
+      code: UNRESOLVED_FUNCTION_CODE,
+      targetName: "foo",
+    });
   });
 });

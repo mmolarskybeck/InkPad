@@ -53,7 +53,7 @@ describe("Ink Info hover", () => {
 `);
 
     try {
-      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {});
+      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {}, () => "main.ink");
       const tooltip = source(fixture.view, fixture.posOf("intro"), 1);
       if (!tooltip || Array.isArray(tooltip) || tooltip instanceof Promise) {
         throw new Error("Expected a synchronous tooltip.");
@@ -79,7 +79,7 @@ describe("Ink Info hover", () => {
 `);
 
     try {
-      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {});
+      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {}, () => "main.ink");
       const knotTooltip = source(fixture.view, fixture.posOf("=== start") + 5, 1);
       const stitchTooltip = source(fixture.view, fixture.posOf("= intro") + 3, 1);
 
@@ -114,6 +114,7 @@ describe("Ink Info hover", () => {
       const source = createInkInfoTooltipSource(
         () => fixture.symbols,
         (symbol) => jumped.push(symbol),
+        () => "main.ink",
       );
       const tooltip = source(fixture.view, fixture.posOf("start"), 1);
       if (!tooltip || Array.isArray(tooltip) || tooltip instanceof Promise) {
@@ -126,6 +127,35 @@ describe("Ink Info hover", () => {
       action?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 
       expect(jumped.map((symbol) => symbol.path)).toEqual(["start"]);
+    } finally {
+      fixture.destroy();
+    }
+  });
+
+  it("names the owning file for a target declared elsewhere in the project", () => {
+    const fixture = createFixture(`
+-> remote_room
+`);
+    const otherFileSymbols = buildSymbolTable(
+      ink(`
+=== remote_room ===
+-> END
+`),
+      "chapter_two.ink",
+    ).symbols;
+
+    try {
+      const source = createInkInfoTooltipSource(
+        () => otherFileSymbols,
+        () => {},
+        () => "main.ink",
+      );
+      const tooltip = source(fixture.view, fixture.posOf("remote_room"), 1);
+      if (!tooltip || Array.isArray(tooltip) || tooltip instanceof Promise) {
+        throw new Error("Expected a synchronous tooltip.");
+      }
+
+      expect(tooltip.create(fixture.view).dom.textContent).toContain("chapter_two.ink:1");
     } finally {
       fixture.destroy();
     }
@@ -147,7 +177,7 @@ The intro word in prose.
 `);
 
     try {
-      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {});
+      const source = createInkInfoTooltipSource(() => fixture.symbols, () => {}, () => "main.ink");
 
       expect(source(fixture.view, fixture.posOf("intro"), 1)).toBeNull();
       expect(source(fixture.view, fixture.posOf("helper"), 1)).toBeNull();

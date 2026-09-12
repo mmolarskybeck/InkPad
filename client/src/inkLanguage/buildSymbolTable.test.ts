@@ -293,6 +293,78 @@ describe("buildSymbolTable — comment handling", () => {
   });
 });
 
+describe("buildSymbolTable — variable scanning", () => {
+  it("indexes VAR, CONST, EXTERNAL, LIST and list items, ignoring comments", () => {
+    const { variables } = buildSymbolTable(
+      ink(`
+VAR health = 100
+CONST MAX_HEALTH = 100
+EXTERNAL roll_dice(sides)
+LIST moods = (first), second = 5, third
+// VAR ignored = 1
+/*
+VAR block_ignored = 2
+*/
+=== start ===
+-> END
+`),
+      "main.ink",
+    );
+
+    const listRange = {
+      startLineNumber: 4,
+      startColumn: 1,
+      endLineNumber: 4,
+      endColumn: "LIST moods = (first), second = 5, third".length + 1,
+    };
+
+    expect(variables).toEqual([
+      {
+        name: "health",
+        kind: "var",
+        fileId: "main.ink",
+        range: {
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: "VAR health = 100".length + 1,
+        },
+      },
+      {
+        name: "MAX_HEALTH",
+        kind: "const",
+        fileId: "main.ink",
+        range: {
+          startLineNumber: 2,
+          startColumn: 1,
+          endLineNumber: 2,
+          endColumn: "CONST MAX_HEALTH = 100".length + 1,
+        },
+      },
+      {
+        name: "roll_dice",
+        kind: "external",
+        fileId: "main.ink",
+        range: {
+          startLineNumber: 3,
+          startColumn: 1,
+          endLineNumber: 3,
+          endColumn: "EXTERNAL roll_dice(sides)".length + 1,
+        },
+      },
+      { name: "moods", kind: "list", fileId: "main.ink", range: listRange },
+      { name: "first", kind: "list-item", listName: "moods", fileId: "main.ink", range: listRange },
+      { name: "second", kind: "list-item", listName: "moods", fileId: "main.ink", range: listRange },
+      { name: "third", kind: "list-item", listName: "moods", fileId: "main.ink", range: listRange },
+    ]);
+  });
+
+  it("returns an empty variable list for a file without declarations", () => {
+    const { variables } = buildSymbolTable("=== start ===\n-> END", "main.ink");
+    expect(variables).toEqual([]);
+  });
+});
+
 describe("buildSymbolTable — stitch regex does not false-positive on knots", () => {
   it("does not match a 2-equals knot line as a stitch", () => {
     const { symbols } = buildSymbolTable("== knot_name ==\n-> END", "main.ink");

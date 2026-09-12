@@ -25,10 +25,14 @@ export interface SnippetCompletion {
  * followed by exactly one non-whitespace token, with nothing but whitespace
  * after the cursor. So `knot` alone on a line fires; `The knot of the city`
  * does not.
+ *
+ * `snippets` defaults to the built-in library; callers that also offer the
+ * user's custom snippets pass the merged list.
  */
 export function getSnippetCompletions(
   lineContent: string,
   column: number,
+  snippets: readonly InkSnippet[] = INK_SNIPPETS,
 ): SnippetCompletion[] {
   const prefix = lineContent.slice(0, Math.max(0, column - 1));
   const suffix = lineContent.slice(Math.max(0, column - 1));
@@ -47,7 +51,7 @@ export function getSnippetCompletions(
   const endColumn = startColumn + word.length;
 
   const completions: SnippetCompletion[] = [];
-  for (const snippet of INK_SNIPPETS) {
+  for (const snippet of snippets) {
     const matchedAlias = snippet.aliases.find((alias) =>
       alias.toLowerCase().startsWith(lowerWord),
     );

@@ -70,10 +70,10 @@ This is the working implementation checklist. It favors small, testable slices a
 - [x] Install `@codemirror/autocomplete` and register Ink completion sources
 - [x] Add divert completion for known knots and stitches
 - [x] Add explicit desktop snippet completion backed by the shared snippet library
-- [ ] Add variable/list completion in relevant contexts
+- [x] Add variable/list completion in relevant contexts
 - [x] Keep the shared snippet library and mobile insertion surfaces in place
 - [x] Add desktop access to static built-in snippets through explicit completion
-- [ ] Decide whether custom snippets belong in user preferences
+- [x] Decide whether custom snippets belong in user preferences (stored separately under inkpad:custom-snippets)
 - [x] Add completion tests for incomplete and invalid Ink source
 - [x] Add choice/gather Enter continuation
 - [x] Add Ink-aware auto-close/type-over for knot declarations and block comments
@@ -83,7 +83,7 @@ This is the working implementation checklist. It favors small, testable slices a
 - [ ] Add mobile target picker for known knots and stitches
 - [ ] Add mobile quick-fix sheet / Problems-panel fix buttons
 - [ ] Add fixture-backed diagnostic expansion, starting with empty-choice if the inkjs diagnostic is stable
-- [ ] Add cross-file go-to-definition after file-switching behavior is explicit
+- [x] Add cross-file go-to-definition after file-switching behavior is explicit
 
 ## Phase 4: Shareable project snapshots
 

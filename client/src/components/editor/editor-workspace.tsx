@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { AlertCircle, AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
@@ -8,7 +8,9 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { INK_SNIPPETS, type SnippetCategory } from "@/features/snippets/ink-snippets";
+import { getSnippetPreview, groupSnippetsByCategory } from "@/features/snippets/ink-snippets";
+import { SYNTAX_INSERTS } from "@/features/snippets/syntax-inserts";
+import { useSnippetLibrary } from "@/features/snippets/snippet-library-provider";
 import type {
   CodeMirrorEditorControlState,
   CodeMirrorEditorHandle,
@@ -20,17 +22,9 @@ import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
 export type FocusedPanel = "code" | "preview" | null;
+export type DesktopDockTab = "problems" | "variables" | "snippets";
+export type DockSidePanelTab = "variables" | "snippets";
 export type DesktopBottomPanelHandle = ImperativePanelHandle;
-
-const MOBILE_SYNTAX_INSERTS = [
-  { label: "->", insert: { text: "-> " } },
-  { label: "*", insert: { text: "* " } },
-  { label: "+", insert: { text: "+ " } },
-  { label: "~", insert: { text: "~ " } },
-  { label: "=", insert: { text: "= " } },
-  { label: "===", insert: { text: "===  ===", cursorOffset: 4 } },
-  { label: "{ }", insert: { text: "{ }", cursorOffset: 2 } },
-];
 
 const MOBILE_SNIPPET_TAP_MOVE_THRESHOLD = 12;
 const DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT = 44;
@@ -41,19 +35,8 @@ const DESKTOP_BOTTOM_PANEL_COLLAPSE_SNAP_HEIGHT = 92;
 const DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD = 28;
 const DESKTOP_BOTTOM_PANEL_CLICK_DRAG_TOLERANCE = 4;
 const DESKTOP_MAIN_PANEL_MIN_HEIGHT = 220;
-
-const SNIPPET_CATEGORY_ORDER: SnippetCategory[] = [
-  "Structure",
-  "Choices",
-  "Variables",
-  "Logic",
-  "Comments",
-];
-
-const SNIPPETS_BY_CATEGORY = SNIPPET_CATEGORY_ORDER.map((category) => ({
-  category,
-  snippets: INK_SNIPPETS.filter((snippet) => snippet.category === category),
-})).filter((group) => group.snippets.length > 0);
+const DOCK_TAB_TRIGGER_CLASSES = "relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue";
+const DOCK_HIDE_BUTTON_CLASSES = "flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
 function getFirstPlaceholderRange(text: string): CodeMirrorEditorInsertOptions["selectRange"] {
   const match = /\[[^\]\n]+\]/.exec(text);
@@ -93,12 +76,22 @@ interface EditorWorkspaceProps {
   mobileCodeTabMenu?: ReactNode;
   problemsPane: ReactNode;
   variablesPane: ReactNode;
+  snippetsPane: ReactNode;
   compactProblemsPane: ReactNode;
   compactVariablesPane: ReactNode;
+  compactSnippetsPane: ReactNode;
   mobileProblemsPane: ReactNode;
   mobileVariablesPane: ReactNode;
   problemCount: number;
   variableCount: number;
+  snippetCount: number;
+  snippetToolbar?: ReactNode;
+  sidePanelTab: DockSidePanelTab;
+  onSidePanelTabChange: (tab: DockSidePanelTab) => void;
+  showVariablesInspector: boolean;
+  showSnippetsInspector: boolean;
+  onHideSidePanelTab: (tab: DockSidePanelTab) => void;
+  onCreateCustomSnippet?: () => void;
   editorRef: RefObject<CodeMirrorEditorHandle>;
   editorControlState: CodeMirrorEditorControlState;
   onToggleFind: () => void;
@@ -127,12 +120,22 @@ export function EditorWorkspace({
   mobileCodeTabMenu,
   problemsPane,
   variablesPane,
+  snippetsPane,
   compactProblemsPane,
   compactVariablesPane,
+  compactSnippetsPane,
   mobileProblemsPane,
   mobileVariablesPane,
   problemCount,
   variableCount,
+  snippetCount,
+  snippetToolbar,
+  sidePanelTab,
+  onSidePanelTabChange,
+  showVariablesInspector,
+  showSnippetsInspector,
+  onHideSidePanelTab,
+  onCreateCustomSnippet,
   editorRef,
   editorControlState,
   onToggleFind,
@@ -146,6 +149,8 @@ export function EditorWorkspace({
   canStepBack,
   hasRuntimeState,
 }: EditorWorkspaceProps) {
+  const { snippets } = useSnippetLibrary();
+  const snippetsByCategory = useMemo(() => groupSnippetsByCategory(snippets), [snippets]);
   const editorPanelRef = useRef<ImperativePanelHandle>(null);
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
   const desktopWorkspaceRef = useRef<HTMLDivElement>(null);
@@ -172,6 +177,20 @@ export function EditorWorkspace({
   const [expandedSnippetId, setExpandedSnippetId] = useState<string | null>(null);
   const [desktopBottomPanelHeight, setDesktopBottomPanelHeight] = useState(280);
   const [isDesktopBottomPanelCollapsed, setIsDesktopBottomPanelCollapsed] = useState(false);
+  // The narrow (<1100px) dock folds Problems in with the inspectors, so it keeps
+  // its own tab state instead of sharing the side-panel one.
+  const [narrowDockTab, setNarrowDockTab] = useState<DesktopDockTab>("problems");
+
+  const visibleSideTabs = useMemo(() => {
+    const tabs: DockSidePanelTab[] = [];
+    if (showVariablesInspector) tabs.push("variables");
+    if (showSnippetsInspector) tabs.push("snippets");
+    return tabs;
+  }, [showSnippetsInspector, showVariablesInspector]);
+  const effectiveSideTab = visibleSideTabs.includes(sidePanelTab) ? sidePanelTab : visibleSideTabs[0];
+  const narrowDockValue = narrowDockTab === "problems" || visibleSideTabs.includes(narrowDockTab)
+    ? narrowDockTab
+    : "problems";
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -660,7 +679,10 @@ export function EditorWorkspace({
                 minSize={20}
                 onCollapse={() => handleFocusPanelChange("preview")}
               >
-                <div className="h-full">{editorPane}</div>
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1">{editorPane}</div>
+                  {snippetToolbar}
+                </div>
               </ResizablePanel>
               <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" onDoubleClick={handleResetSplit} />
               <ResizablePanel
@@ -740,13 +762,18 @@ export function EditorWorkspace({
                 </div>
               </div>
               <div className="min-h-0 flex-1">
-                {focusedPanel === "code" ? editorPane : previewPane}
+                {focusedPanel === "code" ? (
+                  <div className="flex h-full min-h-0 flex-col">
+                    <div className="min-h-0 flex-1">{editorPane}</div>
+                    {snippetToolbar}
+                  </div>
+                ) : previewPane}
               </div>
             </div>
           )}
         </div>
         <section
-          aria-label="Problems and variables dock"
+          aria-label="Problems and inspectors dock"
           className="relative shrink-0 overflow-hidden border-t border-border-color bg-panel-bg"
           data-collapsed={isDesktopBottomPanelCollapsed}
           style={{
@@ -781,30 +808,98 @@ export function EditorWorkspace({
               <ResizablePanel defaultSize={70} minSize={40}>
                 {problemsPane}
               </ResizablePanel>
-              <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" />
-              <ResizablePanel defaultSize={30} minSize={20} className="flex h-full flex-col">
-                {variablesPane}
-              </ResizablePanel>
+              {visibleSideTabs.length > 0 && effectiveSideTab && (
+                <>
+                  <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" />
+                  <ResizablePanel defaultSize={30} minSize={20}>
+                    <div className="flex h-full flex-col">
+                      <div className="flex h-10 shrink-0 items-center justify-between border-b border-border-color bg-panel-bg pr-1">
+                        <Tabs
+                          value={effectiveSideTab}
+                          onValueChange={(value) => onSidePanelTabChange(value as DockSidePanelTab)}
+                          className="h-full min-w-0"
+                        >
+                          <TabsList className="flex h-full shrink-0 justify-start rounded-none bg-transparent p-0 text-text-secondary">
+                            {visibleSideTabs.includes("variables") && (
+                              <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
+                                <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                                Variables
+                                <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
+                              </TabsTrigger>
+                            )}
+                            {visibleSideTabs.includes("snippets") && (
+                              <TabsTrigger value="snippets" className={DOCK_TAB_TRIGGER_CLASSES}>
+                                <ScrollText className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                                Snippets
+                                <span className="ml-2 tabular-nums text-text-secondary">{snippetCount}</span>
+                              </TabsTrigger>
+                            )}
+                          </TabsList>
+                        </Tabs>
+                        <button
+                          type="button"
+                          onClick={() => onHideSidePanelTab(effectiveSideTab)}
+                          className={DOCK_HIDE_BUTTON_CLASSES}
+                          aria-label={`Hide ${effectiveSideTab} inspector`}
+                          title="Hide (re-enable in Settings)"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="min-h-0 flex-1">
+                        {effectiveSideTab === "variables" ? compactVariablesPane : compactSnippetsPane}
+                      </div>
+                    </div>
+                  </ResizablePanel>
+                </>
+              )}
             </ResizablePanelGroup>
           </div>
-          <Tabs defaultValue="problems" className="flex h-full min-h-0 flex-col min-[1100px]:hidden">
+          <Tabs
+            value={narrowDockValue}
+            onValueChange={(value) => setNarrowDockTab(value as DesktopDockTab)}
+            className="flex h-full min-h-0 flex-col min-[1100px]:hidden"
+          >
             <TabsList className="flex h-10 w-full shrink-0 justify-start rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
-              <TabsTrigger value="problems" className="relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue">
+              <TabsTrigger value="problems" className={DOCK_TAB_TRIGGER_CLASSES}>
                 <AlertCircle className="mr-2 h-3.5 w-3.5 text-accent-blue" />
                 Problems
                 <span className="ml-2 tabular-nums text-text-secondary">{problemCount}</span>
               </TabsTrigger>
-              <TabsTrigger value="variables" className="relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue">
-                <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                Variables
-                <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
-              </TabsTrigger>
+              {showVariablesInspector && (
+                <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
+                  <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                  Variables
+                  <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
+                </TabsTrigger>
+              )}
+              {showSnippetsInspector && (
+                <TabsTrigger value="snippets" className={DOCK_TAB_TRIGGER_CLASSES}>
+                  <ScrollText className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                  Snippets
+                  <span className="ml-2 tabular-nums text-text-secondary">{snippetCount}</span>
+                </TabsTrigger>
+              )}
+              {narrowDockValue !== "problems" && (
+                <button
+                  type="button"
+                  onClick={() => onHideSidePanelTab(narrowDockValue)}
+                  className={`${DOCK_HIDE_BUTTON_CLASSES} ml-auto mr-1 self-center`}
+                  aria-label={`Hide ${narrowDockValue} inspector`}
+                  title="Hide (re-enable in Settings)"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              )}
             </TabsList>
             <TabsContent value="problems" className="m-0 min-h-0 flex-1">
               {compactProblemsPane}
             </TabsContent>
             <TabsContent value="variables" className="m-0 min-h-0 flex-1">
               {compactVariablesPane}
+            </TabsContent>
+            <TabsContent value="snippets" className="m-0 min-h-0 flex-1">
+              {compactSnippetsPane}
             </TabsContent>
           </Tabs>
         </section>
@@ -903,7 +998,7 @@ export function EditorWorkspace({
             </div>
           )}
           <div className="flex min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto">
-            {MOBILE_SYNTAX_INSERTS.map((item) => (
+            {SYNTAX_INSERTS.map((item) => (
               <button
                 key={item.label}
                 type="button"
@@ -1018,7 +1113,20 @@ export function EditorWorkspace({
             {mobileDrawer === "problems" ? mobileProblemsPane : null}
             {mobileDrawer === "snippets" ? (
               <div className="h-full touch-pan-y overflow-y-auto px-3 py-3" data-vaul-no-drag>
-                {SNIPPETS_BY_CATEGORY.map((group) => (
+                {onCreateCustomSnippet && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onCreateCustomSnippet}
+                    aria-label="New custom snippet"
+                    className="mb-3 w-full justify-center gap-1.5 border border-border-color"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New
+                  </Button>
+                )}
+                {snippetsByCategory.map((group) => (
                   <section key={group.category} className="mb-4 last:mb-0">
                     <h3 className="mb-2 px-1 text-[0.75rem] font-semibold text-text-secondary">
                       {group.category}
@@ -1060,7 +1168,7 @@ export function EditorWorkspace({
                             {isExpanded && (
                               <div className="border-t border-border-color px-3 pb-3 pt-2">
                                 <code className="block whitespace-pre-wrap rounded bg-panel-bg px-2 py-1.5 font-mono text-[0.75rem] leading-relaxed text-text-primary">
-                                  {snippet.mobileInsert}
+                                  {getSnippetPreview(snippet)}
                                 </code>
                                 <button
                                   type="button"

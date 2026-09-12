@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PreferencesProvider } from "@/components/preferences-provider";
+import { SnippetLibraryProvider } from "@/features/snippets/snippet-library-provider";
 import Editor from "@/pages/editor";
 import NotFound from "@/pages/not-found";
 import { FontSwitcher } from "@/components/font-switcher";
@@ -23,14 +24,16 @@ function App() {
   return (
     <AppErrorBoundary>
       <PreferencesProvider>
-        <TooltipProvider>
-          <Toaster />
-          {/* <FontSwitcher /> Uncomment this to test different fonts locally */}
-          <Router />
-          <AppAnalytics />
-          {/* Performance-only telemetry; URL privacy is enforced in beforeSend. */}
-          <SpeedInsights beforeSend={sanitizeVercelSpeedInsightsEvent} />
-        </TooltipProvider>
+        <SnippetLibraryProvider>
+          <TooltipProvider>
+            <Toaster />
+            {/* <FontSwitcher /> Uncomment this to test different fonts locally */}
+            <Router />
+            <AppAnalytics />
+            {/* Performance-only telemetry; URL privacy is enforced in beforeSend. */}
+            <SpeedInsights beforeSend={sanitizeVercelSpeedInsightsEvent} />
+          </TooltipProvider>
+        </SnippetLibraryProvider>
       </PreferencesProvider>
     </AppErrorBoundary>
   );

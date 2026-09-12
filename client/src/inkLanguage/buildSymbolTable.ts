@@ -5,7 +5,12 @@
 // not a full parser. The goal is "find declared sections in a broken file,"
 // not perfect semantic analysis.
 
-import type { InkSymbol, SymbolRange, SymbolTableResult } from "./inkSymbols";
+import type {
+  InkSymbol,
+  InkVariableSymbol,
+  SymbolRange,
+  SymbolTableResult,
+} from "./inkSymbols";
 
 // --- Scan patterns ---
 // Check FUNCTION_KNOT_RE before KNOT_RE: both start with ={2,}, but function
@@ -34,6 +39,31 @@ const LINE_COMMENT_RE = /^\s*\/\//;
  */
 const DECLARATION_RE = /^\s*(VAR|LIST|CONST|EXTERNAL|INCLUDE)\b/i;
 
+/** `VAR name = ...` — mutable story variable. */
+const VAR_RE = /^\s*VAR\s+([A-Za-z_]\w*)/;
+
+/** `CONST name = ...` — compile-time constant. */
+const CONST_RE = /^\s*CONST\s+([A-Za-z_]\w*)/;
+
+/** `EXTERNAL name(...)` — externally bound function. */
+const EXTERNAL_RE = /^\s*EXTERNAL\s+([A-Za-z_]\w*)\s*\(/;
+
+/** `LIST name = a, (b), c = 3` — list declaration plus its items. */
+const LIST_RE = /^\s*LIST\s+([A-Za-z_]\w*)\s*=\s*(.*)$/;
+
+const LIST_ITEM_NAME_RE = /^[A-Za-z_]\w*$/;
+
+/** Strip surrounding whitespace/parentheses and an optional `= <number>` value. */
+function normalizeListItem(entry: string): string {
+  return entry
+    .trim()
+    .replace(/^\(/, "")
+    .replace(/\)$/, "")
+    .trim()
+    .replace(/\s*=\s*-?\d+$/, "")
+    .trim();
+}
+
 function makeRange(lineNumber: number, line: string): SymbolRange {
   return {
     startLineNumber: lineNumber,
@@ -53,6 +83,7 @@ function makeRange(lineNumber: number, line: string): SymbolRange {
 export function buildSymbolTable(source: string, fileId: string): SymbolTableResult {
   const lines = source.split("\n");
   const symbols: InkSymbol[] = [];
+  const variables: InkVariableSymbol[] = [];
 
   let inBlockComment = false;
   // Path of the most recently opened knot or function knot (for stitch parentage).
@@ -77,6 +108,60 @@ export function buildSymbolTable(source: string, fileId: string): SymbolTableRes
 
     // --- Line comments ---
     if (LINE_COMMENT_RE.test(line)) continue;
+
+    // --- Variable, constant, external and list declarations ---
+    const varMatch = line.match(VAR_RE);
+    if (varMatch) {
+      variables.push({
+        name: varMatch[1],
+        kind: "var",
+        fileId,
+        range: makeRange(lineNumber, line),
+      });
+      continue;
+    }
+
+    const constMatch = line.match(CONST_RE);
+    if (constMatch) {
+      variables.push({
+        name: constMatch[1],
+        kind: "const",
+        fileId,
+        range: makeRange(lineNumber, line),
+      });
+      continue;
+    }
+
+    const externalMatch = line.match(EXTERNAL_RE);
+    if (externalMatch) {
+      variables.push({
+        name: externalMatch[1],
+        kind: "external",
+        fileId,
+        range: makeRange(lineNumber, line),
+      });
+      continue;
+    }
+
+    const listMatch = line.match(LIST_RE);
+    if (listMatch) {
+      const listName = listMatch[1];
+      const range = makeRange(lineNumber, line);
+      variables.push({ name: listName, kind: "list", fileId, range });
+
+      for (const entry of listMatch[2].split(",")) {
+        const itemName = normalizeListItem(entry);
+        if (!LIST_ITEM_NAME_RE.test(itemName)) continue;
+        variables.push({
+          name: itemName,
+          kind: "list-item",
+          listName,
+          fileId,
+          range,
+        });
+      }
+      continue;
+    }
 
     // --- Function knot (must precede KNOT_RE check) ---
     const fnMatch = line.match(FUNCTION_KNOT_RE);
@@ -142,5 +227,5 @@ export function buildSymbolTable(source: string, fileId: string): SymbolTableRes
     }
   }
 
-  return { symbols, hasTopLevelContent, fileId };
+  return { symbols, variables, hasTopLevelContent, fileId };
 }

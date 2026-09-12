@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   forwardRef,
+  type ReactNode,
 } from "react";
 import { Compartment, EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
 import {
@@ -18,7 +19,7 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { closeBrackets, closeBracketsKeymap, snippet } from "@codemirror/autocomplete";
 import {
   bracketMatching,
   foldGutter,
@@ -55,6 +56,7 @@ import { EditableTitle } from "@/components/ui/editable-title";
 import { inkAutoClose } from "@/editor/codemirror/auto-close";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { inkCompletions } from "@/editor/codemirror/completion";
+import { INK_SNIPPETS, type InkSnippet } from "@/features/snippets/ink-snippets";
 import { toCodeMirrorDiagnostics } from "@/editor/codemirror/diagnostics";
 import { inkGoToDefinition } from "@/editor/codemirror/go-to-definition";
 import { inkInfoHover } from "@/editor/codemirror/hover";
@@ -65,7 +67,7 @@ import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
-import type { InkSymbol } from "@/inkLanguage/inkSymbols";
+import type { InkSymbol, InkVariableSymbol } from "@/inkLanguage/inkSymbols";
 
 /** A moment that plausibly marks the end of an edit, offered to the live compiler. */
 export type EditCommitSignal = "space" | "newline" | "punctuation" | "line-change" | "blur";
@@ -78,6 +80,10 @@ export interface CodeMirrorEditorProps {
   onControlStateChange?: (state: CodeMirrorEditorControlState) => void;
   errors: EditorDiagnostic[];
   symbols?: InkSymbol[];
+  variables?: InkVariableSymbol[];
+  snippets?: InkSnippet[];
+  /** Called when go-to-definition lands on a symbol declared in a different file. */
+  onNavigateToSymbol?: (symbol: InkSymbol) => void;
   fileId: string;
   documentId: string;
   fileName: string;
@@ -89,6 +95,8 @@ export interface CodeMirrorEditorProps {
   wordWrap?: boolean;
   saveState?: SaveState;
   onRenameFile?: (requestedName: string) => void | Promise<void>;
+  /** Extra controls rendered in the header's right-hand button cluster. */
+  headerActions?: ReactNode;
 }
 
 export interface CodeMirrorEditorControlState {
@@ -125,6 +133,7 @@ export interface CodeMirrorEditorHandle {
   revealLine: (line: number) => void;
   jumpToOffset: (offset: number) => void;
   insertTextAtCursor: (insert: string | CodeMirrorEditorInsertOptions) => void;
+  insertSnippet: (template: string) => void;
   jumpToLine: (line: number) => void;
   openFind: () => void;
   openReplace: () => void;
@@ -418,6 +427,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   onControlStateChange,
   errors,
   symbols = [],
+  variables = [],
+  snippets = INK_SNIPPETS,
+  onNavigateToSymbol,
   fileId,
   documentId,
   fileName,
@@ -428,6 +440,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   wordWrap = true,
   saveState = "saved",
   onRenameFile,
+  headerActions,
 }, ref) => {
   // Mobile renders a touch slightly smaller than the desktop preference
   // (dense monospace reads fine at arm's length on a phone). iOS Safari's
@@ -449,6 +462,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const onControlStateChangeRef = useRef(onControlStateChange);
   const errorsRef = useRef(errors);
   const symbolsRef = useRef(symbols);
+  const variablesRef = useRef(variables);
+  const snippetsRef = useRef(snippets);
+  const onNavigateToSymbolRef = useRef(onNavigateToSymbol);
   const lastControlStateRef = useRef<CodeMirrorEditorControlState | null>(null);
   const themeCompartmentRef = useRef(new Compartment());
   const wrappingCompartmentRef = useRef(new Compartment());
@@ -482,6 +498,18 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   useEffect(() => {
     symbolsRef.current = symbols;
   }, [symbols]);
+
+  useEffect(() => {
+    variablesRef.current = variables;
+  }, [variables]);
+
+  useEffect(() => {
+    snippetsRef.current = snippets;
+  }, [snippets]);
+
+  useEffect(() => {
+    onNavigateToSymbolRef.current = onNavigateToSymbol;
+  }, [onNavigateToSymbol]);
 
   const emitControlState = useCallback((nextHistoryState = historyStateRef.current) => {
     const nextControlState = {
@@ -570,10 +598,15 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     }, 1200);
   }, []);
 
-  const getActiveFileSymbols = useCallback(
-    () => symbolsRef.current.filter((symbol) => symbol.fileId === fileId),
-    [fileId],
-  );
+  // Definitions may live in any project file: jump in place when the symbol is
+  // local, otherwise hand it to the host so it can switch files first.
+  const jumpToSymbol = useCallback((symbol: InkSymbol) => {
+    if (symbol.fileId === fileId) {
+      jumpToLineNumber(symbol.range.startLineNumber);
+    } else {
+      onNavigateToSymbolRef.current?.(symbol);
+    }
+  }, [fileId, jumpToLineNumber]);
 
   const buildExtensions = useCallback(() => [
     lineNumbers(),
@@ -590,15 +623,13 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     closeBrackets(),
     inkSearch({ top: true }),
     inkAutoClose(),
-    inkCompletions(() => symbolsRef.current),
-    inkGoToDefinition(
-      getActiveFileSymbols,
-      (symbol) => jumpToLineNumber(symbol.range.startLineNumber),
+    inkCompletions(
+      () => symbolsRef.current,
+      () => snippetsRef.current,
+      () => variablesRef.current,
     ),
-    inkInfoHover(
-      getActiveFileSymbols,
-      (symbol) => jumpToLineNumber(symbol.range.startLineNumber),
-    ),
+    inkGoToDefinition(() => symbolsRef.current, jumpToSymbol, () => fileId),
+    inkInfoHover(() => symbolsRef.current, jumpToSymbol, () => fileId),
     highlightSelectionMatches({ minSelectionLength: 3 }),
     inkBuiltinFunctions,
     inkIdentifierOccurrences,
@@ -659,10 +690,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     effectiveFontSize,
     effectiveTheme,
     emitChangeNow,
+    fileId,
     fileName,
-    getActiveFileSymbols,
     isMobileLayout,
-    jumpToLineNumber,
+    jumpToSymbol,
     scheduleChangeEmit,
     updateControlState,
     wordWrap,
@@ -759,6 +790,17 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     emitChangeNow();
   }, [emitChangeNow]);
 
+  // Runs the template through CodeMirror's own snippet applier, so `${n:...}`
+  // placeholders become real tab stops the writer can Tab/Shift-Tab through.
+  const insertSnippetTemplate = useCallback((template: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    view.focus();
+    const { from, to } = view.state.selection.main;
+    snippet(template)(view, null, from, to);
+  }, []);
+
   const replaceRange = useCallback((
     from: number,
     to: number,
@@ -843,6 +885,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     revealLine: jumpToLine,
     jumpToOffset,
     insertTextAtCursor,
+    insertSnippet: insertSnippetTemplate,
     jumpToLine,
     openFind: () => runCommand(openSearchPanelSafely),
     openReplace: () => runCommand(openSearchPanelSafely),
@@ -853,6 +896,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   }), [
     emitChangeNow,
     focusEditor,
+    insertSnippetTemplate,
     insertTextAtCursor,
     jumpToLine,
     jumpToOffset,
@@ -992,6 +1036,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5 text-[0.8125rem] text-text-secondary">
+            {headerActions}
             <button
               type="button"
               onClick={() => runCommand(undo)}

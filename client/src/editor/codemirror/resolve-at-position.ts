@@ -51,6 +51,7 @@ function resolveDivertTarget(
   target: string,
   pos: number,
   symbols: readonly InkSymbol[],
+  activeFileId?: string,
 ): InkSymbol | null {
   if (target === "END" || target === "DONE") return null;
 
@@ -60,7 +61,12 @@ function resolveDivertTarget(
 
   if (!target.includes(".")) {
     const lineNumber = state.doc.lineAt(pos).number;
-    const currentKnotPath = getCurrentKnotPath(symbols, lineNumber);
+    // Line numbers only mean something inside the active file, so the enclosing
+    // knot is computed from that file's symbols alone.
+    const localSymbols = activeFileId === undefined
+      ? symbols
+      : symbols.filter((symbol) => symbol.fileId === activeFileId);
+    const currentKnotPath = getCurrentKnotPath(localSymbols, lineNumber);
     const local = currentKnotPath
       ? divertTargets.find((symbol) => symbol.path === `${currentKnotPath}.${target}`)
       : null;
@@ -77,6 +83,7 @@ function resolveDeclaration(
   word: { text: string; from: number },
   nodeName: string,
   symbols: readonly InkSymbol[],
+  activeFileId?: string,
 ): InkSymbol | null {
   const lineNumber = state.doc.lineAt(word.from).number;
   const expectedKind = nodeName === "KnotName" ? "knot" : "stitch";
@@ -85,6 +92,7 @@ function resolveDeclaration(
     symbol.kind === expectedKind
     && symbol.name === word.text
     && symbol.range.startLineNumber === lineNumber
+    && (activeFileId === undefined || symbol.fileId === activeFileId)
   )) ?? null;
 }
 
@@ -92,6 +100,7 @@ export function resolveSymbolAtPosition(
   state: EditorState,
   pos: number,
   symbols: readonly InkSymbol[],
+  activeFileId?: string,
 ): ResolvedInkSymbol | null {
   const word = identifierWordAt(state, pos);
   if (!word) return null;
@@ -101,12 +110,12 @@ export function resolveSymbolAtPosition(
   if (pathNode && isInsideDivertTarget(pathNode)) {
     const text = state.doc.sliceString(pathNode.from, pathNode.to);
     const target = text.replace(/\(.*/, "").trim();
-    const symbol = resolveDivertTarget(state, target, word.from, symbols);
+    const symbol = resolveDivertTarget(state, target, word.from, symbols, activeFileId);
     return symbol ? { symbol, context: "divert", from: pathNode.from, to: pathNode.to, text } : null;
   }
 
   if (RESOLVABLE_DECLARATION_NODE_NAMES.has(node.name)) {
-    const symbol = resolveDeclaration(state, word, node.name, symbols);
+    const symbol = resolveDeclaration(state, word, node.name, symbols, activeFileId);
     return symbol ? { symbol, context: "declaration", from: word.from, to: word.to, text: word.text } : null;
   }
 

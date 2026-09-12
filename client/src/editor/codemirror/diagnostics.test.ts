@@ -242,4 +242,183 @@ describe("toCodeMirrorDiagnostics", () => {
 
     expect(diagnostic.actions).toBeUndefined();
   });
+
+  it("attaches and applies declare-VAR and declare-temp actions for unresolved-variable diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n~ x = y\n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Unresolved variable: y",
+      type: "error",
+      code: "unresolved-variable",
+      variableName: "y",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Declare VAR y", "Declare temp y"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("VAR y = 0\n\n=== start ===\n~ x = y\n-> END\n");
+    view.destroy();
+    parent.remove();
+  });
+
+  it("applies the declare-temp action for unresolved-variable diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n~ x = y\n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Unresolved variable: y",
+      type: "error",
+      code: "unresolved-variable",
+      variableName: "y",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    diagnostic.actions?.[1]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("=== start ===\n~ temp y = 0\n~ x = y\n-> END\n");
+    view.destroy();
+    parent.remove();
+  });
+
+  it("attaches and applies declare actions for unassignable-variable diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n~ x = 1\n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Variable could not be found to assign to: 'x'",
+      type: "error",
+      code: "unassignable-variable",
+      variableName: "x",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Declare VAR x", "Declare temp x"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("VAR x = 0\n\n=== start ===\n~ x = 1\n-> END\n");
+    view.destroy();
+    parent.remove();
+  });
+
+  it("attaches and applies -> END / -> DONE actions for loose-end diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n    Hello\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?",
+      type: "error",
+      code: "loose-end",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Add -> END", "Add -> DONE"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("=== start ===\n    Hello\n    -> END\n");
+    view.destroy();
+    parent.remove();
+  });
+
+  it("applies the -> DONE action for loose-end diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n    Hello\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?",
+      type: "error",
+      code: "loose-end",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    diagnostic.actions?.[1]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe("=== start ===\n    Hello\n    -> DONE\n");
+    view.destroy();
+    parent.remove();
+  });
+
+  it("attaches and applies a create-function action for unresolved-function diagnostics", () => {
+    const state = EditorState.create({
+      doc: "=== start ===\n~ x = double(5)\n-> END\n",
+    });
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 2,
+      message: "Function call target not found: '-> double'",
+      type: "error",
+      code: "unresolved-function",
+      targetName: "double",
+    }], { activeFileId: "main.ink" });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual(["Create function double"]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe(
+      "=== start ===\n~ x = double(5)\n-> END\n\n=== function double(p1) ===\n    ~ return 0\n",
+    );
+    view.destroy();
+    parent.remove();
+  });
+
+  it("attaches a create-stitch action before the change-to action for dotted unresolved divert targets", () => {
+    const state = EditorState.create({
+      doc: "=== chapter_one ===\n= into\n-> chapter_one.intro\n\n=== chapter_two ===\n-> END\n",
+    });
+    const symbols = buildSymbolTable(state.doc.toString(), "main.ink").symbols;
+    const [diagnostic] = toCodeMirrorDiagnostics(state, [{
+      source: "inkjs",
+      fileId: "main.ink",
+      line: 3,
+      message: "Divert target not found: '-> chapter_one.intro'",
+      type: "error",
+      code: "unresolved-divert",
+      targetName: "chapter_one.intro",
+    }], { activeFileId: "main.ink", symbols });
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ state, parent });
+
+    expect(diagnostic.actions?.map((action) => action.name)).toEqual([
+      "Create stitch intro in chapter_one",
+      "Change to chapter_one.into",
+    ]);
+    diagnostic.actions?.[0]?.apply(view, diagnostic.from, diagnostic.to);
+
+    expect(view.state.doc.toString()).toBe(
+      "=== chapter_one ===\n= into\n-> chapter_one.intro\n\n= intro\n\n=== chapter_two ===\n-> END\n",
+    );
+    view.destroy();
+    parent.remove();
+  });
 });

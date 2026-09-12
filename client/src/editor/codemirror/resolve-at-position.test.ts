@@ -144,6 +144,68 @@ The intro word in prose.
       .toBe("start.intro");
   });
 
+  it("resolves a divert to a knot declared in another project file", () => {
+    const { state, posOf } = createFixture(`
+-> remote_room
+`);
+    const otherFileSymbols = buildSymbolTable(
+      ink(`
+=== remote_room ===
+-> END
+`),
+      "b.ink",
+    ).symbols;
+
+    const resolved = resolveSymbolAtPosition(
+      state,
+      posOf("remote_room"),
+      otherFileSymbols,
+      "a.ink",
+    );
+
+    expect(resolved?.symbol).toMatchObject({ path: "remote_room", fileId: "b.ink" });
+  });
+
+  it("prefers the active file's enclosing knot for a bare stitch name", () => {
+    const { state, posOf } = createFixture(`
+=== start ===
+-> intro
+
+= intro
+-> END
+`);
+    // b.ink's knot opens on an earlier line than a.ink's stitch, so an
+    // unfiltered scan would treat `other` as the enclosing knot.
+    const otherFileSymbols = buildSymbolTable(
+      ink(`
+=== other ===
+
+= intro
+-> END
+`),
+      "b.ink",
+    ).symbols;
+    const activeSymbols = buildSymbolTable(
+      ink(`
+=== start ===
+-> intro
+
+= intro
+-> END
+`),
+      "a.ink",
+    ).symbols;
+
+    const resolved = resolveSymbolAtPosition(
+      state,
+      posOf("intro"),
+      [...otherFileSymbols, ...activeSymbols],
+      "a.ink",
+    );
+
+    expect(resolved?.symbol).toMatchObject({ path: "start.intro", fileId: "a.ink" });
+  });
+
   it("resolves duplicate stitch declarations by their exact declaration line", () => {
     const { state, symbols, posOf } = createFixture(`
 === start ===

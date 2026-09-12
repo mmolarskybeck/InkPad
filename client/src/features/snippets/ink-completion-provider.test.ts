@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getSnippetCompletions } from "./ink-completion-provider";
+import type { InkSnippet } from "./ink-snippets";
 
 // column is 1-based and sits one past the last typed character, as Monaco
 // reports it. For a line "knot" with the cursor at the end, column === 5.
@@ -53,5 +54,30 @@ describe("getSnippetCompletions conservative triggering", () => {
   it("returns nothing on an empty or whitespace-only line", () => {
     expect(idsFor("")).toEqual([]);
     expect(idsFor("    ")).toEqual([]);
+  });
+});
+
+describe("getSnippetCompletions with a supplied snippet list", () => {
+  const customSnippet: InkSnippet = {
+    id: "custom-1",
+    label: "Scene break",
+    category: "Custom",
+    context: "flow",
+    aliases: ["scene"],
+    desktopSnippet: "* * *\n",
+    mobileInsert: "* * *\n",
+    description: "A visual scene break.",
+    source: "custom",
+  };
+
+  it("offers only the snippets it is given", () => {
+    const ids = getSnippetCompletions("scene", atEnd("scene"), [customSnippet])
+      .map((c) => c.snippet.id);
+    expect(ids).toEqual(["custom-1"]);
+    expect(getSnippetCompletions("knot", atEnd("knot"), [customSnippet])).toEqual([]);
+  });
+
+  it("falls back to the built-in library when no list is given", () => {
+    expect(idsFor("knot")).toContain("knot");
   });
 });

@@ -50,8 +50,27 @@ export function isMissingStartTarget(symbol: InkSymbol): boolean {
   return isDivertTarget(symbol) && !symbol.hasParameters;
 }
 
+/**
+ * - `"var"`       — `VAR name = ...`
+ * - `"const"`     — `CONST name = ...`
+ * - `"list"`      — `LIST name = a, b, c`
+ * - `"list-item"` — one entry of a `LIST` declaration.
+ * - `"external"`  — `EXTERNAL name(...)`
+ */
+export type InkVariableKind = "var" | "const" | "list" | "list-item" | "external";
+
+export interface InkVariableSymbol {
+  name: string;
+  kind: InkVariableKind;
+  /** For list-item: the owning LIST name. */
+  listName?: string;
+  fileId: string;
+  range: SymbolRange;
+}
+
 export interface SymbolTableResult {
   symbols: InkSymbol[];
+  variables: InkVariableSymbol[];
   /**
    * True when there is at least one non-empty, non-comment, non-declaration
    * line before the first knot/function declaration. When false and at least

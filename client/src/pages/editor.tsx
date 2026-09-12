@@ -4,6 +4,7 @@ import { TopMenu } from "@/components/editor/top-menu";
 import type {
   CodeMirrorEditorHandle,
   CodeMirrorEditorControlState,
+  CodeMirrorEditorInsertOptions,
   CodeMirrorEditorProps,
 } from "@/components/editor/codemirror-editor";
 import { StoryPreview } from "@/components/editor/story-preview";
@@ -16,10 +17,14 @@ import {
 import {
   EditorWorkspace,
   type DesktopBottomPanelHandle,
+  type DockSidePanelTab,
   type FocusedPanel,
   type MobileDrawer,
   type MobileTab,
 } from "@/components/editor/editor-workspace";
+import { SnippetsPanel } from "@/components/editor/snippets-panel";
+import { SnippetToolbar } from "@/components/editor/snippet-toolbar";
+import { CustomSnippetDialog } from "@/components/editor/custom-snippet-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenuContent,
@@ -43,13 +48,19 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 import { usePreferences } from "@/components/preferences-provider";
+import { useSnippetLibrary } from "@/features/snippets/snippet-library-provider";
+import type { InkSnippet } from "@/features/snippets/ink-snippets";
+import type {
+  CustomSnippet,
+  CustomSnippetInput,
+} from "@/features/snippets/custom-snippets";
 import { SAMPLE_STORY } from "@/data/sample-story";
 import { FileOperations } from "@/lib/file-operations";
 import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } from "@/lib/filename-utils";
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, Trash2, X } from "lucide-react";
+import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, ScrollText, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -71,11 +82,14 @@ import {
   trackMobileTabChanged,
   trackNavigatorUsed,
   trackPanelLayoutChanged,
+  trackSnippetInserted,
   trackStoryRun,
   type AnalyticsMobileTab,
   type PanelLayout,
+  type SnippetType,
 } from "@/lib/analytics";
 import { buildSymbolTable } from "@/inkLanguage/buildSymbolTable";
+import type { InkSymbol } from "@/inkLanguage/inkSymbols";
 import { adaptCompilerDiagnostic } from "@/inkLanguage/diagnosticAdapter";
 import { getMissingStartDiagnostic } from "@/inkLanguage/inkDiagnostics";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
@@ -119,6 +133,24 @@ const LazyLocalSavesDialog = lazy(() =>
 );
 
 const PHONE_MEDIA_QUERY = "(max-width: 768px)";
+
+// Snippet ids that map onto an existing analytics bucket; anything else
+// (including every user-authored snippet) reports as "custom".
+const ANALYTICS_SNIPPET_TYPES = new Set<string>([
+  "knot",
+  "stitch",
+  "choice",
+  "conditional",
+  "variable",
+  "list",
+  "function",
+  "divert",
+]);
+
+type CustomSnippetDialogState =
+  | { open: false }
+  | { open: true; mode: "create" }
+  | { open: true; mode: "edit"; snippet: CustomSnippet };
 
 function isPhoneViewport() {
   if (typeof window === "undefined") {
@@ -415,6 +447,11 @@ export default function Editor() {
     isPhoneViewport() ? "preview" : "code"
   ));
   const [mobileDrawer, setMobileDrawer] = useState<MobileDrawer>(null);
+  const [sidePanelTab, setSidePanelTab] = useState<DockSidePanelTab>("variables");
+  const [customSnippetDialog, setCustomSnippetDialog] = useState<CustomSnippetDialogState>({
+    open: false,
+  });
+  const [customSnippetToDelete, setCustomSnippetToDelete] = useState<CustomSnippet | null>(null);
   // Desktop "focus mode": a collapsed panel switches the workspace to the simplified
   // tab layout shared with mobile. Cleared when the window narrows into true mobile.
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
@@ -481,7 +518,8 @@ export default function Editor() {
       }
     };
   }, [isMobile, mobileTab]);
-  const { preferences, effectiveTheme } = usePreferences();
+  const { preferences, updatePreferences, effectiveTheme } = usePreferences();
+  const snippetLibrary = useSnippetLibrary();
   
   const {
     runtimeState,
@@ -1390,6 +1428,10 @@ export default function Editor() {
     onError: handleExportError,
   });
 
+  const handleNavigateToSymbol = useCallback((symbol: InkSymbol) => {
+    switchToProjectFile(symbol.fileId, { line: symbol.range.startLineNumber });
+  }, [switchToProjectFile]);
+
   const handleErrorClick = useCallback((error: EditorDiagnostic) => {
     const fileId = error.fileId ?? activeFileId;
     switchToProjectFile(fileId, { line: getEditorDiagnosticLine(error) });
@@ -1530,6 +1572,11 @@ export default function Editor() {
       buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId).symbols
     ))
   ), [currentProjectForSave]);
+  const projectVariables = useMemo(() => (
+    getSortedProjectFileIds(currentProjectForSave).flatMap((fileId) => (
+      buildSymbolTable(getProjectFileSource(currentProjectForSave, fileId), fileId).variables
+    ))
+  ), [currentProjectForSave]);
   const editorDiagnostics = useMemo<EditorDiagnostic[]>(() => ([
     ...errors.map((error) => adaptCompilerDiagnostic({
       ...error,
@@ -1570,6 +1617,65 @@ export default function Editor() {
   const handleMobileTabChanged = useCallback((tab: AnalyticsMobileTab) => {
     trackMobileTabChanged(tab);
   }, []);
+
+  const handleInsertSnippet = useCallback((snippet: InkSnippet) => {
+    editorRef.current?.insertSnippet(snippet.desktopSnippet);
+    if (isMobile) {
+      setMobileTab("code");
+    }
+    trackSnippetInserted(
+      ANALYTICS_SNIPPET_TYPES.has(snippet.id) ? (snippet.id as SnippetType) : "custom",
+    );
+  }, [isMobile]);
+
+  const handleInsertSyntax = useCallback((insert: CodeMirrorEditorInsertOptions) => {
+    editorRef.current?.insertTextAtCursor(insert);
+  }, []);
+
+  const handleOpenSnippetsPane = useCallback(() => {
+    if (!preferences.showSnippetsInspector) {
+      updatePreferences({ showSnippetsInspector: true });
+    }
+    setSidePanelTab("snippets");
+    desktopBottomPanelRef.current?.expand();
+  }, [preferences.showSnippetsInspector, updatePreferences]);
+
+  const handleHideSidePanelTab = useCallback((tab: DockSidePanelTab) => {
+    updatePreferences({
+      [tab === "variables" ? "showVariablesInspector" : "showSnippetsInspector"]: false,
+    });
+    toast(`${tab === "variables" ? "Variables" : "Snippets"} inspector hidden`, {
+      description: "Turn it back on in Settings → Editor.",
+    });
+  }, [updatePreferences]);
+
+  const handleCreateCustomSnippet = useCallback(() => {
+    setCustomSnippetDialog({ open: true, mode: "create" });
+  }, []);
+
+  const handleEditCustomSnippet = useCallback((snippet: CustomSnippet) => {
+    setCustomSnippetDialog({ open: true, mode: "edit", snippet });
+  }, []);
+
+  const handleSubmitCustomSnippet = useCallback((input: CustomSnippetInput) => {
+    if (!customSnippetDialog.open) return;
+
+    if (customSnippetDialog.mode === "edit") {
+      snippetLibrary.updateCustomSnippet(customSnippetDialog.snippet.id, input);
+    } else {
+      snippetLibrary.addCustomSnippet(input);
+    }
+
+    setCustomSnippetDialog({ open: false });
+    toast.success("Snippet saved");
+  }, [customSnippetDialog, snippetLibrary]);
+
+  const handleConfirmDeleteCustomSnippet = useCallback(() => {
+    if (customSnippetToDelete) {
+      snippetLibrary.removeCustomSnippet(customSnippetToDelete.id);
+    }
+    setCustomSnippetToDelete(null);
+  }, [customSnippetToDelete, snippetLibrary]);
 
   const projectFileIds = useMemo(() => getSortedProjectFileIds(currentProjectForSave), [currentProjectForSave]);
   const mobileCodeTabLabel = projectFileIds.length > 1 ? (
@@ -1677,6 +1783,9 @@ export default function Editor() {
           onControlStateChange={setEditorControlState}
           errors={editorDiagnostics}
           symbols={projectSymbols}
+          variables={projectVariables}
+          onNavigateToSymbol={handleNavigateToSymbol}
+          snippets={snippetLibrary.snippets}
           fileId={activeFileId}
           documentId={`${currentProject.id}:${editorBufferKey}`}
           fileName={activeFileId}
@@ -1687,6 +1796,18 @@ export default function Editor() {
           wordWrap={preferences.wordWrap}
           saveState={autosave.saveState}
           onRenameFile={(nextName) => handleInlineProjectFileRename(activeFileId, nextName)}
+          headerActions={(
+            <button
+              type="button"
+              onClick={() => updatePreferences({ showSnippetToolbar: !preferences.showSnippetToolbar })}
+              aria-pressed={preferences.showSnippetToolbar}
+              className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis aria-pressed:text-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+              aria-label="Toggle snippet toolbar"
+              title="Snippet toolbar"
+            >
+              <ScrollText className="h-3.5 w-3.5" />
+            </button>
+          )}
           isPhone={isMobile}
           isVisible={!isMobile || mobileTab === "code"}
         />
@@ -1747,6 +1868,38 @@ export default function Editor() {
 
   const variablesPane = <VariableInspector variables={variables} compileFailed={compileStatus === "error"} />;
   const compactVariablesPane = <VariableInspector variables={variables} showHeader={false} compileFailed={compileStatus === "error"} />;
+
+  const snippetsPane = (
+    <SnippetsPanel
+      snippets={snippetLibrary.snippets}
+      customSnippets={snippetLibrary.customSnippets}
+      onInsertSnippet={handleInsertSnippet}
+      onCreateCustomSnippet={handleCreateCustomSnippet}
+      onEditCustomSnippet={handleEditCustomSnippet}
+      onDeleteCustomSnippet={setCustomSnippetToDelete}
+    />
+  );
+
+  const compactSnippetsPane = (
+    <SnippetsPanel
+      snippets={snippetLibrary.snippets}
+      customSnippets={snippetLibrary.customSnippets}
+      showHeader={false}
+      onInsertSnippet={handleInsertSnippet}
+      onCreateCustomSnippet={handleCreateCustomSnippet}
+      onEditCustomSnippet={handleEditCustomSnippet}
+      onDeleteCustomSnippet={setCustomSnippetToDelete}
+    />
+  );
+
+  const snippetToolbar = !isMobile && preferences.showSnippetToolbar ? (
+    <SnippetToolbar
+      snippets={snippetLibrary.snippets}
+      onInsertSyntax={handleInsertSyntax}
+      onInsertSnippet={handleInsertSnippet}
+      onOpenSnippetsPane={handleOpenSnippetsPane}
+    />
+  ) : null;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1900,6 +2053,52 @@ export default function Editor() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={customSnippetToDelete !== null} onOpenChange={(open) => {
+        if (!open) {
+          setCustomSnippetToDelete(null);
+        }
+      }}>
+        <AlertDialogContent className="bg-panel-bg border-border-color text-text-primary">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {customSnippetToDelete
+                ? `Delete “${customSnippetToDelete.label}”?`
+                : "Delete snippet?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary">
+              This custom snippet will be removed from this browser.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="ghost" onClick={() => setCustomSnippetToDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDeleteCustomSnippet}
+              className="bg-error text-editor-bg hover:brightness-110"
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <CustomSnippetDialog
+        open={customSnippetDialog.open}
+        mode={customSnippetDialog.open ? customSnippetDialog.mode : "create"}
+        initialValue={
+          customSnippetDialog.open && customSnippetDialog.mode === "edit"
+            ? customSnippetDialog.snippet
+            : undefined
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setCustomSnippetDialog({ open: false });
+          }
+        }}
+        onSubmit={handleSubmitCustomSnippet}
+      />
+
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => {
         if (!open) {
           setDeleteTarget(null);
@@ -2039,12 +2238,22 @@ export default function Editor() {
         mobileCodeTabMenu={mobileCodeTabMenu}
         problemsPane={problemsPane}
         variablesPane={variablesPane}
+        snippetsPane={snippetsPane}
         compactProblemsPane={compactProblemsPane}
         compactVariablesPane={compactVariablesPane}
+        compactSnippetsPane={compactSnippetsPane}
         mobileProblemsPane={mobileProblemsPane}
         mobileVariablesPane={compactVariablesPane}
         problemCount={errorCount + warningCount}
         variableCount={variables.length}
+        snippetCount={snippetLibrary.snippets.length}
+        snippetToolbar={snippetToolbar}
+        sidePanelTab={sidePanelTab}
+        onSidePanelTabChange={setSidePanelTab}
+        showVariablesInspector={preferences.showVariablesInspector}
+        showSnippetsInspector={preferences.showSnippetsInspector}
+        onHideSidePanelTab={handleHideSidePanelTab}
+        onCreateCustomSnippet={handleCreateCustomSnippet}
         editorRef={editorRef}
         editorControlState={editorControlState}
         onToggleFind={handleToggleFind}

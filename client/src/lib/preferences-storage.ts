@@ -33,13 +33,29 @@ function migrateLegacySchema(candidate: Record<string, unknown>): UserPreference
     typeof candidate.wordWrap === "boolean"
       ? candidate.wordWrap
       : DEFAULT_USER_PREFERENCES.wordWrap;
+  const showSnippetToolbar =
+    typeof candidate.showSnippetToolbar === "boolean"
+      ? candidate.showSnippetToolbar
+      : DEFAULT_USER_PREFERENCES.showSnippetToolbar;
+  const showVariablesInspector =
+    typeof candidate.showVariablesInspector === "boolean"
+      ? candidate.showVariablesInspector
+      : DEFAULT_USER_PREFERENCES.showVariablesInspector;
+  const showSnippetsInspector =
+    typeof candidate.showSnippetsInspector === "boolean"
+      ? candidate.showSnippetsInspector
+      : DEFAULT_USER_PREFERENCES.showSnippetsInspector;
   return {
+    ...DEFAULT_USER_PREFERENCES,
     schemaVersion: USER_PREFERENCES_SCHEMA_VERSION,
     theme,
     editorFontSize,
     previewFontSize,
     previewTheme,
     wordWrap,
+    showSnippetToolbar,
+    showVariablesInspector,
+    showSnippetsInspector,
   };
 }
 
@@ -47,7 +63,11 @@ function parsePreferences(value: unknown): UserPreferences | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
 
-  if (candidate.schemaVersion === 1 || candidate.schemaVersion === 2) {
+  if (
+    candidate.schemaVersion === 1
+    || candidate.schemaVersion === 2
+    || candidate.schemaVersion === 3
+  ) {
     return migrateLegacySchema(candidate);
   }
 
@@ -58,6 +78,9 @@ function parsePreferences(value: unknown): UserPreferences | null {
     || !PREVIEW_FONT_SIZES.has(candidate.previewFontSize as PreviewFontSize)
     || !PREVIEW_THEMES.has(candidate.previewTheme as PreviewThemePreference)
     || typeof candidate.wordWrap !== "boolean"
+    || typeof candidate.showSnippetToolbar !== "boolean"
+    || typeof candidate.showVariablesInspector !== "boolean"
+    || typeof candidate.showSnippetsInspector !== "boolean"
   ) {
     return null;
   }
