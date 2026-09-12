@@ -750,10 +750,11 @@ export function EditorWorkspace({
   // Problems/Variables bar hide, and undo/redo/find fold into the insert bar.
   const isMobileKeyboardOpen = isMobile && mobileKeyboardInset > 0;
 
+  // The drawer sizes to its content and is capped at 72vh; with the keyboard
+  // up the cap also has to leave room above the keyboard.
   const mobileDrawerStyle: CSSProperties | undefined = mobileKeyboardInset > 0
     ? {
         bottom: mobileKeyboardInset,
-        height: `min(72vh, calc(100dvh - ${mobileKeyboardInset}px - 1rem))`,
         maxHeight: `min(72vh, calc(100dvh - ${mobileKeyboardInset}px - 1rem))`,
       }
     : undefined;
@@ -1265,11 +1266,11 @@ export function EditorWorkspace({
 
       <Drawer open={mobileDrawer !== null} onOpenChange={(open) => !open && setMobileDrawer(null)}>
         <DrawerContent
-          className="h-[72vh] max-h-[72vh] min-h-[42vh] overflow-hidden border-border-color bg-panel-bg text-text-primary"
+          className="h-auto max-h-[72vh] overflow-hidden border-border-color bg-panel-bg text-text-primary"
           style={mobileDrawerStyle}
         >
-          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border-color px-4">
-            <DrawerTitle className="text-[0.9375rem] font-semibold text-text-emphasis">
+          <div className="flex h-9 shrink-0 items-center justify-between border-b border-border-color px-4">
+            <DrawerTitle className="text-[0.875rem] font-semibold text-text-emphasis">
               {drawerTitle}
             </DrawerTitle>
             <DrawerDescription className="sr-only">
@@ -1279,11 +1280,11 @@ export function EditorWorkspace({
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto" data-vaul-no-drag>
             {mobileDrawer === "variables" ? mobileVariablesPane : null}
             {mobileDrawer === "problems" ? mobileProblemsPane : null}
             {mobileDrawer === "snippets" ? (
-              <div className="h-full touch-pan-y overflow-y-auto px-3 py-3" data-vaul-no-drag>
+              <div className="px-3 py-3">
                 {onCreateCustomSnippet && (
                   <Button
                     type="button"
