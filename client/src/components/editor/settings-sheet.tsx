@@ -868,9 +868,9 @@ export function SettingsSheet({
                       <span
                         id="snippet-toolbar-label"
                         className="text-[0.875rem] font-medium text-text-emphasis"
-                        title="Show a floating bar of quick inserts in the editor (desktop)"
+                        title="Show a bar of one-tap Ink syntax and snippet inserts under the editor (desktop)"
                       >
-                        Snippet toolbar
+                        Quick insert bar
                       </span>
                     </div>
                   </div>
@@ -906,27 +906,6 @@ export function SettingsSheet({
                   </div>
                 </div>
 
-                <div className="flex min-h-11 items-center justify-between gap-4 py-1">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        id="snippets-inspector-label"
-                        className="text-[0.875rem] font-medium text-text-emphasis"
-                        title="Show the Snippets tab in the bottom dock"
-                      >
-                        Snippets inspector
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Switch
-                      id="snippets-inspector-switch"
-                      checked={preferences.showSnippetsInspector}
-                      aria-labelledby="snippets-inspector-label"
-                      onCheckedChange={(checked) => updatePreferences({ showSnippetsInspector: checked })}
-                    />
-                  </div>
-                </div>
               </Group>
 
               <Group title="Preview">

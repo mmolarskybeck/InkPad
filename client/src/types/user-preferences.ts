@@ -17,7 +17,6 @@ export interface UserPreferences {
   wordWrap: boolean;
   showSnippetToolbar: boolean;
   showVariablesInspector: boolean;
-  showSnippetsInspector: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -27,7 +26,6 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   previewFontSize: 16,
   previewTheme: "inkpad",
   wordWrap: true,
-  showSnippetToolbar: true,
+  showSnippetToolbar: false,
   showVariablesInspector: true,
-  showSnippetsInspector: true,
 };

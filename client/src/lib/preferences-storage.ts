@@ -41,10 +41,6 @@ function migrateLegacySchema(candidate: Record<string, unknown>): UserPreference
     typeof candidate.showVariablesInspector === "boolean"
       ? candidate.showVariablesInspector
       : DEFAULT_USER_PREFERENCES.showVariablesInspector;
-  const showSnippetsInspector =
-    typeof candidate.showSnippetsInspector === "boolean"
-      ? candidate.showSnippetsInspector
-      : DEFAULT_USER_PREFERENCES.showSnippetsInspector;
   return {
     ...DEFAULT_USER_PREFERENCES,
     schemaVersion: USER_PREFERENCES_SCHEMA_VERSION,
@@ -55,7 +51,6 @@ function migrateLegacySchema(candidate: Record<string, unknown>): UserPreference
     wordWrap,
     showSnippetToolbar,
     showVariablesInspector,
-    showSnippetsInspector,
   };
 }
 
@@ -80,7 +75,6 @@ function parsePreferences(value: unknown): UserPreferences | null {
     || typeof candidate.wordWrap !== "boolean"
     || typeof candidate.showSnippetToolbar !== "boolean"
     || typeof candidate.showVariablesInspector !== "boolean"
-    || typeof candidate.showSnippetsInspector !== "boolean"
   ) {
     return null;
   }

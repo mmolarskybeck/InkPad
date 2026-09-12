@@ -1,5 +1,4 @@
 import { useRef, type KeyboardEvent } from "react";
-import { ScrollText } from "lucide-react";
 import { SYNTAX_INSERTS } from "@/features/snippets/syntax-inserts";
 import type { InkSnippet } from "@/features/snippets/ink-snippets";
 import type { CodeMirrorEditorInsertOptions } from "@/components/editor/codemirror-editor";
@@ -8,7 +7,6 @@ export interface SnippetToolbarProps {
   snippets: InkSnippet[];
   onInsertSyntax: (insert: CodeMirrorEditorInsertOptions) => void;
   onInsertSnippet: (snippet: InkSnippet) => void;
-  onOpenSnippetsPane: () => void;
 }
 
 /** The handful of snippets worth a permanent button; the rest live in the pane. */
@@ -28,7 +26,6 @@ export function SnippetToolbar({
   snippets,
   onInsertSyntax,
   onInsertSnippet,
-  onOpenSnippetsPane,
 }: SnippetToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -101,21 +98,6 @@ export function SnippetToolbar({
             {snippet.label}
           </button>
         ))}
-      </div>
-
-      <div className="flex shrink-0 items-stretch gap-1 border-l border-border-color pl-1">
-        <button
-          type="button"
-          tabIndex={-1}
-          onMouseDown={preventFocusLoss}
-          onClick={onOpenSnippetsPane}
-          className={`${BUTTON_CLASSES} gap-1.5`}
-          aria-label="Open snippets pane"
-          title="Open snippets pane"
-        >
-          <ScrollText className="h-4 w-4" aria-hidden="true" />
-          Snippets
-        </button>
       </div>
     </div>
   );

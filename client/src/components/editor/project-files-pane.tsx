@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Copy, FilePlus2, FileText, Lock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Copy, FilePlus2, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import {
@@ -26,6 +26,8 @@ function clampProjectFilesPaneWidth(width: number) {
   return Math.min(PROJECT_FILES_MAX_WIDTH, Math.max(PROJECT_FILES_MIN_WIDTH, width));
 }
 
+export type SidebarTab = "files" | "snippets";
+
 interface ProjectFilesPaneProps {
   fileIds: string[];
   activeFileId: string;
@@ -33,6 +35,11 @@ interface ProjectFilesPaneProps {
   isCollapsed: boolean;
   paneWidth: number;
   inlineRenameRequest: { fileId: string; key: number } | null;
+  sidebarTab: SidebarTab;
+  onSidebarTabChange: (tab: SidebarTab) => void;
+  /** Rendered in the pane body while the Snippets tab is selected. */
+  snippetsContent: ReactNode;
+  onCreateCustomSnippet: () => void;
   onCollapsedChange: (collapsed: boolean) => void;
   onPaneWidthChange: (width: number) => void;
   onAddProjectFile: () => void;
@@ -52,6 +59,10 @@ export function ProjectFilesPane({
   isCollapsed,
   paneWidth,
   inlineRenameRequest,
+  sidebarTab,
+  onSidebarTabChange,
+  snippetsContent,
+  onCreateCustomSnippet,
   onCollapsedChange,
   onPaneWidthChange,
   onAddProjectFile,
@@ -274,6 +285,63 @@ export function ProjectFilesPane({
     </Tooltip>
   );
 
+  const newSnippetButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCreateCustomSnippet}
+          className={iconButtonClass}
+          aria-label="New custom snippet"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">New custom snippet</TooltipContent>
+    </Tooltip>
+  );
+
+  const sidebarTabs: { tab: SidebarTab; label: string; Icon: typeof Files }[] = [
+    { tab: "files", label: "Files", Icon: Files },
+    { tab: "snippets", label: "Snippets", Icon: ScrollText },
+  ];
+
+  const renderSidebarTabButton = (
+    { tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files },
+    options: { size: "sm" | "lg"; tooltipSide: "bottom" | "right"; expandOnClick?: boolean },
+  ) => {
+    const isActive = sidebarTab === tab;
+    return (
+      <Tooltip key={tab}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-pressed={isActive}
+            aria-label={label}
+            title={label}
+            onClick={() => {
+              onSidebarTabChange(tab);
+              if (options.expandOnClick) onCollapsedChange(false);
+            }}
+            className={cn(
+              "flex items-center justify-center rounded text-text-secondary hover:bg-accent hover:text-text-emphasis",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+              options.size === "lg" ? "h-8 w-8" : "h-7 w-7",
+              isActive && "bg-accent text-text-emphasis",
+            )}
+          >
+            <Icon className={options.size === "lg" ? "h-4 w-4" : "h-3.5 w-3.5"} aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side={options.tooltipSide}>{label}</TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <aside
       className="group/pane relative flex shrink-0 flex-col bg-panel-bg"
@@ -289,7 +357,7 @@ export function ProjectFilesPane({
             onPointerCancel={handlePointerEnd}
             onMouseDown={handleMouseDown}
             onClick={handleHandleClick}
-            aria-label={isCollapsed ? "Project files divider: drag or click to show files" : "Project files divider: drag to resize or click to hide files"}
+            aria-label={isCollapsed ? "Sidebar divider: drag or click to show sidebar" : "Sidebar divider: drag to resize or click to hide sidebar"}
             aria-expanded={!isCollapsed}
             className="group absolute inset-y-0 -right-1.5 z-20 flex w-3 touch-none cursor-col-resize items-stretch justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
           >
@@ -297,7 +365,7 @@ export function ProjectFilesPane({
           </button>
         </TooltipTrigger>
         <TooltipContent side="right">
-          {isCollapsed ? "Drag or click to show files" : "Drag to resize; click to hide files"}
+          {isCollapsed ? "Drag or click to show sidebar" : "Drag to resize; click to hide sidebar"}
         </TooltipContent>
       </Tooltip>
 
@@ -311,23 +379,32 @@ export function ProjectFilesPane({
                 size="sm"
                 onClick={() => onCollapsedChange(false)}
                 className={cn(iconButtonClass, "h-8 w-8")}
-                aria-label="Show project files"
+                aria-label="Show sidebar"
                 aria-expanded={false}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Show project files</TooltipContent>
+            <TooltipContent side="right">Show sidebar</TooltipContent>
           </Tooltip>
+          <div role="tablist" aria-label="Sidebar" className="flex flex-col items-center gap-0.5">
+            {sidebarTabs.map((entry) => renderSidebarTabButton(entry, {
+              size: "lg",
+              tooltipSide: "right",
+              expandOnClick: true,
+            }))}
+          </div>
         </div>
       ) : (
         <>
-          <div className="flex h-9 shrink-0 items-center justify-between gap-2 pl-3 pr-2">
-            <span className="truncate text-[0.6875rem] font-semibold uppercase leading-4 tracking-[0.06em] text-text-secondary">
-              Files
-            </span>
+          <div className="flex h-9 shrink-0 items-center justify-between pl-1.5 pr-2">
+            <div role="tablist" aria-label="Sidebar" className="flex items-center gap-0.5">
+              {sidebarTabs.map((entry) => renderSidebarTabButton(entry, {
+                size: "sm",
+                tooltipSide: "bottom",
+              }))}
+            </div>
             <div className={cn("flex items-center gap-0.5", revealOnHoverClass)}>
-              {newFileButton}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -336,17 +413,27 @@ export function ProjectFilesPane({
                     size="sm"
                     onClick={() => onCollapsedChange(true)}
                     className={iconButtonClass}
-                    aria-label="Hide project files"
+                    aria-label="Hide sidebar"
                     aria-expanded={true}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Hide project files</TooltipContent>
+                <TooltipContent side="bottom">Hide sidebar</TooltipContent>
               </Tooltip>
             </div>
           </div>
 
+          <div className="flex h-8 shrink-0 items-center justify-between pl-3 pr-2">
+            <span className="text-[0.6875rem] font-semibold uppercase leading-4 tracking-[0.06em] text-text-secondary">
+              {sidebarTab === "files" ? "Files" : "Snippets"}
+            </span>
+            {sidebarTab === "files" ? newFileButton : newSnippetButton}
+          </div>
+
+          {sidebarTab === "snippets" ? (
+            <div className="min-h-0 flex-1">{snippetsContent}</div>
+          ) : (
           <div
             role="list"
             aria-label="Project files"
@@ -453,6 +540,7 @@ export function ProjectFilesPane({
               );
             })}
           </div>
+          )}
         </>
       )}
     </aside>

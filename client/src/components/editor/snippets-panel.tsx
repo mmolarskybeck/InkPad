@@ -1,4 +1,4 @@
-import { KeyboardEvent, useRef, useState } from "react";
+import { forwardRef, KeyboardEvent, useImperativeHandle, useRef, useState } from "react";
 import { ChevronRight, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,10 @@ export interface SnippetsPanelProps {
   onDeleteCustomSnippet: (snippet: CustomSnippet) => void;
 }
 
+export interface SnippetsPanelHandle {
+  focusSearch(): void;
+}
+
 function matchesQuery(snippet: InkSnippet, query: string): boolean {
   const needle = query.toLowerCase();
   if (snippet.label.toLowerCase().includes(needle)) return true;
@@ -34,20 +38,30 @@ function filterRank(snippet: InkSnippet, query: string): number {
   return 2;
 }
 
-export function SnippetsPanel({
+export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>(function SnippetsPanel({
   snippets,
   customSnippets,
-  showHeader = true,
+  showHeader = false,
   onInsertSnippet,
   onCreateCustomSnippet,
   onEditCustomSnippet,
   onDeleteCustomSnippet,
-}: SnippetsPanelProps) {
+}: SnippetsPanelProps, ref) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<SnippetCategory>>(
     () => new Set(snippets.map((snippet) => snippet.category)),
   );
   const bodyRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      const input = searchInputRef.current;
+      if (!input) return;
+      input.focus();
+      input.select();
+    },
+  }), []);
 
   const trimmedQuery = query.trim();
   const hasQuery = trimmedQuery.length > 0;
@@ -192,6 +206,7 @@ export function SnippetsPanel({
 
       <div className="shrink-0 border-b border-border-color p-2">
         <Input
+          ref={searchInputRef}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleSearchKeyDown}
@@ -246,4 +261,4 @@ export function SnippetsPanel({
       </div>
     </div>
   );
-}
+});

@@ -54,7 +54,7 @@ describe("preferences storage", () => {
     });
   });
 
-  it("migrates v3 records by defaulting the snippet toolbar on", () => {
+  it("migrates v3 records by defaulting the snippet toolbar off", () => {
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify({
       schemaVersion: 3,
       theme: "light",
@@ -71,9 +71,8 @@ describe("preferences storage", () => {
       previewFontSize: 18,
       previewTheme: "sepia",
       wordWrap: false,
-      showSnippetToolbar: true,
+      showSnippetToolbar: false,
       showVariablesInspector: true,
-      showSnippetsInspector: true,
     });
   });
 
@@ -85,7 +84,7 @@ describe("preferences storage", () => {
   });
 
   it("rejects a v4 record that is missing an inspector flag", () => {
-    const { showSnippetsInspector: _omitted, ...incomplete } = DEFAULT_USER_PREFERENCES;
+    const { showVariablesInspector: _omitted, ...incomplete } = DEFAULT_USER_PREFERENCES;
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(incomplete));
 
     expect(loadUserPreferences(storage)).toEqual(DEFAULT_USER_PREFERENCES);

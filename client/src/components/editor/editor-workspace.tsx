@@ -22,8 +22,8 @@ import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
 export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
 export type FocusedPanel = "code" | "preview" | null;
-export type DesktopDockTab = "problems" | "variables" | "snippets";
-export type DockSidePanelTab = "variables" | "snippets";
+export type DesktopDockTab = "problems" | "variables";
+export type DockSidePanelTab = "variables";
 export type DesktopBottomPanelHandle = ImperativePanelHandle;
 
 const MOBILE_SNIPPET_TAP_MOVE_THRESHOLD = 12;
@@ -76,20 +76,14 @@ interface EditorWorkspaceProps {
   mobileCodeTabMenu?: ReactNode;
   problemsPane: ReactNode;
   variablesPane: ReactNode;
-  snippetsPane: ReactNode;
   compactProblemsPane: ReactNode;
   compactVariablesPane: ReactNode;
-  compactSnippetsPane: ReactNode;
   mobileProblemsPane: ReactNode;
   mobileVariablesPane: ReactNode;
   problemCount: number;
   variableCount: number;
-  snippetCount: number;
   snippetToolbar?: ReactNode;
-  sidePanelTab: DockSidePanelTab;
-  onSidePanelTabChange: (tab: DockSidePanelTab) => void;
   showVariablesInspector: boolean;
-  showSnippetsInspector: boolean;
   onHideSidePanelTab: (tab: DockSidePanelTab) => void;
   onCreateCustomSnippet?: () => void;
   editorRef: RefObject<CodeMirrorEditorHandle>;
@@ -120,20 +114,14 @@ export function EditorWorkspace({
   mobileCodeTabMenu,
   problemsPane,
   variablesPane,
-  snippetsPane,
   compactProblemsPane,
   compactVariablesPane,
-  compactSnippetsPane,
   mobileProblemsPane,
   mobileVariablesPane,
   problemCount,
   variableCount,
-  snippetCount,
   snippetToolbar,
-  sidePanelTab,
-  onSidePanelTabChange,
   showVariablesInspector,
-  showSnippetsInspector,
   onHideSidePanelTab,
   onCreateCustomSnippet,
   editorRef,
@@ -181,16 +169,9 @@ export function EditorWorkspace({
   // its own tab state instead of sharing the side-panel one.
   const [narrowDockTab, setNarrowDockTab] = useState<DesktopDockTab>("problems");
 
-  const visibleSideTabs = useMemo(() => {
-    const tabs: DockSidePanelTab[] = [];
-    if (showVariablesInspector) tabs.push("variables");
-    if (showSnippetsInspector) tabs.push("snippets");
-    return tabs;
-  }, [showSnippetsInspector, showVariablesInspector]);
-  const effectiveSideTab = visibleSideTabs.includes(sidePanelTab) ? sidePanelTab : visibleSideTabs[0];
-  const narrowDockValue = narrowDockTab === "problems" || visibleSideTabs.includes(narrowDockTab)
-    ? narrowDockTab
-    : "problems";
+  const narrowDockValue = narrowDockTab === "variables" && !showVariablesInspector
+    ? "problems"
+    : narrowDockTab;
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -808,46 +789,33 @@ export function EditorWorkspace({
               <ResizablePanel defaultSize={70} minSize={40}>
                 {problemsPane}
               </ResizablePanel>
-              {visibleSideTabs.length > 0 && effectiveSideTab && (
+              {showVariablesInspector && (
                 <>
                   <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" />
                   <ResizablePanel defaultSize={30} minSize={20}>
                     <div className="flex h-full flex-col">
                       <div className="flex h-10 shrink-0 items-center justify-between border-b border-border-color bg-panel-bg pr-1">
-                        <Tabs
-                          value={effectiveSideTab}
-                          onValueChange={(value) => onSidePanelTabChange(value as DockSidePanelTab)}
-                          className="h-full min-w-0"
-                        >
+                        <Tabs value="variables" className="h-full min-w-0">
                           <TabsList className="flex h-full shrink-0 justify-start rounded-none bg-transparent p-0 text-text-secondary">
-                            {visibleSideTabs.includes("variables") && (
-                              <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
-                                <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                                Variables
-                                <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
-                              </TabsTrigger>
-                            )}
-                            {visibleSideTabs.includes("snippets") && (
-                              <TabsTrigger value="snippets" className={DOCK_TAB_TRIGGER_CLASSES}>
-                                <ScrollText className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                                Snippets
-                                <span className="ml-2 tabular-nums text-text-secondary">{snippetCount}</span>
-                              </TabsTrigger>
-                            )}
+                            <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
+                              <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                              Variables
+                              <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
+                            </TabsTrigger>
                           </TabsList>
                         </Tabs>
                         <button
                           type="button"
-                          onClick={() => onHideSidePanelTab(effectiveSideTab)}
+                          onClick={() => onHideSidePanelTab("variables")}
                           className={DOCK_HIDE_BUTTON_CLASSES}
-                          aria-label={`Hide ${effectiveSideTab} inspector`}
+                          aria-label="Hide variables inspector"
                           title="Hide (re-enable in Settings)"
                         >
                           <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
                       </div>
                       <div className="min-h-0 flex-1">
-                        {effectiveSideTab === "variables" ? compactVariablesPane : compactSnippetsPane}
+                        {compactVariablesPane}
                       </div>
                     </div>
                   </ResizablePanel>
@@ -873,13 +841,6 @@ export function EditorWorkspace({
                   <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
                 </TabsTrigger>
               )}
-              {showSnippetsInspector && (
-                <TabsTrigger value="snippets" className={DOCK_TAB_TRIGGER_CLASSES}>
-                  <ScrollText className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                  Snippets
-                  <span className="ml-2 tabular-nums text-text-secondary">{snippetCount}</span>
-                </TabsTrigger>
-              )}
               {narrowDockValue !== "problems" && (
                 <button
                   type="button"
@@ -897,9 +858,6 @@ export function EditorWorkspace({
             </TabsContent>
             <TabsContent value="variables" className="m-0 min-h-0 flex-1">
               {compactVariablesPane}
-            </TabsContent>
-            <TabsContent value="snippets" className="m-0 min-h-0 flex-1">
-              {compactSnippetsPane}
             </TabsContent>
           </Tabs>
         </section>

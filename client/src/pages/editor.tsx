@@ -13,6 +13,7 @@ import { VariableInspector } from "@/components/editor/variable-inspector";
 import {
   ProjectFilesPane,
   PROJECT_FILES_DEFAULT_WIDTH,
+  type SidebarTab,
 } from "@/components/editor/project-files-pane";
 import {
   EditorWorkspace,
@@ -22,7 +23,7 @@ import {
   type MobileDrawer,
   type MobileTab,
 } from "@/components/editor/editor-workspace";
-import { SnippetsPanel } from "@/components/editor/snippets-panel";
+import { SnippetsPanel, type SnippetsPanelHandle } from "@/components/editor/snippets-panel";
 import { SnippetToolbar } from "@/components/editor/snippet-toolbar";
 import { CustomSnippetDialog } from "@/components/editor/custom-snippet-dialog";
 import { Button } from "@/components/ui/button";
@@ -447,7 +448,7 @@ export default function Editor() {
     isPhoneViewport() ? "preview" : "code"
   ));
   const [mobileDrawer, setMobileDrawer] = useState<MobileDrawer>(null);
-  const [sidePanelTab, setSidePanelTab] = useState<DockSidePanelTab>("variables");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("files");
   const [customSnippetDialog, setCustomSnippetDialog] = useState<CustomSnippetDialogState>({
     open: false,
   });
@@ -468,6 +469,7 @@ export default function Editor() {
   });
 
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
+  const snippetsPanelRef = useRef<SnippetsPanelHandle>(null);
   const desktopBottomPanelRef = useRef<DesktopBottomPanelHandle>(null);
   const previousProjectIdRef = useRef(currentProject.id);
   const isMobile = useIsMobile();
@@ -1632,19 +1634,9 @@ export default function Editor() {
     editorRef.current?.insertTextAtCursor(insert);
   }, []);
 
-  const handleOpenSnippetsPane = useCallback(() => {
-    if (!preferences.showSnippetsInspector) {
-      updatePreferences({ showSnippetsInspector: true });
-    }
-    setSidePanelTab("snippets");
-    desktopBottomPanelRef.current?.expand();
-  }, [preferences.showSnippetsInspector, updatePreferences]);
-
-  const handleHideSidePanelTab = useCallback((tab: DockSidePanelTab) => {
-    updatePreferences({
-      [tab === "variables" ? "showVariablesInspector" : "showSnippetsInspector"]: false,
-    });
-    toast(`${tab === "variables" ? "Variables" : "Snippets"} inspector hidden`, {
+  const handleHideSidePanelTab = useCallback((_tab: DockSidePanelTab) => {
+    updatePreferences({ showVariablesInspector: false });
+    toast("Variables inspector hidden", {
       description: "Turn it back on in Settings → Editor.",
     });
   }, [updatePreferences]);
@@ -1753,6 +1745,18 @@ export default function Editor() {
       </DropdownMenuItem>
     </DropdownMenuContent>
   );
+  const snippetsSidebarContent = (
+    <SnippetsPanel
+      ref={snippetsPanelRef}
+      snippets={snippetLibrary.snippets}
+      customSnippets={snippetLibrary.customSnippets}
+      onInsertSnippet={handleInsertSnippet}
+      onCreateCustomSnippet={handleCreateCustomSnippet}
+      onEditCustomSnippet={handleEditCustomSnippet}
+      onDeleteCustomSnippet={setCustomSnippetToDelete}
+    />
+  );
+
   const editorPane = (
     <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
       {!isMobile && (
@@ -1763,6 +1767,10 @@ export default function Editor() {
           isCollapsed={isProjectFilesCollapsed}
           paneWidth={projectFilesPaneWidth}
           inlineRenameRequest={inlineRenameRequest}
+          sidebarTab={sidebarTab}
+          onSidebarTabChange={setSidebarTab}
+          snippetsContent={snippetsSidebarContent}
+          onCreateCustomSnippet={handleCreateCustomSnippet}
           onCollapsedChange={setIsProjectFilesCollapsed}
           onPaneWidthChange={setProjectFilesPaneWidth}
           onAddProjectFile={handleAddProjectFile}
@@ -1802,8 +1810,8 @@ export default function Editor() {
               onClick={() => updatePreferences({ showSnippetToolbar: !preferences.showSnippetToolbar })}
               aria-pressed={preferences.showSnippetToolbar}
               className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis aria-pressed:text-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
-              aria-label="Toggle snippet toolbar"
-              title="Snippet toolbar"
+              aria-label="Toggle quick insert bar"
+              title="Quick insert bar"
             >
               <ScrollText className="h-3.5 w-3.5" />
             </button>
@@ -1869,35 +1877,11 @@ export default function Editor() {
   const variablesPane = <VariableInspector variables={variables} compileFailed={compileStatus === "error"} />;
   const compactVariablesPane = <VariableInspector variables={variables} showHeader={false} compileFailed={compileStatus === "error"} />;
 
-  const snippetsPane = (
-    <SnippetsPanel
-      snippets={snippetLibrary.snippets}
-      customSnippets={snippetLibrary.customSnippets}
-      onInsertSnippet={handleInsertSnippet}
-      onCreateCustomSnippet={handleCreateCustomSnippet}
-      onEditCustomSnippet={handleEditCustomSnippet}
-      onDeleteCustomSnippet={setCustomSnippetToDelete}
-    />
-  );
-
-  const compactSnippetsPane = (
-    <SnippetsPanel
-      snippets={snippetLibrary.snippets}
-      customSnippets={snippetLibrary.customSnippets}
-      showHeader={false}
-      onInsertSnippet={handleInsertSnippet}
-      onCreateCustomSnippet={handleCreateCustomSnippet}
-      onEditCustomSnippet={handleEditCustomSnippet}
-      onDeleteCustomSnippet={setCustomSnippetToDelete}
-    />
-  );
-
   const snippetToolbar = !isMobile && preferences.showSnippetToolbar ? (
     <SnippetToolbar
       snippets={snippetLibrary.snippets}
       onInsertSyntax={handleInsertSyntax}
       onInsertSnippet={handleInsertSnippet}
-      onOpenSnippetsPane={handleOpenSnippetsPane}
     />
   ) : null;
 
@@ -2238,20 +2222,14 @@ export default function Editor() {
         mobileCodeTabMenu={mobileCodeTabMenu}
         problemsPane={problemsPane}
         variablesPane={variablesPane}
-        snippetsPane={snippetsPane}
         compactProblemsPane={compactProblemsPane}
         compactVariablesPane={compactVariablesPane}
-        compactSnippetsPane={compactSnippetsPane}
         mobileProblemsPane={mobileProblemsPane}
         mobileVariablesPane={compactVariablesPane}
         problemCount={errorCount + warningCount}
         variableCount={variables.length}
-        snippetCount={snippetLibrary.snippets.length}
         snippetToolbar={snippetToolbar}
-        sidePanelTab={sidePanelTab}
-        onSidePanelTabChange={setSidePanelTab}
         showVariablesInspector={preferences.showVariablesInspector}
-        showSnippetsInspector={preferences.showSnippetsInspector}
         onHideSidePanelTab={handleHideSidePanelTab}
         onCreateCustomSnippet={handleCreateCustomSnippet}
         editorRef={editorRef}

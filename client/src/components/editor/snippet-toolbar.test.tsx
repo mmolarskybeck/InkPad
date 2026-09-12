@@ -10,7 +10,6 @@ function renderToolbar(overrides: Partial<Parameters<typeof SnippetToolbar>[0]> 
     snippets: INK_SNIPPETS,
     onInsertSyntax: vi.fn(),
     onInsertSnippet: vi.fn(),
-    onOpenSnippetsPane: vi.fn(),
     ...overrides,
   };
   render(<SnippetToolbar {...props} />);
@@ -50,13 +49,6 @@ describe("SnippetToolbar", () => {
 
     expect(screen.queryByRole("button", { name: "Insert Knot snippet" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Insert Choice snippet" })).toBeInTheDocument();
-  });
-
-  it("calls the pane callback", async () => {
-    const { onOpenSnippetsPane } = renderToolbar();
-
-    await userEvent.click(screen.getByRole("button", { name: "Open snippets pane" }));
-    expect(onOpenSnippetsPane).toHaveBeenCalledOnce();
   });
 
   it("moves focus with the arrow keys and keeps one tab stop", async () => {

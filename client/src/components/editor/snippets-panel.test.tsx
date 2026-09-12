@@ -147,6 +147,7 @@ describe("SnippetsPanel", () => {
       <SnippetsPanel
         snippets={allSnippets}
         customSnippets={[customSnippet]}
+        showHeader
         onInsertSnippet={noop}
         onCreateCustomSnippet={onCreateCustomSnippet}
         onEditCustomSnippet={noop}
