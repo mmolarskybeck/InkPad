@@ -149,6 +149,43 @@ describe("useEditorDocumentActions", () => {
     expect(FileOperations.loadFile("Better Novel.inkpad")?.content).toBe(serializedProject);
   });
 
+  it("rolls back a partial rename so the same name can be retried", async () => {
+    await FileOperations.saveFile("story.ink", currentDocument.source);
+    const deleteSpy = vi.spyOn(FileOperations, "deleteFileDurably").mockResolvedValueOnce(false);
+
+    const { result } = renderHook(() => useEditorDocumentActions({
+      currentDocument,
+      setCurrentDocument: vi.fn(),
+      setRecentFiles: vi.fn(),
+      recoveredAt: null,
+      setRecoveredAt: vi.fn(),
+      setIsRecoveryBannerDismissed: vi.fn(),
+      autosave,
+      getCurrentSource: vi.fn(() => currentDocument.source),
+      cancelPendingRecoveryDraft: vi.fn(),
+      resetBufferedSource: vi.fn(),
+      compileLive: vi.fn(),
+      stopStory: vi.fn(),
+    }));
+
+    act(() => result.current.openFileActionDialog("rename", "story.ink"));
+    await act(async () => {
+      await result.current.handleConfirmFileAction("Renamed");
+    });
+
+    expect(FileOperations.loadFile("story.ink")?.content).toBe(currentDocument.source);
+    expect(FileOperations.loadFile("Renamed.ink")).toBeNull();
+
+    await act(async () => {
+      await result.current.handleConfirmFileAction("Renamed");
+    });
+
+    expect(FileOperations.loadFile("story.ink")).toBeNull();
+    expect(FileOperations.loadFile("Renamed.ink")?.content).toBe(currentDocument.source);
+    expect(FileOperations.loadFile("Renamed-2.ink")).toBeNull();
+    deleteSpy.mockRestore();
+  });
+
   it("saves active multi-file project copies as .inkpad without flattening to the active ink file", async () => {
     const project = createSingleFileProject({
       id: "project-1",

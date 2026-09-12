@@ -445,10 +445,17 @@ export function useEditorDocumentActions({
     const currentSource = getCurrentSource();
     const storedSettings = getStoredSettings(currentDocument);
     await FileOperations.saveFile(nextFilename, currentSource, storedSettings);
-    cancelPendingRecoveryDraft();
     if (nextFilename !== sourceName && FileOperations.fileExists(sourceName)) {
-      FileOperations.deleteFile(sourceName);
+      const removed = await FileOperations.deleteFileDurably(sourceName);
+      if (!removed) {
+        const rolledBack = await FileOperations.deleteFileDurably(nextFilename);
+        if (!rolledBack) {
+          throw new Error(`Could not retire "${sourceName}", and the partial copy "${nextFilename}" could not be removed.`);
+        }
+        throw new Error(`Could not remove "${sourceName}" from project storage. The rename was rolled back.`);
+      }
     }
+    cancelPendingRecoveryDraft();
     FileOperations.clearRecoveryDraft(sourceName);
     applyLoadedDocument(nextFilename, currentSource, Date.now(), storedSettings);
     return { nextFilename, sourceName };

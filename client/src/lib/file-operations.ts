@@ -13,6 +13,8 @@ const LEGACY_FILE_STORAGE_PREFIX = 'inkpad_';
 
 const PROJECT_STORE_CHANNEL = "inkpad/project-store";
 
+type StorageAvailability = { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null };
+
 function getProjectFileCount(content: string): number | null {
   try {
     return Object.keys(parseInkProject(content).files).length;
@@ -37,7 +39,7 @@ export class FileOperations {
   private static cache = new Map<string, StoredInkDocument>();
   private static initPromise: Promise<void> | null = null;
   private static ready = false;
-  private static availability: { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null } = { available: false, reason: 'unavailable' };
+  private static availability: StorageAvailability = { available: false, reason: 'unavailable' };
   private static writeQueue: Promise<void> = Promise.resolve();
   private static listeners = new Set<() => void>();
   private static channel: BroadcastChannel | null = null;
@@ -57,17 +59,19 @@ export class FileOperations {
   private static async doInit(): Promise<void> {
     try {
       // a. Probe localStorage. A failure here is recorded but must not stop
-      // IndexedDB from serving as the durable store.
+      // IndexedDB from serving as the durable store; the active-file and
+      // recovery-draft keys are conveniences, not the project store.
       const testKey = '__inkpad_storage_test__';
+      let localAvailability: StorageAvailability;
       try {
         localStorage.setItem(testKey, '1');
         localStorage.removeItem(testKey);
-        this.availability = { available: true, reason: null };
+        localAvailability = { available: true, reason: null };
       } catch (error) {
         if (error instanceof Error && error.name === 'QuotaExceededError') {
-          this.availability = { available: false, reason: 'quota-exceeded' };
+          localAvailability = { available: false, reason: 'quota-exceeded' };
         } else {
-          this.availability = { available: false, reason: 'unavailable' };
+          localAvailability = { available: false, reason: 'unavailable' };
         }
       }
 
@@ -90,6 +94,8 @@ export class FileOperations {
           if (await this.migrateFromLocalStorage(idb)) {
             chosen = idb;
             this.backend = idb;
+            // Project storage is durable regardless of the localStorage probe.
+            this.availability = { available: true, reason: null };
           }
         } catch (error) {
           console.warn("IndexedDB unavailable, falling back to localStorage", error);
@@ -101,6 +107,7 @@ export class FileOperations {
         const local = new LocalStorageBackend();
         await local.open();
         this.backend = local;
+        this.availability = localAvailability;
       }
 
       // d. Hydrate the in-memory cache.
@@ -127,31 +134,65 @@ export class FileOperations {
     }
   }
 
-  /** Returns false when legacy documents exist but could not be migrated. */
+  /**
+   * Returns false when legacy documents exist but could not be migrated.
+   *
+   * Documents and snapshots are reconciled independently so that a retry after
+   * a partially completed migration still carries over whatever is missing, and
+   * the legacy keys are only cleared after every document and snapshot has been
+   * read back from IndexedDB.
+   */
   private static async migrateFromLocalStorage(target: IndexedDbBackend): Promise<boolean> {
+    const source = new LocalStorageBackend();
+    let legacyDocs: StoredInkDocument[];
+    let legacySnapshots: Map<string, Snapshot[]>;
     try {
-      const source = new LocalStorageBackend();
       await source.open();
-
-      const legacyDocs = await source.loadAllFiles();
-      if (legacyDocs.length === 0) {
-        return true;
+      legacyDocs = await source.loadAllFiles();
+      legacySnapshots = new Map();
+      for (const doc of legacyDocs) {
+        legacySnapshots.set(doc.name, await source.listSnapshots(doc.name));
       }
+    } catch (error) {
+      // localStorage cannot be read at all, so there is nothing to migrate.
+      console.warn("Legacy localStorage store unreadable; skipping migration:", error);
+      return true;
+    }
 
+    if (legacyDocs.length === 0) {
+      return true;
+    }
+
+    try {
       const existing = new Map((await target.loadAllFiles()).map(d => [d.name, d]));
 
       for (const doc of legacyDocs) {
         const current = existing.get(doc.name);
-        if (current && current.lastModified >= doc.lastModified) {
-          continue;
+        if (!current || current.lastModified < doc.lastModified) {
+          await target.putFile(doc);
         }
-        await target.putFile(doc);
-        for (const snapshot of await source.listSnapshots(doc.name)) {
-          await target.putSnapshot(doc.name, snapshot);
+        const present = new Set((await target.listSnapshots(doc.name)).map(s => s.timestamp));
+        for (const snapshot of legacySnapshots.get(doc.name) ?? []) {
+          if (!present.has(snapshot.timestamp)) {
+            await target.putSnapshot(doc.name, snapshot);
+          }
         }
       }
 
-      // Only drop the legacy keys once every document made it across.
+      // Verify by reading back before touching the legacy keys.
+      const migrated = new Set((await target.loadAllFiles()).map(d => d.name));
+      for (const doc of legacyDocs) {
+        if (!migrated.has(doc.name)) {
+          throw new Error(`Document "${doc.name}" missing from IndexedDB after migration`);
+        }
+        const present = new Set((await target.listSnapshots(doc.name)).map(s => s.timestamp));
+        for (const snapshot of legacySnapshots.get(doc.name) ?? []) {
+          if (!present.has(snapshot.timestamp)) {
+            throw new Error(`Snapshot ${snapshot.timestamp} of "${doc.name}" missing from IndexedDB after migration`);
+          }
+        }
+      }
+
       await source.clear();
       return true;
     } catch (error) {
@@ -265,7 +306,7 @@ export class FileOperations {
   // Public API
   // ---------------------------------------------------------------------------
 
-  static checkAvailability(): { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null } {
+  static checkAvailability(): StorageAvailability {
     return this.availability;
   }
 
@@ -370,7 +411,12 @@ export class FileOperations {
   }
 
   static getActiveFileName(): string | null {
-    return localStorage.getItem(this.ACTIVE_FILE_KEY);
+    try {
+      return localStorage.getItem(this.ACTIVE_FILE_KEY);
+    } catch (error) {
+      console.warn('Failed to read active file:', error);
+      return null;
+    }
   }
 
   static loadActiveFile(): StoredInkDocument | null {
@@ -436,7 +482,13 @@ export class FileOperations {
   }
 
   static loadRecoveryDraft(): RecoveryDraft | null {
-    const data = localStorage.getItem(this.RECOVERY_DRAFT_KEY);
+    let data: string | null;
+    try {
+      data = localStorage.getItem(this.RECOVERY_DRAFT_KEY);
+    } catch (error) {
+      console.warn('Failed to read recovery draft:', error);
+      return null;
+    }
     if (!data) return null;
 
     try {
@@ -469,35 +521,72 @@ export class FileOperations {
       .sort((a, b) => b.lastModified - a.lastModified);
   }
 
+  /**
+   * Optimistically removes a document from the cache and queues the durable
+   * delete. Returns false synchronously when the document does not exist.
+   * Use {@link deleteFileDurably} to await the backend result.
+   */
   static deleteFile(fileName: string): boolean {
-    this.assertReady();
-    if (!this.cache.has(fileName)) {
+    return this.startDelete(fileName) !== null;
+  }
+
+  /** Like {@link deleteFile}, but resolves only once the delete is durable. */
+  static async deleteFileDurably(fileName: string): Promise<boolean> {
+    const pending = this.startDelete(fileName);
+    if (!pending) return false;
+    try {
+      await pending;
+      return true;
+    } catch {
       return false;
+    }
+  }
+
+  private static startDelete(fileName: string): Promise<void> | null {
+    this.assertReady();
+    const previous = this.cache.get(fileName);
+    if (!previous) {
+      return null;
     }
 
     this.cache.delete(fileName);
-
-    void this.enqueue(async () => {
-      const b = this.requireBackend();
-      await b.deleteFile(fileName);
-      await b.deleteAllSnapshots(fileName);
-    }).catch(e => console.error('Failed to delete file from storage:', e));
 
     if (this.getActiveFileName() === fileName) {
       const nextFile = this.getAllFiles()[0]?.name;
       if (nextFile) {
         this.setActiveFile(nextFile);
       } else {
-        localStorage.removeItem(this.ACTIVE_FILE_KEY);
+        try {
+          localStorage.removeItem(this.ACTIVE_FILE_KEY);
+        } catch (error) {
+          console.warn('Failed to clear active file:', error);
+        }
       }
     }
 
     this.clearRecoveryDraft(fileName);
-
-    this.broadcast(fileName);
     this.notify();
 
-    return true;
+    const pending = this.enqueue(async () => {
+      const b = this.requireBackend();
+      // Snapshots first: if this fails the document is still durable, so the
+      // in-memory restore below reflects what survives a reload.
+      await b.deleteAllSnapshots(fileName);
+      await b.deleteFile(fileName);
+    });
+    pending.then(
+      // Other tabs reload from the backend, so only tell them once it is gone.
+      () => this.broadcast(fileName),
+      (error) => {
+        console.error('Failed to delete file from storage:', error);
+        // Restore the optimistic removal unless a newer save re-created the name.
+        if (!this.cache.has(fileName)) {
+          this.cache.set(fileName, previous);
+          this.notify();
+        }
+      },
+    );
+    return pending;
   }
 
   static async duplicateFile(sourceName: string, requestedName?: string): Promise<StoredInkDocument | null> {
@@ -514,6 +603,8 @@ export class FileOperations {
   static async renameFile(oldName: string, newName: string, migrateSnapshots = false): Promise<boolean> {
     const fileData = this.loadFile(oldName);
     if (!fileData) return false;
+    if (oldName === newName) return true;
+    const destinationAlreadyExisted = this.fileExists(newName);
 
     try {
       // Save under new name
@@ -529,10 +620,18 @@ export class FileOperations {
         });
       }
 
-      // Delete old file and its snapshots
-      this.deleteFile(oldName);
-
-      return true;
+      // Delete old file and its snapshots. The backend removes the document
+      // last, so a failure means the old copy is still durable. Roll back the
+      // destination we just created so the same rename can be retried without
+      // colliding with a partial copy.
+      const removedOldFile = await this.deleteFileDurably(oldName);
+      if (!removedOldFile && !destinationAlreadyExisted) {
+        const rolledBackDestination = await this.deleteFileDurably(newName);
+        if (!rolledBackDestination) {
+          console.error(`Failed to roll back partial rename destination "${newName}"`);
+        }
+      }
+      return removedOldFile;
     } catch (error) {
       console.error('Error renaming file:', error);
       return false;

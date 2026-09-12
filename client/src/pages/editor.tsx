@@ -650,11 +650,19 @@ export default function Editor() {
   ) => {
     const previousKey = lastStorageKeyRef.current;
     await FileOperations.saveFile(filename, content, settings);
+    let retiredPreviousKey = true;
     if (previousKey && previousKey !== filename && FileOperations.fileExists(previousKey)) {
-      FileOperations.deleteFile(previousKey);
-      FileOperations.clearRecoveryDraft(previousKey);
+      retiredPreviousKey = await FileOperations.deleteFileDurably(previousKey);
+      if (retiredPreviousKey) {
+        FileOperations.clearRecoveryDraft(previousKey);
+      } else {
+        console.warn(`Could not retire previous storage key "${previousKey}"; will retry on next save.`);
+      }
     }
-    lastStorageKeyRef.current = filename;
+    // Keep pointing at the old key when retirement failed so the next save retries it.
+    if (retiredPreviousKey) {
+      lastStorageKeyRef.current = filename;
+    }
     cancelPendingRecoveryDraft();
     FileOperations.clearRecoveryDraft(currentDocument.filename);
     if (filename !== currentDocument.filename) {
@@ -1234,7 +1242,14 @@ export default function Editor() {
         title: trimmed,
       });
       if (nextStorageName !== fileName) {
-        FileOperations.deleteFile(fileName);
+        const removed = await FileOperations.deleteFileDurably(fileName);
+        if (!removed) {
+          const rolledBack = await FileOperations.deleteFileDurably(nextStorageName);
+          if (!rolledBack) {
+            throw new Error(`Could not retire ${fileName}, and the partial copy ${nextStorageName} could not be removed.`);
+          }
+          throw new Error(`${fileName} could not be renamed. The partial copy was removed.`);
+        }
       }
       setRecentFiles(FileOperations.getAllFiles());
       return;
