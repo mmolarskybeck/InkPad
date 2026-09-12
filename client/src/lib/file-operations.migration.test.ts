@@ -319,4 +319,78 @@ describe("FileOperations durable delete", () => {
     await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(true);
     expect(FileOperations.loadFile("old.ink")).toBeNull();
   });
+
+  it("renameFile stores replacement content and settings under the new name", async () => {
+    await FileOperations.saveFile("old.ink", "stored", { title: "Old" });
+    await FileOperations.flush();
+
+    await expect(FileOperations.renameFile("old.ink", "new.ink", {
+      content: "live buffer",
+      settings: { title: "New" },
+    })).resolves.toBe(true);
+    await FileOperations.flush();
+
+    expect(FileOperations.loadFile("new.ink")).toMatchObject({ content: "live buffer", settings: { title: "New" } });
+    expect(FileOperations.loadFile("old.ink")).toBeNull();
+  });
+
+  describe("renameFile active-file pointer", () => {
+    const failNextDelete = () =>
+      vi.spyOn(IndexedDbBackend.prototype, "deleteFile").mockRejectedValueOnce(new Error("disk"));
+
+    it("follows the renamed file when it was active", async () => {
+      await FileOperations.saveFile("other.ink", "o");
+      await FileOperations.saveFile("old.ink", "x");
+      await FileOperations.flush();
+      expect(FileOperations.getActiveFileName()).toBe("old.ink");
+
+      await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(true);
+      expect(FileOperations.getActiveFileName()).toBe("new.ink");
+    });
+
+    it("keeps the old name active when the rename rolls back", async () => {
+      // "other" is the most recently modified file, so a naive delete would
+      // repoint at it instead of the document the user was editing.
+      await FileOperations.saveFile("old.ink", "x");
+      await FileOperations.saveFile("other.ink", "o");
+      FileOperations.setActiveFile("old.ink");
+      await FileOperations.flush();
+      failNextDelete();
+
+      await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(false);
+      expect(FileOperations.loadFile("old.ink")?.content).toBe("x");
+      expect(FileOperations.loadFile("new.ink")).toBeNull();
+      expect(FileOperations.getActiveFileName()).toBe("old.ink");
+    });
+
+    it("leaves another active file alone on success", async () => {
+      await FileOperations.saveFile("old.ink", "x");
+      await FileOperations.saveFile("active.ink", "a");
+      await FileOperations.flush();
+
+      await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(true);
+      expect(FileOperations.getActiveFileName()).toBe("active.ink");
+    });
+
+    it("leaves another active file alone when the rename rolls back", async () => {
+      await FileOperations.saveFile("old.ink", "x");
+      await FileOperations.saveFile("active.ink", "a");
+      await FileOperations.flush();
+      failNextDelete();
+
+      await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(false);
+      expect(FileOperations.getActiveFileName()).toBe("active.ink");
+    });
+
+    it("does not make anything active when nothing was", async () => {
+      await FileOperations.saveFile("old.ink", "x");
+      await FileOperations.flush();
+      // Documents live in IndexedDB; localStorage only holds the pointer here.
+      localStorage.clear();
+      expect(FileOperations.getActiveFileName()).toBeNull();
+
+      await expect(FileOperations.renameFile("old.ink", "new.ink")).resolves.toBe(true);
+      expect(FileOperations.getActiveFileName()).toBeNull();
+    });
+  });
 });

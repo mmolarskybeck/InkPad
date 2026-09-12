@@ -2,6 +2,15 @@ import { simpleHash } from "@/lib/string-hash";
 import { parseInkProject } from "@/lib/ink-project";
 
 export type { StoredStorySettings, StoredInkDocument, RecoveryDraft, Snapshot } from "@/lib/project-store/backend";
+
+export interface RenameFileOptions {
+  /** Content to store under the new name; defaults to the source document's content. */
+  content?: string;
+  /** Settings to store under the new name; defaults to the source document's settings. */
+  settings?: StoredStorySettings;
+  /** Copy the source's snapshots to the new name before retiring it. */
+  migrateSnapshots?: boolean;
+}
 import type { Snapshot, StorageBackend, StoredInkDocument, StoredStorySettings, RecoveryDraft } from "@/lib/project-store/backend";
 import { IndexedDbBackend, isIndexedDbAvailable } from "@/lib/project-store/indexeddb-backend";
 import { LocalStorageBackend } from "@/lib/project-store/localstorage-backend";
@@ -315,6 +324,20 @@ export class FileOperations {
     source: string,
     settings?: StoredStorySettings,
   ): Promise<void> {
+    await this.writeFile(filename, source, settings, { setActive: true });
+  }
+
+  /**
+   * Persists a document. `setActive` controls whether the saved name becomes
+   * the remembered active file; rename owns that decision itself so that
+   * renaming a background file never steals the pointer.
+   */
+  private static async writeFile(
+    filename: string,
+    source: string,
+    settings: StoredStorySettings | undefined,
+    { setActive }: { setActive: boolean },
+  ): Promise<void> {
     const now = Date.now();
     const sourceHash = simpleHash(source);
 
@@ -331,7 +354,7 @@ export class FileOperations {
       && !contentChanged
       && settingsUnchanged
     ) {
-      this.setActiveFile(filename);
+      if (setActive) this.setActiveFile(filename);
       return; // No change, skip save
     }
 
@@ -345,7 +368,7 @@ export class FileOperations {
 
     const previous = existingDocument;
     this.cache.set(filename, storedDocument);
-    this.setActiveFile(filename);
+    if (setActive) this.setActiveFile(filename);
     await this.enqueue(async () => {
       const backend = this.requireBackend();
       if (previous && contentChanged) {
@@ -600,19 +623,42 @@ export class FileOperations {
   }
 
   // Rename a file (move to new key, optionally migrate snapshots)
-  static async renameFile(oldName: string, newName: string, migrateSnapshots = false): Promise<boolean> {
+  /**
+   * Moves a document to a new name, optionally replacing its content and
+   * settings on the way (project renames rewrite the serialized project).
+   *
+   * Active-file rule:
+   * - the renamed file was active: success points at the new name, failure
+   *   leaves the old name active;
+   * - another file was active: it stays active either way;
+   * - nothing was active: nothing becomes active.
+   *
+   * The backend removes the old document last, so a failed retirement means
+   * the old copy is still durable. The destination created here is then rolled
+   * back so the same rename can be retried without colliding with a partial
+   * copy. Returns false when the source is missing or the rename did not
+   * complete.
+   */
+  static async renameFile(
+    oldName: string,
+    newName: string,
+    options: RenameFileOptions = {},
+  ): Promise<boolean> {
     const fileData = this.loadFile(oldName);
     if (!fileData) return false;
     if (oldName === newName) return true;
     const destinationAlreadyExisted = this.fileExists(newName);
+    const sourceWasActive = this.getActiveFileName() === oldName;
+    const content = options.content ?? fileData.content;
+    const settings = options.settings ?? fileData.settings;
 
     try {
-      // Save under new name
-      fileData.name = newName;
-      await this.saveFile(newName, fileData.content, fileData.settings);
+      await this.writeFile(newName, content, settings, { setActive: false });
+      // Point at the copy before retiring the source so a reload mid-rename
+      // opens this document rather than whatever the delete would pick.
+      if (sourceWasActive) this.setActiveFile(newName);
 
-      // Optionally migrate snapshots
-      if (migrateSnapshots) {
+      if (options.migrateSnapshots) {
         await this.enqueue(async () => {
           const b = this.requireBackend();
           const snaps = await b.listSnapshots(oldName);
@@ -620,20 +666,20 @@ export class FileOperations {
         });
       }
 
-      // Delete old file and its snapshots. The backend removes the document
-      // last, so a failure means the old copy is still durable. Roll back the
-      // destination we just created so the same rename can be retried without
-      // colliding with a partial copy.
       const removedOldFile = await this.deleteFileDurably(oldName);
-      if (!removedOldFile && !destinationAlreadyExisted) {
+      if (removedOldFile) return true;
+
+      if (!destinationAlreadyExisted) {
         const rolledBackDestination = await this.deleteFileDurably(newName);
         if (!rolledBackDestination) {
           console.error(`Failed to roll back partial rename destination "${newName}"`);
         }
       }
-      return removedOldFile;
+      if (sourceWasActive) this.setActiveFile(oldName);
+      return false;
     } catch (error) {
       console.error('Error renaming file:', error);
+      if (sourceWasActive) this.setActiveFile(oldName);
       return false;
     }
   }

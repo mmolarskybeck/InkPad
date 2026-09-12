@@ -1237,18 +1237,17 @@ export default function Editor() {
       if (FileOperations.getAvailableFileName(nextStorageName, fileName) !== nextStorageName) {
         throw new Error(`${nextStorageName} already exists.`);
       }
-      await FileOperations.saveFile(nextStorageName, JSON.stringify(nextProject, null, 2), {
-        ...stored.settings,
-        title: trimmed,
-      });
-      if (nextStorageName !== fileName) {
-        const removed = await FileOperations.deleteFileDurably(fileName);
-        if (!removed) {
-          const rolledBack = await FileOperations.deleteFileDurably(nextStorageName);
-          if (!rolledBack) {
-            throw new Error(`Could not retire ${fileName}, and the partial copy ${nextStorageName} could not be removed.`);
-          }
-          throw new Error(`${fileName} could not be renamed. The partial copy was removed.`);
+      const nextContent = JSON.stringify(nextProject, null, 2);
+      const nextSettings = { ...stored.settings, title: trimmed };
+      if (nextStorageName === fileName) {
+        await FileOperations.saveFile(nextStorageName, nextContent, nextSettings);
+      } else {
+        const renamed = await FileOperations.renameFile(fileName, nextStorageName, {
+          content: nextContent,
+          settings: nextSettings,
+        });
+        if (!renamed) {
+          throw new Error(`${fileName} could not be renamed. The rename was rolled back.`);
         }
       }
       setRecentFiles(FileOperations.getAllFiles());
@@ -1260,16 +1259,12 @@ export default function Editor() {
     if (FileOperations.getAvailableFileName(nextFileName, fileName) !== nextFileName) {
       throw new Error(`${nextFileName} already exists.`);
     }
-    const renamed = await FileOperations.renameFile(fileName, nextFileName, true);
+    const renamed = await FileOperations.renameFile(fileName, nextFileName, {
+      migrateSnapshots: true,
+      settings: { ...stored.settings, title: trimmed },
+    });
     if (!renamed) {
       throw new Error(`${fileName} could not be renamed.`);
-    }
-    const renamedFile = FileOperations.loadFile(nextFileName);
-    if (renamedFile) {
-      await FileOperations.saveFile(nextFileName, renamedFile.content, {
-        ...renamedFile.settings,
-        title: trimmed,
-      });
     }
     setRecentFiles(FileOperations.getAllFiles());
   }, [

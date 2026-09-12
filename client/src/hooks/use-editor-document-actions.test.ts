@@ -175,6 +175,7 @@ describe("useEditorDocumentActions", () => {
 
     expect(FileOperations.loadFile("story.ink")?.content).toBe(currentDocument.source);
     expect(FileOperations.loadFile("Renamed.ink")).toBeNull();
+    expect(FileOperations.getActiveFileName()).toBe("story.ink");
 
     await act(async () => {
       await result.current.handleConfirmFileAction("Renamed");
@@ -183,6 +184,7 @@ describe("useEditorDocumentActions", () => {
     expect(FileOperations.loadFile("story.ink")).toBeNull();
     expect(FileOperations.loadFile("Renamed.ink")?.content).toBe(currentDocument.source);
     expect(FileOperations.loadFile("Renamed-2.ink")).toBeNull();
+    expect(FileOperations.getActiveFileName()).toBe("Renamed.ink");
     deleteSpy.mockRestore();
   });
 

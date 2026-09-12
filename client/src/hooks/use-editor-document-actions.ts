@@ -444,16 +444,18 @@ export function useEditorDocumentActions({
     const nextFilename = FileOperations.getAvailableFileName(requestedFilename, sourceName);
     const currentSource = getCurrentSource();
     const storedSettings = getStoredSettings(currentDocument);
-    await FileOperations.saveFile(nextFilename, currentSource, storedSettings);
     if (nextFilename !== sourceName && FileOperations.fileExists(sourceName)) {
-      const removed = await FileOperations.deleteFileDurably(sourceName);
-      if (!removed) {
-        const rolledBack = await FileOperations.deleteFileDurably(nextFilename);
-        if (!rolledBack) {
-          throw new Error(`Could not retire "${sourceName}", and the partial copy "${nextFilename}" could not be removed.`);
-        }
+      // The open buffer may be newer than the stored copy, so the rename
+      // carries the live content across instead of the stored one.
+      const renamed = await FileOperations.renameFile(sourceName, nextFilename, {
+        content: currentSource,
+        settings: storedSettings,
+      });
+      if (!renamed) {
         throw new Error(`Could not remove "${sourceName}" from project storage. The rename was rolled back.`);
       }
+    } else {
+      await FileOperations.saveFile(nextFilename, currentSource, storedSettings);
     }
     cancelPendingRecoveryDraft();
     FileOperations.clearRecoveryDraft(sourceName);
@@ -514,7 +516,7 @@ export function useEditorDocumentActions({
         await renameCurrentDocument(requestedFilename);
       } else {
         const nextFilename = FileOperations.getAvailableFileName(requestedFilename, sourceName);
-        const renamed = await FileOperations.renameFile(sourceName, nextFilename, true);
+        const renamed = await FileOperations.renameFile(sourceName, nextFilename, { migrateSnapshots: true });
         if (!renamed) throw new Error(`${sourceName} could not be renamed.`);
         setRecentFiles(FileOperations.getAllFiles());
       }

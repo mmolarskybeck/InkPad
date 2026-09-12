@@ -99,7 +99,7 @@ describe("FileOperations document lifecycle", () => {
   it("renames a file and preserves its content", async () => {
     await FileOperations.saveFile("old.ink", "content");
 
-    expect(await FileOperations.renameFile("old.ink", "new.ink", true)).toBe(true);
+    expect(await FileOperations.renameFile("old.ink", "new.ink", { migrateSnapshots: true })).toBe(true);
     await FileOperations.flush();
     expect(FileOperations.loadFile("old.ink")).toBeNull();
     expect(FileOperations.loadFile("new.ink")?.content).toBe("content");
