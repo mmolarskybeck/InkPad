@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { SquarePlus } from "lucide-react";
+import { Pencil, Plus, SquarePlus, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
@@ -14,11 +14,17 @@ import {
 import { SYNTAX_INSERTS, SYNTAX_LABELS } from "@/features/snippets/syntax-inserts";
 import { groupSnippetsByCategory, type InkSnippet, type SnippetCategory } from "@/features/snippets/ink-snippets";
 import type { CodeMirrorEditorInsertOptions } from "@/components/editor/codemirror-editor";
+import type { CustomSnippet } from "@/features/snippets/custom-snippets";
 
 export interface InsertPaletteProps {
   snippets: InkSnippet[];
   onInsertSyntax: (insert: CodeMirrorEditorInsertOptions) => void;
   onInsertSnippet: (snippet: InkSnippet) => void;
+  /** The user's own snippets; the Custom category offers New / Edit / Delete for these. */
+  customSnippets: CustomSnippet[];
+  onCreateCustomSnippet: () => void;
+  onEditCustomSnippet: (snippet: CustomSnippet) => void;
+  onDeleteCustomSnippet: (snippet: CustomSnippet) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -27,6 +33,9 @@ export interface InsertPaletteProps {
 type Category = "Syntax" | SnippetCategory;
 
 const SYNTAX_CATEGORY: Category = "Syntax";
+const CUSTOM_CATEGORY: Category = "Custom";
+const NEW_CUSTOM_VALUE = "custom:new";
+const NEW_CUSTOM_DESCRIPTION = "Save a snippet of your own. Custom snippets live in this browser.";
 const STORAGE_KEY = "inkpad:insert-palette-category";
 const KEYBOARD_HINT = "↑↓ navigate · ↵ insert";
 
@@ -62,6 +71,10 @@ export function InsertPalette({
   snippets,
   onInsertSyntax,
   onInsertSnippet,
+  customSnippets,
+  onCreateCustomSnippet,
+  onEditCustomSnippet,
+  onDeleteCustomSnippet,
   open,
   onOpenChange,
 }: InsertPaletteProps) {
@@ -72,15 +85,26 @@ export function InsertPalette({
   const pendingInsert = useRef<(() => void) | null>(null);
 
   const groups = useMemo(() => groupSnippetsByCategory(snippets), [snippets]);
+  const customById = useMemo(
+    () => new Map(customSnippets.map((snippet) => [snippet.id, snippet])),
+    [customSnippets],
+  );
 
-  /** Rail rows, in display order: Syntax first, then the snippet groups. */
-  const rail = useMemo(
-    () => [
+  /**
+   * Rail rows, in display order: Syntax first, then the snippet groups. Custom
+   * is always present (even when empty) so the "New custom snippet…" row has a
+   * home.
+   */
+  const rail = useMemo(() => {
+    const rows = [
       { category: SYNTAX_CATEGORY, count: SYNTAX_INSERTS.length },
       ...groups.map((group) => ({ category: group.category as Category, count: group.snippets.length })),
-    ],
-    [groups],
-  );
+    ];
+    if (!rows.some((row) => row.category === CUSTOM_CATEGORY)) {
+      rows.push({ category: CUSTOM_CATEGORY, count: 0 });
+    }
+    return rows;
+  }, [groups]);
 
   /** Description text for the footer, keyed by the cmdk value of each row. */
   const descriptions = useMemo(() => {
@@ -91,6 +115,7 @@ export function InsertPalette({
     for (const snippet of snippets) {
       map.set(`snippet:${snippet.id}`, snippet.description);
     }
+    map.set(NEW_CUSTOM_VALUE, NEW_CUSTOM_DESCRIPTION);
     return map;
   }, [snippets]);
 
@@ -108,7 +133,8 @@ export function InsertPalette({
         return SYNTAX_INSERTS.length > 0 ? syntaxValue(SYNTAX_INSERTS[0].label) : "";
       }
       const group = groups.find((item) => item.category === next);
-      return group && group.snippets.length > 0 ? `snippet:${group.snippets[0].id}` : "";
+      if (group && group.snippets.length > 0) return `snippet:${group.snippets[0].id}`;
+      return next === CUSTOM_CATEGORY ? NEW_CUSTOM_VALUE : "";
     },
     [groups],
   );
@@ -142,6 +168,23 @@ export function InsertPalette({
     pendingInsert.current = () => onInsertSnippet(snippet);
     onOpenChange(false);
   }, [onInsertSnippet, onOpenChange]);
+
+  // Managing custom snippets opens a dialog, which the popover must yield to
+  // first; run the action once the popover has closed, like an insert.
+  const handleCreateCustom = useCallback(() => {
+    pendingInsert.current = onCreateCustomSnippet;
+    onOpenChange(false);
+  }, [onCreateCustomSnippet, onOpenChange]);
+
+  const handleEditCustom = useCallback((snippet: CustomSnippet) => {
+    pendingInsert.current = () => onEditCustomSnippet(snippet);
+    onOpenChange(false);
+  }, [onEditCustomSnippet, onOpenChange]);
+
+  const handleDeleteCustom = useCallback((snippet: CustomSnippet) => {
+    pendingInsert.current = () => onDeleteCustomSnippet(snippet);
+    onOpenChange(false);
+  }, [onDeleteCustomSnippet, onOpenChange]);
 
   // Radix would otherwise return focus to the trigger button on close; we
   // want it to land back in the editor at the caret the writer was at, which
@@ -210,20 +253,78 @@ export function InsertPalette({
     </CommandItem>
   ));
 
-  const renderSnippetItems = (items: InkSnippet[]) => items.map((snippet) => (
+  const rowActionClass =
+    "flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-text-secondary hover:bg-editor-bg hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  /* Edit / Delete stay quiet until the row is highlighted (always visible on touch). */
+  const rowActionsClass =
+    "flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-data-[selected=true]/row:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(pointer:coarse)]:opacity-100";
+
+  const renderSnippetItems = (items: InkSnippet[]) => items.map((snippet) => {
+    const custom = customById.get(snippet.id);
+    return (
+      <CommandItem
+        key={snippet.id}
+        value={`snippet:${snippet.id}`}
+        keywords={snippetKeywords(snippet)}
+        className="group/row h-8 gap-2 px-2.5"
+        onSelect={() => handleSelectSnippet(snippet)}
+      >
+        <span className="flex-1 truncate font-medium text-text-emphasis">{snippet.label}</span>
+        {snippet.aliases[0] && (
+          <span className="shrink-0 font-mono text-[0.75rem] text-text-secondary">{snippet.aliases[0]}</span>
+        )}
+        {custom && (
+          <span className={rowActionsClass}>
+            <button
+              type="button"
+              className={rowActionClass}
+              aria-label={`Edit ${snippet.label}`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleEditCustom(custom);
+              }}
+            >
+              <Pencil className="!size-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={rowActionClass}
+              aria-label={`Delete ${snippet.label}`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleDeleteCustom(custom);
+              }}
+            >
+              <Trash2 className="!size-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        )}
+      </CommandItem>
+    );
+  });
+
+  const renderNewCustomItem = () => (
     <CommandItem
-      key={snippet.id}
-      value={`snippet:${snippet.id}`}
-      keywords={snippetKeywords(snippet)}
+      key={NEW_CUSTOM_VALUE}
+      value={NEW_CUSTOM_VALUE}
+      keywords={["new", "custom", "snippet", "create"]}
       className="h-8 gap-2 px-2.5"
-      onSelect={() => handleSelectSnippet(snippet)}
+      onSelect={handleCreateCustom}
     >
-      <span className="flex-1 truncate font-medium text-text-emphasis">{snippet.label}</span>
-      {snippet.aliases[0] && (
-        <span className="shrink-0 font-mono text-[0.75rem] text-text-secondary">{snippet.aliases[0]}</span>
-      )}
+      <Plus className="!size-3.5 text-text-secondary" aria-hidden="true" />
+      <span className="flex-1 truncate text-text-emphasis">New custom snippet…</span>
     </CommandItem>
-  ));
+  );
+
+  const renderCustomItems = () => (
+    <>
+      {renderSnippetItems(categorySnippets)}
+      {renderNewCustomItem()}
+    </>
+  );
 
   const footerText = descriptions.get(highlighted) ?? KEYBOARD_HINT;
 
@@ -251,6 +352,7 @@ export function InsertPalette({
       <PopoverContent
         side="bottom"
         align="end"
+        collisionPadding={12}
         className="w-[30rem] border-border-color bg-panel-bg p-0 shadow-lg"
         onCloseAutoFocus={handleCloseAutoFocus}
       >
@@ -268,7 +370,13 @@ export function InsertPalette({
             placeholder="Search snippets and syntax…"
           />
 
-          <div className="flex h-[18rem] overflow-hidden">
+          {/*
+            Just tall enough for every rail row (Syntax + 8 categories at 2rem each,
+            plus padding) so Custom never needs a scroll; shrinks to fit the
+            viewport when the window is short. 5.5rem covers the input, footer
+            and borders around this body.
+          */}
+          <div className="flex h-[19rem] max-h-[calc(var(--radix-popover-content-available-height)-5.5rem)] min-h-[8rem] overflow-hidden">
             {!isSearching && (
               <div
                 aria-label="Categories"
@@ -305,12 +413,20 @@ export function InsertPalette({
                   {groups.map((group) => (
                     <CommandGroup key={group.category} heading={group.category}>
                       {renderSnippetItems(group.snippets)}
+                      {group.category === CUSTOM_CATEGORY && renderNewCustomItem()}
                     </CommandGroup>
                   ))}
+                  {!groups.some((group) => group.category === CUSTOM_CATEGORY) && (
+                    <CommandGroup heading="Custom">{renderNewCustomItem()}</CommandGroup>
+                  )}
                 </>
               ) : (
                 <CommandGroup>
-                  {category === SYNTAX_CATEGORY ? renderSyntaxItems() : renderSnippetItems(categorySnippets)}
+                  {category === SYNTAX_CATEGORY
+                    ? renderSyntaxItems()
+                    : category === CUSTOM_CATEGORY
+                      ? renderCustomItems()
+                      : renderSnippetItems(categorySnippets)}
                 </CommandGroup>
               )}
             </CommandList>

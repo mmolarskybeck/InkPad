@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { Copy, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import { Copy, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import {
@@ -26,8 +26,6 @@ function clampProjectFilesPaneWidth(width: number) {
   return Math.min(PROJECT_FILES_MAX_WIDTH, Math.max(PROJECT_FILES_MIN_WIDTH, width));
 }
 
-export type SidebarTab = "files" | "snippets";
-
 interface ProjectFilesPaneProps {
   fileIds: string[];
   activeFileId: string;
@@ -35,11 +33,6 @@ interface ProjectFilesPaneProps {
   isCollapsed: boolean;
   paneWidth: number;
   inlineRenameRequest: { fileId: string; key: number } | null;
-  sidebarTab: SidebarTab;
-  onSidebarTabChange: (tab: SidebarTab) => void;
-  /** Rendered in the pane body while the Snippets tab is selected. */
-  snippetsContent: ReactNode;
-  onCreateCustomSnippet: () => void;
   onCollapsedChange: (collapsed: boolean) => void;
   onPaneWidthChange: (width: number) => void;
   onAddProjectFile: () => void;
@@ -59,10 +52,6 @@ export function ProjectFilesPane({
   isCollapsed,
   paneWidth,
   inlineRenameRequest,
-  sidebarTab,
-  onSidebarTabChange,
-  snippetsContent,
-  onCreateCustomSnippet,
   onCollapsedChange,
   onPaneWidthChange,
   onAddProjectFile,
@@ -263,10 +252,6 @@ export function ProjectFilesPane({
 
   const iconButtonClass =
     "h-6 w-6 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg";
-  /* Header actions stay quiet until the pane is hovered or focused (always visible on touch). */
-  const revealOnHoverClass =
-    "opacity-0 transition-opacity duration-150 group-hover/pane:opacity-100 group-focus-within/pane:opacity-100 motion-reduce:transition-none [@media(pointer:coarse)]:opacity-100";
-
   const newFileButton = (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -285,80 +270,10 @@ export function ProjectFilesPane({
     </Tooltip>
   );
 
-  const newSnippetButton = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onCreateCustomSnippet}
-          className={iconButtonClass}
-          aria-label="New custom snippet"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">New custom snippet</TooltipContent>
-    </Tooltip>
+  const filesTabClass = cn(
+    "relative flex h-full shrink-0 items-center gap-1.5 px-2 text-[0.8125rem] font-medium text-text-emphasis",
+    "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent-blue",
   );
-
-  const sidebarTabs: { tab: SidebarTab; label: string; Icon: typeof Files }[] = [
-    { tab: "files", label: "Files", Icon: Files },
-    { tab: "snippets", label: "Snippets", Icon: ScrollText },
-  ];
-
-  /* Collapsed rail: icon-only buttons; clicking expands the pane to that tab. */
-  const renderRailTabButton = ({ tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files }) => {
-    const isActive = sidebarTab === tab;
-    return (
-      <Tooltip key={tab}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            aria-label={label}
-            onClick={() => {
-              onSidebarTabChange(tab);
-              onCollapsedChange(false);
-            }}
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:bg-accent hover:text-text-emphasis",
-              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-              isActive && "bg-accent text-text-emphasis",
-            )}
-          >
-            <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
-      </Tooltip>
-    );
-  };
-
-  /* Expanded header: underline tabs, same vocabulary as the Problems/Variables dock. */
-  const renderHeaderTab = ({ tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files }) => {
-    const isActive = sidebarTab === tab;
-    return (
-      <button
-        key={tab}
-        type="button"
-        role="tab"
-        aria-selected={isActive}
-        onClick={() => onSidebarTabChange(tab)}
-        className={cn(
-          "relative flex h-full shrink-0 items-center gap-1.5 px-2 text-[0.8125rem] font-medium text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:text-text-emphasis",
-          "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent after:transition-colors after:duration-150 motion-reduce:after:transition-none",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
-          isActive && "text-text-emphasis after:bg-accent-blue",
-        )}
-      >
-        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-        {label}
-      </button>
-    );
-  };
 
   return (
     <aside
@@ -389,22 +304,34 @@ export function ProjectFilesPane({
 
       {isCollapsed ? (
         <div className="flex min-h-0 flex-1 flex-col items-center px-1.5 py-2">
-          <div role="tablist" aria-label="Sidebar" aria-orientation="vertical" className="flex flex-col items-center gap-0.5">
-            {sidebarTabs.map(renderRailTabButton)}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Show files"
+                aria-expanded={false}
+                onClick={() => onCollapsedChange(false)}
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:bg-accent hover:text-text-emphasis",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+                )}
+              >
+                <Files className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Show files</TooltipContent>
+          </Tooltip>
         </div>
       ) : (
         <>
           <div className="flex h-11 shrink-0 items-center justify-between gap-1 border-b border-border-color pl-1 pr-1.5">
-            <div role="tablist" aria-label="Sidebar" className="flex h-full min-w-0 items-center">
-              {sidebarTabs.map(renderHeaderTab)}
-            </div>
-            {sidebarTab === "files" ? newFileButton : newSnippetButton}
+            <h2 className={filesTabClass}>
+              <Files className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+              Files
+            </h2>
+            {newFileButton}
           </div>
 
-          {sidebarTab === "snippets" ? (
-            <div className="min-h-0 flex-1">{snippetsContent}</div>
-          ) : (
           <div
             role="list"
             aria-label="Project files"
@@ -511,7 +438,6 @@ export function ProjectFilesPane({
               );
             })}
           </div>
-          )}
         </>
       )}
     </aside>

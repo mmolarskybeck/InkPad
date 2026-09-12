@@ -13,7 +13,6 @@ import { VariableInspector } from "@/components/editor/variable-inspector";
 import {
   ProjectFilesPane,
   PROJECT_FILES_DEFAULT_WIDTH,
-  type SidebarTab,
 } from "@/components/editor/project-files-pane";
 import {
   EditorWorkspace,
@@ -23,7 +22,6 @@ import {
   type MobileDrawer,
   type MobileTab,
 } from "@/components/editor/editor-workspace";
-import { SnippetsPanel, type SnippetsPanelHandle } from "@/components/editor/snippets-panel";
 import { InsertPalette } from "@/components/editor/insert-palette";
 import { CustomSnippetDialog } from "@/components/editor/custom-snippet-dialog";
 import { Button } from "@/components/ui/button";
@@ -448,7 +446,6 @@ export default function Editor() {
     isPhoneViewport() ? "preview" : "code"
   ));
   const [mobileDrawer, setMobileDrawer] = useState<MobileDrawer>(null);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("files");
   const [customSnippetDialog, setCustomSnippetDialog] = useState<CustomSnippetDialogState>({
     open: false,
   });
@@ -470,7 +467,6 @@ export default function Editor() {
   });
 
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
-  const snippetsPanelRef = useRef<SnippetsPanelHandle>(null);
   const desktopBottomPanelRef = useRef<DesktopBottomPanelHandle>(null);
   const previousProjectIdRef = useRef(currentProject.id);
   const isMobile = useIsMobile();
@@ -1746,18 +1742,6 @@ export default function Editor() {
       </DropdownMenuItem>
     </DropdownMenuContent>
   );
-  const snippetsSidebarContent = (
-    <SnippetsPanel
-      ref={snippetsPanelRef}
-      snippets={snippetLibrary.snippets}
-      customSnippets={snippetLibrary.customSnippets}
-      onInsertSnippet={handleInsertSnippet}
-      onCreateCustomSnippet={handleCreateCustomSnippet}
-      onEditCustomSnippet={handleEditCustomSnippet}
-      onDeleteCustomSnippet={setCustomSnippetToDelete}
-    />
-  );
-
   const editorPane = (
     <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
       {!isMobile && (
@@ -1768,10 +1752,6 @@ export default function Editor() {
           isCollapsed={isProjectFilesCollapsed}
           paneWidth={projectFilesPaneWidth}
           inlineRenameRequest={inlineRenameRequest}
-          sidebarTab={sidebarTab}
-          onSidebarTabChange={setSidebarTab}
-          snippetsContent={snippetsSidebarContent}
-          onCreateCustomSnippet={handleCreateCustomSnippet}
           onCollapsedChange={setIsProjectFilesCollapsed}
           onPaneWidthChange={setProjectFilesPaneWidth}
           onAddProjectFile={handleAddProjectFile}
@@ -1811,6 +1791,10 @@ export default function Editor() {
                 snippets={snippetLibrary.snippets}
                 onInsertSyntax={handleInsertSyntax}
                 onInsertSnippet={handleInsertSnippet}
+                customSnippets={snippetLibrary.customSnippets}
+                onCreateCustomSnippet={handleCreateCustomSnippet}
+                onEditCustomSnippet={handleEditCustomSnippet}
+                onDeleteCustomSnippet={setCustomSnippetToDelete}
                 open={insertPaletteOpen}
                 onOpenChange={setInsertPaletteOpen}
               />

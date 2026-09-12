@@ -93,7 +93,7 @@ InkPad compiles and runs ink client-side using inkjs in a Web Worker, so stories
 
 InkPad’s next planned work keeps the app local-first and account-free:
 
-- Ink-aware code completion and a code snippet panel
+- Ink-aware code completion and an Insert palette for snippets and syntax (⌘⇧I), with your own custom snippets
 - Shareable, immutable project snapshot links
 - Mobile project-file navigation and project persistence hardening
 

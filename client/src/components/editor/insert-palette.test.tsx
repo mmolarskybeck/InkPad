@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InsertPalette, type InsertPaletteProps } from "./insert-palette";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InkSnippet } from "@/features/snippets/ink-snippets";
+import type { CustomSnippet } from "@/features/snippets/custom-snippets";
 
 // Labels are deliberately distinct from the SYNTAX_LABELS values ("Divert",
 // "Choice", "Knot", etc.) so text queries in these tests are unambiguous.
@@ -41,6 +42,29 @@ const choicesSnippet: InkSnippet = {
   description: "A choice the player can pick once.",
 };
 
+const customSnippet: CustomSnippet = {
+  id: "custom-1",
+  label: "Sigh line",
+  body: "She sighed. ${1:Then what?}",
+  aliases: ["sigh"],
+  description: "A weary beat before the next line.",
+  context: "flow",
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+const customInkSnippet: InkSnippet = {
+  id: customSnippet.id,
+  label: customSnippet.label,
+  category: "Custom",
+  context: "flow",
+  aliases: customSnippet.aliases,
+  desktopSnippet: customSnippet.body,
+  mobileInsert: "She sighed. [Then what?]",
+  description: customSnippet.description,
+  source: "custom",
+};
+
 const allSnippets = [structureSnippet, flowSnippet, choicesSnippet];
 
 const STORAGE_KEY = "inkpad:insert-palette-category";
@@ -52,6 +76,10 @@ function TestHarness(props: Partial<InsertPaletteProps>) {
       snippets={allSnippets}
       onInsertSyntax={vi.fn()}
       onInsertSnippet={vi.fn()}
+      customSnippets={[]}
+      onCreateCustomSnippet={vi.fn()}
+      onEditCustomSnippet={vi.fn()}
+      onDeleteCustomSnippet={vi.fn()}
       {...props}
       open={open}
       onOpenChange={(next) => {
@@ -66,6 +94,9 @@ function renderPalette(overrides: Partial<InsertPaletteProps> = {}) {
   const onInsertSyntax = overrides.onInsertSyntax ?? vi.fn();
   const onInsertSnippet = overrides.onInsertSnippet ?? vi.fn();
   const onOpenChange = overrides.onOpenChange ?? vi.fn();
+  const onCreateCustomSnippet = overrides.onCreateCustomSnippet ?? vi.fn();
+  const onEditCustomSnippet = overrides.onEditCustomSnippet ?? vi.fn();
+  const onDeleteCustomSnippet = overrides.onDeleteCustomSnippet ?? vi.fn();
   render(
     <TooltipProvider>
       <TestHarness
@@ -73,10 +104,13 @@ function renderPalette(overrides: Partial<InsertPaletteProps> = {}) {
         onInsertSyntax={onInsertSyntax}
         onInsertSnippet={onInsertSnippet}
         onOpenChange={onOpenChange}
+        onCreateCustomSnippet={onCreateCustomSnippet}
+        onEditCustomSnippet={onEditCustomSnippet}
+        onDeleteCustomSnippet={onDeleteCustomSnippet}
       />
     </TooltipProvider>,
   );
-  return { onInsertSyntax, onInsertSnippet, onOpenChange };
+  return { onInsertSyntax, onInsertSnippet, onOpenChange, onCreateCustomSnippet, onEditCustomSnippet, onDeleteCustomSnippet };
 }
 
 function input() {
@@ -157,8 +191,13 @@ describe("InsertPalette", () => {
     await userEvent.keyboard("{ArrowRight}");
     expect(selectedCategory()).toHaveTextContent("Flow");
 
-    // Back to Structure, then wrap past Syntax to the last rail row.
+    // Back to Structure, then wrap past Syntax to the last rail row (Custom,
+    // which is always present), then one more step back to Choices.
     await userEvent.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    expect(selectedCategory()).toHaveTextContent("Custom");
+    expect(await screen.findByText("New custom snippet…")).toBeInTheDocument();
+
+    await userEvent.keyboard("{ArrowLeft}");
     expect(selectedCategory()).toHaveTextContent("Choices");
     expect(await screen.findByText("Add option")).toBeInTheDocument();
   });
@@ -242,6 +281,58 @@ describe("InsertPalette", () => {
 
     expect(selectedCategory()).toHaveTextContent("Syntax");
     expect(screen.getByText("Divert")).toBeInTheDocument();
+  });
+
+  it("always offers a Custom category with a New row, even when empty", async () => {
+    const { onCreateCustomSnippet, onOpenChange } = renderPalette();
+
+    expect(railRow(/^Custom/)).toHaveTextContent("0");
+    await userEvent.click(railRow(/^Custom/));
+    await userEvent.click(await screen.findByText("New custom snippet…"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onCreateCustomSnippet).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists custom snippets with Edit and Delete actions", async () => {
+    const { onEditCustomSnippet, onDeleteCustomSnippet, onInsertSnippet } = renderPalette({
+      snippets: [...allSnippets, customInkSnippet],
+      customSnippets: [customSnippet],
+    });
+
+    expect(railRow(/^Custom/)).toHaveTextContent("1");
+    await userEvent.click(railRow(/^Custom/));
+    expect(await screen.findByText("Sigh line")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit Sigh line" }));
+    expect(onEditCustomSnippet).toHaveBeenCalledWith(customSnippet);
+    expect(onInsertSnippet).not.toHaveBeenCalled();
+  });
+
+  it("asks to delete a custom snippet without inserting it", async () => {
+    const { onDeleteCustomSnippet, onInsertSnippet } = renderPalette({
+      snippets: [...allSnippets, customInkSnippet],
+      customSnippets: [customSnippet],
+    });
+
+    await userEvent.type(input(), "sigh");
+    expect(await screen.findByText("Sigh line")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete Sigh line" }));
+    expect(onDeleteCustomSnippet).toHaveBeenCalledWith(customSnippet);
+    expect(onInsertSnippet).not.toHaveBeenCalled();
+  });
+
+  it("still inserts a custom snippet from its row", async () => {
+    const { onInsertSnippet } = renderPalette({
+      snippets: [...allSnippets, customInkSnippet],
+      customSnippets: [customSnippet],
+    });
+
+    await userEvent.click(railRow(/^Custom/));
+    await userEvent.click(await screen.findByText("Sigh line"));
+
+    expect(onInsertSnippet).toHaveBeenCalledWith(customInkSnippet);
   });
 
   it("toggles with Cmd+Shift+I", async () => {
