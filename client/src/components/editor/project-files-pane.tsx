@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { Copy, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import { Copy, FileText, Files, Lock, MoreHorizontal, PanelLeftClose, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import {
@@ -26,12 +26,25 @@ function clampProjectFilesPaneWidth(width: number) {
   return Math.min(PROJECT_FILES_MAX_WIDTH, Math.max(PROJECT_FILES_MIN_WIDTH, width));
 }
 
+/** How the pane presents itself in the editor pane's layout. */
+export type ProjectFilesPresentation = "inline" | "drawer";
+
 interface ProjectFilesPaneProps {
   fileIds: string[];
   activeFileId: string;
   entryFileId: string;
   isCollapsed: boolean;
   paneWidth: number;
+  /**
+   * "inline" (default) is the resizable, collapsible sidebar. "drawer" keeps
+   * only the 44px rail in the layout and floats the file list over the editor
+   * when opened — used when the editor pane is too narrow to give the sidebar
+   * horizontal space. The caller owns `isDrawerOpen` separately from
+   * `isCollapsed` so the inline preference survives a trip through drawer mode.
+   */
+  presentation?: ProjectFilesPresentation;
+  isDrawerOpen?: boolean;
+  onDrawerOpenChange?: (open: boolean) => void;
   inlineRenameRequest: { fileId: string; key: number } | null;
   onCollapsedChange: (collapsed: boolean) => void;
   onPaneWidthChange: (width: number) => void;
@@ -51,6 +64,9 @@ export function ProjectFilesPane({
   entryFileId,
   isCollapsed,
   paneWidth,
+  presentation = "inline",
+  isDrawerOpen = false,
+  onDrawerOpenChange,
   inlineRenameRequest,
   onCollapsedChange,
   onPaneWidthChange,
@@ -71,10 +87,60 @@ export function ProjectFilesPane({
   const handleCleanupRef = useRef<(() => void) | null>(null);
   const suppressHandleClickRef = useRef(false);
   const suppressMenuRestoreFocusRef = useRef(false);
+  const railButtonRef = useRef<HTMLButtonElement | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const wasDrawerOpenRef = useRef(false);
+
+  const isDrawer = presentation === "drawer";
 
   useEffect(() => () => {
     handleCleanupRef.current?.();
   }, []);
+
+  const closeDrawer = useCallback(() => {
+    onDrawerOpenChange?.(false);
+  }, [onDrawerOpenChange]);
+
+  // Focus follows the drawer: into it on open, back to the rail toggle on close.
+  // The open move is deferred a frame because the panel is still
+  // `visibility: hidden` (and so unfocusable) on the commit that opens it.
+  useEffect(() => {
+    if (!isDrawer) {
+      wasDrawerOpenRef.current = false;
+      return;
+    }
+
+    if (isDrawerOpen && !wasDrawerOpenRef.current) {
+      wasDrawerOpenRef.current = true;
+      // Two frames: the first is still mid-`visibility` transition, where the
+      // panel cannot take focus yet.
+      let inner = 0;
+      const frame = window.requestAnimationFrame(() => {
+        inner = window.requestAnimationFrame(() => drawerRef.current?.focus());
+      });
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.cancelAnimationFrame(inner);
+      };
+    }
+
+    if (!isDrawerOpen && wasDrawerOpenRef.current) {
+      wasDrawerOpenRef.current = false;
+      railButtonRef.current?.focus();
+    }
+  }, [isDrawer, isDrawerOpen]);
+
+  /** Escape closes the drawer from anywhere inside it or from the rail toggle. */
+  const handleDrawerEscape = useCallback((event: ReactKeyboardEvent) => {
+    if (event.key !== "Escape" || !isDrawerOpen) return;
+    event.stopPropagation();
+    closeDrawer();
+  }, [closeDrawer, isDrawerOpen]);
+
+  const handleOpenFile = useCallback((fileId: string) => {
+    onOpenProjectFile(fileId);
+    if (isDrawer) closeDrawer();
+  }, [closeDrawer, isDrawer, onOpenProjectFile]);
 
   const updateHandleDrag = useCallback((clientX: number) => {
     const drag = handleDragRef.current;
@@ -275,6 +341,216 @@ export function ProjectFilesPane({
     "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent-blue",
   );
 
+  // Drawer mode covers the rail while open, so the header carries the only
+  // pointer affordance for closing it again.
+  const closeDrawerButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={closeDrawer}
+          className={iconButtonClass}
+          aria-label="Close files"
+        >
+          <PanelLeftClose className="h-3.5 w-3.5" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Close files</TooltipContent>
+    </Tooltip>
+  );
+
+  const filesContent = (
+    <>
+      <div className="flex h-11 shrink-0 items-center justify-between gap-1 border-b border-border-color pl-1 pr-1.5">
+        <h2 className={filesTabClass}>
+          <Files className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+          Files
+        </h2>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {newFileButton}
+          {isDrawer && closeDrawerButton}
+        </div>
+      </div>
+
+      <div
+        role="list"
+        aria-label="Project files"
+        className="min-h-0 flex-1 overflow-auto pb-2"
+      >
+        {fileIds.map((fileId) => {
+          const isActive = fileId === activeFileId;
+          const isEntry = fileId === entryFileId;
+          return (
+            <div
+              key={fileId}
+              role="listitem"
+              className="group relative [&:has(:focus-visible)]:bg-accent/60"
+              onKeyDownCapture={(event) => {
+                if (event.key !== "F2" || (event.target as HTMLElement).closest("input")) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onRequestRenameProjectFile(fileId);
+              }}
+            >
+              <ContextMenu>
+              <ContextMenuTrigger asChild>
+              <div
+                aria-current={isActive ? "page" : undefined}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("input")) return;
+                  handleOpenFile(fileId);
+                }}
+                className={cn(
+                  "flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 pl-3 pr-1.5 text-[0.8125rem] text-text-primary transition-colors duration-150 motion-reduce:transition-none",
+                  "hover:bg-accent/60 hover:text-text-emphasis",
+                  isActive && "bg-accent text-text-emphasis hover:bg-accent",
+                )}
+                title={fileId}
+              >
+                <FileText
+                  aria-hidden="true"
+                  className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent-blue" : "text-text-secondary")}
+                />
+                {isActive && <span className="sr-only">Current file</span>}
+                <EditableTitle
+                  title={fileId}
+                  onTitleChange={(nextName) => onRenameProjectFile(fileId, nextName)}
+                  editTrigger="double-click"
+                  editRequestKey={inlineRenameRequest?.fileId === fileId ? inlineRenameRequest.key : undefined}
+                  ariaLabel={`Rename ${fileId}`}
+                  placeholder="File path..."
+                  fallbackTitle={fileId}
+                  normalizeValue={(value) => value.trim() || fileId}
+                  showEditIcon={false}
+                  className="h-7 min-w-0 flex-1 cursor-pointer justify-start px-0 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg md:px-0"
+                  inputClassName="h-6 font-sans text-[0.8125rem]"
+                  textClassName={cn(
+                    "font-sans text-[0.8125rem] leading-5 text-text-primary",
+                    isActive && "text-text-emphasis",
+                  )}
+                />
+                {isEntry && fileIds.length > 1 && (
+                  <span className="shrink-0 text-[0.6875rem] leading-none text-text-secondary" aria-label="Entry file">
+                    entry
+                  </span>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(event) => event.stopPropagation()}
+                      className={cn(
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+                        "opacity-0 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100",
+                      )}
+                      aria-label={`More actions for ${fileId}`}
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-44 border-border-color bg-panel-bg"
+                    onCloseAutoFocus={(event) => {
+                      if (!suppressMenuRestoreFocusRef.current) return;
+                      suppressMenuRestoreFocusRef.current = false;
+                      event.preventDefault();
+                    }}
+                  >
+                    {renderFileActions(fileId, isEntry, DropdownMenuItem)}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent
+                className="w-44 border-border-color bg-panel-bg"
+                onCloseAutoFocus={(event) => {
+                  if (!suppressMenuRestoreFocusRef.current) return;
+                  suppressMenuRestoreFocusRef.current = false;
+                  event.preventDefault();
+                }}
+              >
+                {renderFileActions(fileId, isEntry, ContextMenuItem)}
+              </ContextMenuContent>
+              </ContextMenu>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  const railToggle = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          ref={railButtonRef}
+          type="button"
+          onKeyDown={isDrawer ? handleDrawerEscape : undefined}
+          aria-label={isDrawer && isDrawerOpen ? "Hide files" : "Show files"}
+          aria-expanded={isDrawer ? isDrawerOpen : false}
+          onClick={() => {
+            if (isDrawer) {
+              onDrawerOpenChange?.(!isDrawerOpen);
+              return;
+            }
+            onCollapsedChange(false);
+          }}
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:bg-accent hover:text-text-emphasis",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
+            isDrawer && isDrawerOpen && "bg-accent text-text-emphasis",
+          )}
+        >
+          <Files className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{isDrawer && isDrawerOpen ? "Hide files" : "Show files"}</TooltipContent>
+    </Tooltip>
+  );
+
+  // Drawer mode: the rail is all that occupies horizontal space; the list floats
+  // over the editor. The overlay is absolutely positioned against the editor
+  // pane container, so opening it changes none of the widths the workspace
+  // measures to decide the layout. The drawer is anchored at the container's
+  // left edge so it covers the rail entirely while open — the rail and the file
+  // list are the same control, and showing both at once reads as redundant.
+  if (isDrawer) {
+    return (
+      <>
+        <div className="relative z-10 flex w-11 shrink-0 flex-col items-center border-r border-border-color bg-panel-bg px-1.5 py-2">
+          {railToggle}
+        </div>
+        <div
+          aria-hidden="true"
+          onClick={closeDrawer}
+          className={cn(
+            "absolute inset-0 z-20 bg-black/40 transition-opacity duration-200 motion-reduce:transition-none",
+            isDrawerOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        />
+        <div
+          ref={drawerRef}
+          role="dialog"
+          aria-label="Project files"
+          tabIndex={-1}
+          onKeyDown={handleDrawerEscape}
+          style={{ width: PROJECT_FILES_DEFAULT_WIDTH }}
+          className={cn(
+            "absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border-color bg-panel-bg shadow-xl outline-none",
+            "transition-[transform,visibility] duration-200 ease-out motion-reduce:transition-none",
+            isDrawerOpen ? "visible translate-x-0" : "invisible -translate-x-full",
+          )}
+        >
+          {filesContent}
+        </div>
+      </>
+    );
+  }
+
   return (
     <aside
       className="group/pane relative flex shrink-0 flex-col bg-panel-bg"
@@ -304,141 +580,10 @@ export function ProjectFilesPane({
 
       {isCollapsed ? (
         <div className="flex min-h-0 flex-1 flex-col items-center px-1.5 py-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Show files"
-                aria-expanded={false}
-                onClick={() => onCollapsedChange(false)}
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:bg-accent hover:text-text-emphasis",
-                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-                )}
-              >
-                <Files className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Show files</TooltipContent>
-          </Tooltip>
+          {railToggle}
         </div>
       ) : (
-        <>
-          <div className="flex h-11 shrink-0 items-center justify-between gap-1 border-b border-border-color pl-1 pr-1.5">
-            <h2 className={filesTabClass}>
-              <Files className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-              Files
-            </h2>
-            {newFileButton}
-          </div>
-
-          <div
-            role="list"
-            aria-label="Project files"
-            className="min-h-0 flex-1 overflow-auto pb-2"
-          >
-            {fileIds.map((fileId) => {
-              const isActive = fileId === activeFileId;
-              const isEntry = fileId === entryFileId;
-              return (
-                <div
-                  key={fileId}
-                  role="listitem"
-                  className="group relative [&:has(:focus-visible)]:bg-accent/60"
-                  onKeyDownCapture={(event) => {
-                    if (event.key !== "F2" || (event.target as HTMLElement).closest("input")) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onRequestRenameProjectFile(fileId);
-                  }}
-                >
-                  <ContextMenu>
-                  <ContextMenuTrigger asChild>
-                  <div
-                    aria-current={isActive ? "page" : undefined}
-                    onClick={(event) => {
-                      if ((event.target as HTMLElement).closest("input")) return;
-                      onOpenProjectFile(fileId);
-                    }}
-                    className={cn(
-                      "flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 pl-3 pr-1.5 text-[0.8125rem] text-text-primary transition-colors duration-150 motion-reduce:transition-none",
-                      "hover:bg-accent/60 hover:text-text-emphasis",
-                      isActive && "bg-accent text-text-emphasis hover:bg-accent",
-                    )}
-                    title={fileId}
-                  >
-                    <FileText
-                      aria-hidden="true"
-                      className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent-blue" : "text-text-secondary")}
-                    />
-                    {isActive && <span className="sr-only">Current file</span>}
-                    <EditableTitle
-                      title={fileId}
-                      onTitleChange={(nextName) => onRenameProjectFile(fileId, nextName)}
-                      editTrigger="double-click"
-                      editRequestKey={inlineRenameRequest?.fileId === fileId ? inlineRenameRequest.key : undefined}
-                      ariaLabel={`Rename ${fileId}`}
-                      placeholder="File path..."
-                      fallbackTitle={fileId}
-                      normalizeValue={(value) => value.trim() || fileId}
-                      showEditIcon={false}
-                      className="h-7 min-w-0 flex-1 cursor-pointer justify-start px-0 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg md:px-0"
-                      inputClassName="h-6 font-sans text-[0.8125rem]"
-                      textClassName={cn(
-                        "font-sans text-[0.8125rem] leading-5 text-text-primary",
-                        isActive && "text-text-emphasis",
-                      )}
-                    />
-                    {isEntry && fileIds.length > 1 && (
-                      <span className="shrink-0 text-[0.6875rem] leading-none text-text-secondary" aria-label="Entry file">
-                        entry
-                      </span>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={(event) => event.stopPropagation()}
-                          className={cn(
-                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-text-secondary transition-colors hover:bg-editor-bg hover:text-text-emphasis",
-                            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-                            "opacity-0 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100",
-                          )}
-                          aria-label={`More actions for ${fileId}`}
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-44 border-border-color bg-panel-bg"
-                        onCloseAutoFocus={(event) => {
-                          if (!suppressMenuRestoreFocusRef.current) return;
-                          suppressMenuRestoreFocusRef.current = false;
-                          event.preventDefault();
-                        }}
-                      >
-                        {renderFileActions(fileId, isEntry, DropdownMenuItem)}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent
-                    className="w-44 border-border-color bg-panel-bg"
-                    onCloseAutoFocus={(event) => {
-                      if (!suppressMenuRestoreFocusRef.current) return;
-                      suppressMenuRestoreFocusRef.current = false;
-                      event.preventDefault();
-                    }}
-                  >
-                    {renderFileActions(fileId, isEntry, ContextMenuItem)}
-                  </ContextMenuContent>
-                  </ContextMenu>
-                </div>
-              );
-            })}
-          </div>
-        </>
+        filesContent
       )}
     </aside>
   );

@@ -65,6 +65,12 @@ import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkSearch } from "@/components/editor/codemirror-search-panel";
 import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
+import { useElementWidth } from "@/hooks/use-element-width";
+import {
+  getEditorHeaderTier,
+  getSaveStatus,
+  getSaveStatusDotClass,
+} from "@/components/editor/editor-header-tiers";
 
 const EDITOR_HEADER_BUTTON_CLASSES =
   "flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary";
@@ -182,21 +188,6 @@ function setMobileZoomLocked(locked: boolean) {
   const meta = document.querySelector('meta[name="viewport"]');
   if (!meta) return;
   meta.setAttribute("content", locked ? ZOOM_LOCKED_VIEWPORT_CONTENT : DEFAULT_VIEWPORT_CONTENT);
-}
-
-function getSaveStatus(saveState: SaveState) {
-  switch (saveState) {
-    case "dirty":
-      return { label: "Modified", className: "text-warning" };
-    case "saving":
-      return { label: "Saving...", className: "text-accent-blue" };
-    case "error":
-      return { label: "Save failed", className: "text-error" };
-    case "disabled":
-      return { label: "Autosave disabled", className: "text-warning" };
-    default:
-      return { label: "Saved", className: "text-text-secondary" };
-  }
 }
 
 function createThemeExtension(fontSize: number, isDark: boolean, isMobileLayout: boolean) {
@@ -484,6 +475,12 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   const historyStateRef = useRef(historyState);
   const findVisibleRef = useRef(false);
   const saveStatus = getSaveStatus(saveState);
+  // The header tracks its own width: the pane can be narrow inside a wide
+  // window, and the filename must be what shrinks — never the buttons.
+  const { ref: headerRef, width: headerWidth } = useElementWidth<HTMLDivElement>();
+  const headerTier = getEditorHeaderTier(headerWidth);
+  const showSaveStatusText = headerTier === "wide";
+  const showHistoryButtons = headerTier !== "narrow";
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -1014,8 +1011,12 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   return (
     <div className="flex h-full flex-col">
       {showHeader && (
-        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color bg-panel-bg px-3 lg:px-4">
-          <div className="flex min-w-0 items-center gap-2">
+        <div
+          ref={headerRef}
+          data-tier={headerTier}
+          className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-color bg-panel-bg px-3 lg:px-4"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Code className="shrink-0 text-sm text-accent-blue" />
             {onRenameFile ? (
               <EditableTitle
@@ -1027,20 +1028,37 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
                 fallbackTitle={fileName}
                 normalizeValue={(value) => value.trim() || fileName}
                 showEditIcon={false}
-                className="h-8 min-w-0 px-1 md:px-1.5"
+                className="h-8 min-w-0 shrink px-1 md:px-1.5"
                 inputClassName="font-mono text-[0.8125rem]"
                 textClassName="font-mono text-[0.8125rem]"
               />
             ) : (
-              <span className="truncate text-[0.875rem] font-medium text-text-emphasis">
+              <span className="min-w-0 truncate text-[0.875rem] font-medium text-text-emphasis">
                 {fileName}
               </span>
             )}
-            <span className={`shrink-0 text-[0.8125rem] ${saveStatus.className}`} aria-live="polite">
-              &bull; {saveStatus.label}
-            </span>
+            {showSaveStatusText ? (
+              <span className={`shrink-0 text-[0.8125rem] ${saveStatus.className}`} aria-live="polite">
+                &bull; {saveStatus.label}
+              </span>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex shrink-0 items-center" tabIndex={0}>
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full transition-colors duration-200 ${getSaveStatusDotClass(saveState)}`}
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only" aria-live="polite">{saveStatus.label}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{saveStatus.label}</TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5 text-[0.8125rem] text-text-secondary">
+            {showHistoryButtons && (
+            <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -1071,6 +1089,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
               </TooltipTrigger>
               <TooltipContent side="bottom" shortcut={["mod", "shift", "z"]}>Redo</TooltipContent>
             </Tooltip>
+            </>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

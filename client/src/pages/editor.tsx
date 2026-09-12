@@ -436,6 +436,14 @@ export default function Editor() {
     Object.keys(startupStateRef.current?.project.files ?? {}).length <= 1
   ));
   const [projectFilesPaneWidth, setProjectFilesPaneWidth] = useState(PROJECT_FILES_DEFAULT_WIDTH);
+  // Set by the workspace when the editor pane is too narrow to give the Files
+  // sidebar horizontal space; the sidebar then shows as a rail + overlay drawer.
+  const [isFilesNarrowMode, setIsFilesNarrowMode] = useState(false);
+  // Drawer visibility is tracked apart from `isProjectFilesCollapsed` so the
+  // inline collapsed/width preference survives a trip through narrow mode.
+  const [isFilesDrawerOpen, setIsFilesDrawerOpen] = useState(false);
+  // Set while the automatic switch into focused code mode is in effect.
+  const [autoFocusedCodePanel, setAutoFocusedCodePanel] = useState(false);
   const title = currentDocument.title ?? getDisplayTitleFromFilename(currentDocument.filename);
   const [recentFiles, setRecentFiles] = useState<StoredInkDocument[]>(() => {
     try { return FileOperations.getAllFiles(); } catch { return []; }
@@ -489,9 +497,17 @@ export default function Editor() {
     lastStorageKeyRef.current = currentDocument.filename;
   }, [currentDocument, currentProject]);
 
+  // The drawer always starts closed on entering (or leaving) narrow files mode.
+  useEffect(() => {
+    setIsFilesDrawerOpen(false);
+  }, [isFilesNarrowMode]);
+
   // True mobile owns the tab layout outright; clear any desktop focus state on entry.
   useEffect(() => {
-    if (isMobile) setFocusedPanel(null);
+    if (!isMobile) return;
+    setFocusedPanel(null);
+    setAutoFocusedCodePanel(false);
+    setIsFilesNarrowMode(false);
   }, [isMobile]);
 
   useEffect(() => {
@@ -1284,6 +1300,7 @@ export default function Editor() {
     }));
     compileLive(getProjectCompileInput(nextProject));
     setIsProjectFilesCollapsed(false);
+    setIsFilesDrawerOpen(true);
     setMobileTab("code");
     window.setTimeout(() => {
       editorRef.current?.layout();
@@ -1327,6 +1344,7 @@ export default function Editor() {
     }));
     compileLive(getProjectCompileInput(nextProject));
     setIsProjectFilesCollapsed(false);
+    setIsFilesDrawerOpen(true);
     setMobileTab("code");
     window.setTimeout(() => editorRef.current?.layout(), 0);
     await persistProject(nextProject, false);
@@ -1743,7 +1761,7 @@ export default function Editor() {
     </DropdownMenuContent>
   );
   const editorPane = (
-    <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
+    <div className={`${isMobile ? "flex-col" : "flex-row"} relative flex h-full min-h-0 bg-editor-bg`}>
       {!isMobile && (
         <ProjectFilesPane
           fileIds={projectFileIds}
@@ -1752,6 +1770,9 @@ export default function Editor() {
           isCollapsed={isProjectFilesCollapsed}
           paneWidth={projectFilesPaneWidth}
           inlineRenameRequest={inlineRenameRequest}
+          presentation={isFilesNarrowMode ? "drawer" : "inline"}
+          isDrawerOpen={isFilesDrawerOpen}
+          onDrawerOpenChange={setIsFilesDrawerOpen}
           onCollapsedChange={setIsProjectFilesCollapsed}
           onPaneWidthChange={setProjectFilesPaneWidth}
           onAddProjectFile={handleAddProjectFile}
@@ -2193,6 +2214,9 @@ export default function Editor() {
         setMobileDrawer={setMobileDrawer}
         focusedPanel={focusedPanel}
         setFocusedPanel={setFocusedPanel}
+        setIsFilesNarrowMode={setIsFilesNarrowMode}
+        autoFocusedCodePanel={autoFocusedCodePanel}
+        setAutoFocusedCodePanel={setAutoFocusedCodePanel}
         editorPane={editorPane}
         previewPane={previewPane}
         mobileCodeTabLabel={mobileCodeTabLabel}

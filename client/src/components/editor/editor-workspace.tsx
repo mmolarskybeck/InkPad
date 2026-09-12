@@ -20,6 +20,7 @@ import type {
 } from "@/components/editor/codemirror-editor";
 import type { AnalyticsMobileTab, PanelLayout } from "@/lib/analytics";
 import { useMobileKeyboardInset } from "@/hooks/use-mobile-keyboard-inset";
+import { useElementWidth } from "@/hooks/use-element-width";
 
 export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
@@ -41,6 +42,24 @@ const DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD = 28;
 const DESKTOP_BOTTOM_PANEL_CLICK_DRAG_TOLERANCE = 4;
 const DESKTOP_MAIN_PANEL_MIN_HEIGHT = 220;
 const DOCK_MODE_KEY = "inkpad.dock.mode";
+// Automatic, reversible responses to a very narrow editor pane. Every pair of
+// thresholds is asymmetric (hysteresis) so a pane parked on a boundary cannot
+// oscillate.
+// "Narrow files mode": the Files sidebar stops taking horizontal space and
+// becomes a 44px rail plus an overlay drawer. Measured on the editor pane in
+// split view, and on the whole workspace in focused mode (where the editor
+// pane is the workspace).
+const NARROW_FILES_SPLIT_ENTER_WIDTH = 560;
+const NARROW_FILES_SPLIT_EXIT_WIDTH = 600;
+const NARROW_FILES_FOCUSED_ENTER_WIDTH = 840;
+const NARROW_FILES_FOCUSED_EXIT_WIDTH = 880;
+// Below this the split is unusable even with the sidebar down to its rail, so
+// fall back to focused "Code | Preview" tabs...
+const AUTO_FOCUS_CODE_WIDTH = 340;
+// ...but only while the window itself is too small for a usable 50/50 split,
+// and restore the split once it comfortably is again.
+const AUTO_FOCUS_MAX_WORKSPACE_WIDTH = 840;
+const AUTO_RESTORE_SPLIT_WORKSPACE_WIDTH = 880;
 const DOCK_TAB_TRIGGER_CLASSES = "relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue";
 const DOCK_HIDE_BUTTON_CLASSES = "flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue motion-reduce:transition-none";
 // Same visual language as DOCK_TAB_TRIGGER_CLASSES but for the plain buttons
@@ -132,6 +151,14 @@ interface EditorWorkspaceProps {
   onRestart: () => void;
   canStepBack: boolean;
   hasRuntimeState: boolean;
+  /**
+   * Reports whether the editor pane is too narrow to give the Files sidebar
+   * horizontal space; the page switches the sidebar to rail + drawer.
+   */
+  setIsFilesNarrowMode: (value: boolean) => void;
+  /** True while focus mode was entered *because* the pane got narrow. */
+  autoFocusedCodePanel: boolean;
+  setAutoFocusedCodePanel: (value: boolean) => void;
 }
 
 export function EditorWorkspace({
@@ -169,6 +196,9 @@ export function EditorWorkspace({
   onRestart,
   canStepBack,
   hasRuntimeState,
+  setIsFilesNarrowMode,
+  autoFocusedCodePanel,
+  setAutoFocusedCodePanel,
 }: EditorWorkspaceProps) {
   const { snippets } = useSnippetLibrary();
   const snippetsByCategory = useMemo(() => groupSnippetsByCategory(snippets), [snippets]);
@@ -228,8 +258,9 @@ export function EditorWorkspace({
   const handleRestoreSplit = useCallback(() => {
     setSplitKey(k => k + 1);
     setFocusedPanel(null);
+    setAutoFocusedCodePanel(false);
     onPanelLayoutChanged("split");
-  }, [onPanelLayoutChanged, setFocusedPanel]);
+  }, [onPanelLayoutChanged, setAutoFocusedCodePanel, setFocusedPanel]);
 
   const getDesktopWorkspaceHeight = useCallback(() => {
     return desktopWorkspaceRef.current?.clientHeight ?? 900;
@@ -425,8 +456,83 @@ export function EditorWorkspace({
     restoreFindAfterFocusRef.current = panel === "code" && editorControlState.isFindVisible;
     setFocusedPanel(panel);
     setMobileTab(panel);
+    // Picking a panel by hand takes the layout out of automatic control; the
+    // auto path re-sets this flag immediately afterwards.
+    setAutoFocusedCodePanel(false);
     onPanelLayoutChanged(panel === "code" ? "editor_focus" : "preview_focus");
-  }, [editorControlState.isFindVisible, onPanelLayoutChanged, setFocusedPanel, setMobileTab]);
+  }, [editorControlState.isFindVisible, onPanelLayoutChanged, setAutoFocusedCodePanel, setFocusedPanel, setMobileTab]);
+
+  // ---- Automatic responses to a very narrow editor pane (desktop) ----
+  // The observed element is the whole editor ResizablePanel (Files sidebar
+  // included) so the sidebar's own presentation cannot change the measurement
+  // and feed back into these rules. The drawer is an overlay for the same
+  // reason.
+  const { ref: editorPaneMeasureRef, width: editorPaneWidth } = useElementWidth<HTMLDivElement>();
+  const [workspaceWidth, setWorkspaceWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const element = desktopWorkspaceRef.current;
+    if (isMobile || !element || typeof ResizeObserver === "undefined") return;
+
+    setWorkspaceWidth(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setWorkspaceWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isMobile]);
+
+  // a. Narrow files mode: the sidebar gives up its column and becomes a rail
+  //    with an overlay drawer. Nothing here touches the user's inline
+  //    collapsed/width preference.
+  useEffect(() => {
+    if (isMobile) {
+      setIsFilesNarrowMode(false);
+      return;
+    }
+
+    const isSplit = focusedPanel === null;
+    const measured = isSplit ? editorPaneWidth : workspaceWidth;
+    if (measured === null) return;
+
+    const enterWidth = isSplit ? NARROW_FILES_SPLIT_ENTER_WIDTH : NARROW_FILES_FOCUSED_ENTER_WIDTH;
+    const exitWidth = isSplit ? NARROW_FILES_SPLIT_EXIT_WIDTH : NARROW_FILES_FOCUSED_EXIT_WIDTH;
+
+    if (measured < enterWidth) {
+      setIsFilesNarrowMode(true);
+    } else if (measured >= exitWidth) {
+      setIsFilesNarrowMode(false);
+    }
+  }, [editorPaneWidth, focusedPanel, isMobile, setIsFilesNarrowMode, workspaceWidth]);
+
+  // b. With the sidebar already down to its 44px rail and the pane still
+  //    unusable, fall back to focused code mode. Gated on the workspace being
+  //    too narrow for a usable 50/50 split as well, so a deliberate drag in a
+  //    wide window is left alone (and cannot fight the restore rule below).
+  useEffect(() => {
+    if (isMobile || focusedPanel !== null || editorPaneWidth === null || workspaceWidth === null) return;
+    if (editorPaneWidth >= AUTO_FOCUS_CODE_WIDTH) return;
+    if (workspaceWidth >= AUTO_FOCUS_MAX_WORKSPACE_WIDTH) return;
+
+    handleFocusPanelChange("code");
+    setAutoFocusedCodePanel(true);
+  }, [
+    editorPaneWidth,
+    focusedPanel,
+    handleFocusPanelChange,
+    isMobile,
+    setAutoFocusedCodePanel,
+    workspaceWidth,
+  ]);
+
+  // ...and back to the split as soon as both halves would be usable again.
+  useEffect(() => {
+    if (isMobile || !autoFocusedCodePanel || focusedPanel === null || workspaceWidth === null) return;
+    if (workspaceWidth < AUTO_RESTORE_SPLIT_WORKSPACE_WIDTH) return;
+
+    handleRestoreSplit();
+  }, [autoFocusedCodePanel, focusedPanel, handleRestoreSplit, isMobile, workspaceWidth]);
 
   const handleMobilePrimaryTabChange = useCallback((value: string) => {
     const nextTab = value as MobileTab;
@@ -722,7 +828,9 @@ export function EditorWorkspace({
                 minSize={20}
                 onCollapse={() => handleFocusPanelChange("preview")}
               >
-                {editorPane}
+                <div ref={editorPaneMeasureRef} className="h-full min-h-0">
+                  {editorPane}
+                </div>
               </ResizablePanel>
               <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" onDoubleClick={handleResetSplit} />
               <ResizablePanel

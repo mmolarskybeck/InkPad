@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Download, FileArchive, FileText, Braces, MonitorPlay, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +21,8 @@ interface StoryExportMenuProps {
   onConfigureHtml: () => void;
   hasMultipleFiles?: boolean;
   isExporting?: boolean;
+  /** Medium-width toolbar tier: render the trigger as an icon with a tooltip. */
+  iconOnly?: boolean;
 }
 
 interface ExportMenuItemProps {
@@ -61,22 +65,45 @@ export function StoryExportMenu({
   onConfigureHtml,
   hasMultipleFiles = false,
   isExporting = false,
+  iconOnly = false,
 }: StoryExportMenuProps) {
   const [open, setOpen] = useState(false);
   const showProjectExports = hasMultipleFiles && Boolean(onExportProject);
+  const triggerClassName = cn(
+    "text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis data-[state=open]:bg-accent data-[state=open]:text-text-emphasis",
+    iconOnly ? "h-8 w-8 p-0" : "h-8 gap-1.5 px-2.5",
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis data-[state=open]:bg-accent data-[state=open]:text-text-emphasis"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export
-        </Button>
-      </DropdownMenuTrigger>
+      {iconOnly ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Export"
+                className={triggerClassName}
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Export</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={triggerClassName}
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Export
+          </Button>
+        </DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align="start" className="w-[288px] border-border-color bg-panel-bg p-1.5 shadow-md">
         <DropdownMenuGroup>
           <GroupLabel>Source</GroupLabel>

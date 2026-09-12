@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { forwardRef, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,7 +24,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Shortcut } from "@/components/ui/kbd";
 import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
-import { Archive, ChevronDown, Download, PenTool, Upload, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
+import { Archive, ChevronDown, Download, PenTool, Upload, File, FilePlus2, FolderOpen, ListTree, Save, SaveAll, Play, Settings, Clock, Menu, type LucideIcon } from "lucide-react";
+import type { ShortcutKey } from "@/lib/keyboard-shortcuts";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportMenu } from "./story-export-menu";
 import { PlayableHtmlExportDialog } from "./playable-html-export-dialog";
@@ -76,6 +78,65 @@ function MobileMenuDisclosure({
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * Desktop toolbar tiers. Above 1120px every action keeps its text label;
+ * between md and 1120px the same actions render icon-only (with tooltips)
+ * so nothing has to be hidden behind the hamburger.
+ */
+export type ToolbarVariant = "labels" | "icons";
+
+interface ToolbarActionButtonProps extends ComponentPropsWithoutRef<typeof Button> {
+  icon: LucideIcon;
+  label: string;
+  showLabel: boolean;
+}
+
+/** One toolbar action, rendered with or without its text label. */
+const ToolbarActionButton = forwardRef<HTMLButtonElement, ToolbarActionButtonProps>(
+  ({ icon: Icon, label, showLabel, className, ...props }, ref) => (
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="sm"
+      aria-label={showLabel ? undefined : label}
+      className={cn(
+        "text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis data-[state=open]:bg-accent data-[state=open]:text-text-emphasis",
+        showLabel ? "h-8 gap-1.5 px-2.5" : "h-8 w-8 p-0",
+        className,
+      )}
+      {...props}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {showLabel ? label : null}
+    </Button>
+  ),
+);
+ToolbarActionButton.displayName = "ToolbarActionButton";
+
+/** Wraps a trigger in a Tooltip only when the button has no visible label. */
+function ToolbarTooltip({
+  enabled,
+  label,
+  shortcut,
+  children,
+}: {
+  enabled: boolean;
+  label: string;
+  shortcut?: readonly ShortcutKey[];
+  children: ReactNode;
+}) {
+  if (!enabled) return <>{children}</>;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom" shortcut={shortcut}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -150,6 +211,14 @@ export function TopMenu({
   const [isMobileExportOpen, setIsMobileExportOpen] = useState(false);
   const [isMobileOpenOpen, setIsMobileOpenOpen] = useState(false);
   const [isHtmlExportOpen, setIsHtmlExportOpen] = useState(false);
+  // Three toolbar tiers: labels (>=1120px), icon-only (md..1120px), and the
+  // Run + hamburger sheet below md.
+  const hasDesktopToolbar = useMediaQuery("(min-width: 768px)");
+  const hasToolbarLabels = useMediaQuery("(min-width: 1120px)");
+  const hasRunLabel = useMediaQuery("(min-width: 900px)");
+  const toolbarVariant: ToolbarVariant = hasToolbarLabels ? "labels" : "icons";
+  const showLabels = toolbarVariant === "labels";
+  const showRunLabel = hasToolbarLabels || hasRunLabel;
   // "New ink file" hands focus to the inline rename in the files pane; skip the menu's focus restore.
   const skipNewMenuFocusRestoreRef = useRef(false);
 
@@ -176,6 +245,8 @@ export function TopMenu({
   };
 
   const saveLabel = getSaveStatusLabel();
+
+  const hasKnots = knots.length > 0;
 
   const handleKnotNavigation = (knotName: string) => {
     if (knotName && onNavigateToKnot) {
@@ -264,16 +335,14 @@ export function TopMenu({
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
+            <ToolbarActionButton
+              icon={File}
+              label="New"
+              showLabel={showLabels}
               onClick={onNew}
+              aria-label="New project"
               aria-keyshortcuts={toAriaKeyShortcuts(["mod", "n"])}
-              className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-            >
-              <File className="h-3.5 w-3.5" />
-              New
-            </Button>
+            />
           </TooltipTrigger>
           <TooltipContent side="bottom" shortcut={["mod", "n"]}>New project</TooltipContent>
         </Tooltip>
@@ -282,16 +351,11 @@ export function TopMenu({
 
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-          >
-            <FilePlus2 className="h-3.5 w-3.5" />
-            New
-          </Button>
-        </DropdownMenuTrigger>
+        <ToolbarTooltip enabled={!showLabels} label="New">
+          <DropdownMenuTrigger asChild>
+            <ToolbarActionButton icon={FilePlus2} label="New" showLabel={showLabels} />
+          </DropdownMenuTrigger>
+        </ToolbarTooltip>
         <DropdownMenuContent
           align="start"
           className="w-52 bg-panel-bg border-border-color"
@@ -359,34 +423,25 @@ export function TopMenu({
           </div>
         </div>
         
-        <div className="hidden items-center gap-0.5 min-[1120px]:flex">
+        {hasDesktopToolbar && (
+        <div className="flex items-center gap-0.5">
           {renderNewMenu()}
-          
+
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-              >
-                <FolderOpen className="h-3.5 w-3.5" />
-                Open
-              </Button>
-            </DropdownMenuTrigger>
+            <ToolbarTooltip enabled={!showLabels} label="Open" shortcut={["mod", "o"]}>
+              <DropdownMenuTrigger asChild>
+                <ToolbarActionButton icon={FolderOpen} label="Open" showLabel={showLabels} />
+              </DropdownMenuTrigger>
+            </ToolbarTooltip>
             {renderRecentFilesMenu()}
           </DropdownMenu>
-          
+
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save
-              </Button>
-            </DropdownMenuTrigger>
+            <ToolbarTooltip enabled={!showLabels} label="Save" shortcut={["mod", "s"]}>
+              <DropdownMenuTrigger asChild>
+                <ToolbarActionButton icon={Save} label="Save" showLabel={showLabels} />
+              </DropdownMenuTrigger>
+            </ToolbarTooltip>
             <DropdownMenuContent align="start" className="w-40 bg-panel-bg border-border-color">
               <DropdownMenuItem onClick={onSave} className="cursor-pointer">
                 <Save className="h-4 w-4" />
@@ -412,6 +467,7 @@ export function TopMenu({
             onConfigureHtml={() => setIsHtmlExportOpen(true)}
             hasMultipleFiles={hasMultipleFiles}
             isExporting={isExporting}
+            iconOnly={!showLabels}
           />
 
           <div className="mx-1 h-4 w-px bg-border-color" />
@@ -431,41 +487,101 @@ export function TopMenu({
             <TooltipContent side="bottom">Settings</TooltipContent>
           </Tooltip>
         </div>
+        )}
       </div>
-      
-      <div className="hidden items-center gap-2 min-[1120px]:flex">
-        <Select onValueChange={handleKnotNavigation}>
-          <SelectTrigger
-            aria-label="Navigate to knot"
-            className="h-8 min-w-[156px] border-border-color bg-panel-bg px-2.5 text-[0.8125rem] text-text-emphasis transition-colors hover:bg-accent focus:border-accent-blue data-[placeholder]:text-text-secondary"
-          >
-            <SelectValue placeholder="Navigate to knot..." />
-          </SelectTrigger>
-          <SelectContent className="bg-panel-bg border-border-color">
-            {knots.map((knot) => (
-              <SelectItem key={knot} value={knot} className="text-text-secondary focus:text-text-emphasis focus:bg-accent cursor-pointer">
-                → {knot}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
+
+      {hasDesktopToolbar && (
+      <div className="flex shrink-0 items-center gap-2">
+        {showLabels ? (
+          <Select onValueChange={handleKnotNavigation} disabled={!hasKnots}>
+            <SelectTrigger
+              aria-label="Navigate to knot"
+              className="h-8 min-w-[156px] border-border-color bg-panel-bg px-2.5 text-[0.8125rem] text-text-emphasis transition-colors hover:bg-accent focus:border-accent-blue disabled:opacity-40 data-[placeholder]:text-text-secondary"
+            >
+              <SelectValue placeholder={hasKnots ? "Navigate to knot..." : "No knots yet"} />
+            </SelectTrigger>
+            <SelectContent className="bg-panel-bg border-border-color">
+              {knots.map((knot) => (
+                <SelectItem key={knot} value={knot} className="text-text-secondary focus:text-text-emphasis focus:bg-accent cursor-pointer">
+                  → {knot}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : !hasKnots ? (
+          // `disabled` would take pointer events with it and swallow the
+          // tooltip, so the empty state stays hoverable and explains itself.
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-disabled="true"
+                aria-label="Navigate to knot"
+                onClick={(event) => event.preventDefault()}
+                className="h-8 w-8 cursor-default p-0 text-text-primary opacity-40 hover:bg-transparent hover:text-text-primary"
+              >
+                <ListTree className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">No knots yet</TooltipContent>
+          </Tooltip>
+        ) : (
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Navigate to knot"
+                    className="h-8 w-8 p-0 text-text-primary hover:bg-accent hover:text-text-emphasis data-[state=open]:bg-accent data-[state=open]:text-text-emphasis"
+                  >
+                    <ListTree className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Navigate to knot</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="max-h-[60vh] w-56 overflow-y-auto border-border-color bg-panel-bg">
+              <DropdownMenuLabel className="px-2 pb-1 pt-2 text-[0.75rem] font-medium uppercase tracking-[0.05em] text-text-secondary">
+                Knots
+              </DropdownMenuLabel>
+              {knots.map((knot) => (
+                <DropdownMenuItem
+                  key={knot}
+                  onClick={() => handleKnotNavigation(knot)}
+                  className="cursor-pointer text-text-secondary focus:bg-accent focus:text-text-emphasis"
+                >
+                  → {knot}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               onClick={onRun}
+              aria-label="Run story"
               aria-keyshortcuts={toAriaKeyShortcuts(["mod", "enter"])}
-              className="h-8 gap-1.5 bg-success px-3.5 text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105"
+              className={cn(
+                "h-8 bg-success text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105",
+                showRunLabel ? "gap-1.5 px-3.5" : "w-8 p-0",
+              )}
             >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              Run
+              <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              {showRunLabel ? "Run" : null}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" shortcut={["mod", "enter"]}>Compile and run story</TooltipContent>
         </Tooltip>
       </div>
+      )}
 
-      <div className="flex shrink-0 items-center gap-1 min-[1120px]:hidden">
+      {!hasDesktopToolbar && (
+      <div className="flex shrink-0 items-center gap-1">
         <Button
           onClick={onRun}
           size="sm"
@@ -639,12 +755,12 @@ export function TopMenu({
                 <div className="mb-2 px-3 text-[0.75rem] font-medium uppercase tracking-[0.08em] text-text-secondary">
                   Navigate to knot
                 </div>
-                <Select onValueChange={handleKnotNavigation}>
+                <Select onValueChange={handleKnotNavigation} disabled={!hasKnots}>
                   <SelectTrigger
                     aria-label="Navigate to knot"
                     className="bg-panel-bg text-text-emphasis border-border-color focus:border-accent-blue"
                   >
-                    <SelectValue placeholder="Choose knot..." />
+                    <SelectValue placeholder={hasKnots ? "Choose knot..." : "No knots yet"} />
                   </SelectTrigger>
                   <SelectContent className="bg-panel-bg border-border-color">
                     {knots.map((knot) => (
@@ -673,6 +789,7 @@ export function TopMenu({
           </SheetContent>
         </Sheet>
       </div>
+      )}
       <PlayableHtmlExportDialog
         open={isHtmlExportOpen}
         metadata={exportMetadata}
