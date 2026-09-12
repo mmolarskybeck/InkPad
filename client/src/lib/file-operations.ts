@@ -1,41 +1,17 @@
 import { simpleHash } from "@/lib/string-hash";
 import { parseInkProject } from "@/lib/ink-project";
-import type { HtmlExportFont, HtmlExportOptions } from "@/features/export/html-export-options";
-import type { PreviewMode } from "@/types/story-runtime";
 
-export interface StoredStorySettings {
-  title?: string;
-  author?: string;
-  htmlExport?: HtmlExportOptions;
-  storyTypeface?: HtmlExportFont;
-  previewMode?: PreviewMode;
-}
-
-export interface StoredInkDocument {
-  name: string;
-  content: string;
-  settings?: StoredStorySettings;
-  lastModified: number;
-  lastSavedAt?: number; // When the file was last saved
-}
-
-export interface RecoveryDraft {
-  name: string;
-  content: string;
-  settings?: StoredStorySettings;
-  lastModified: number;
-}
-
-export interface Snapshot {
-  timestamp: number;
-  content: string;
-  hash: string;
-}
+export type { StoredStorySettings, StoredInkDocument, RecoveryDraft, Snapshot } from "@/lib/project-store/backend";
+import type { Snapshot, StorageBackend, StoredInkDocument, StoredStorySettings, RecoveryDraft } from "@/lib/project-store/backend";
+import { IndexedDbBackend, isIndexedDbAvailable } from "@/lib/project-store/indexeddb-backend";
+import { LocalStorageBackend } from "@/lib/project-store/localstorage-backend";
 
 const LOCAL_FILE_STORAGE_SCHEMA_VERSION = 2;
 const LEGACY_ACTIVE_FILE_KEY = 'inkpad:active-file';
 const LEGACY_RECOVERY_DRAFT_KEY = 'inkpad:recovery-draft';
 const LEGACY_FILE_STORAGE_PREFIX = 'inkpad_';
+
+const PROJECT_STORE_CHANNEL = "inkpad/project-store";
 
 function getProjectFileCount(content: string): number | null {
   try {
@@ -52,26 +28,245 @@ function getCopyFilename(sourceName: string, content: string): string {
 }
 
 export class FileOperations {
-  private static readonly STORAGE_PREFIX = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:file:`;
   private static readonly ACTIVE_FILE_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:active-file`;
   private static readonly RECOVERY_DRAFT_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:recovery-draft`;
   private static readonly LEGACY_CLEANUP_KEY = `inkpad:v${LOCAL_FILE_STORAGE_SCHEMA_VERSION}:legacy-cleanup-complete`;
-  private static readonly SNAPSHOT_PREFIX = ':snap:';
   private static readonly MAX_SNAPSHOTS = 10;
 
-  static checkAvailability(): { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null } {
-    const testKey = '__inkpad_storage_test__';
-    try {
-      localStorage.setItem(testKey, '1');
-      localStorage.removeItem(testKey);
-      this.cleanupLegacyLocalSaves();
-      return { available: true, reason: null };
-    } catch (e) {
-      if (e instanceof Error && e.name === 'QuotaExceededError') {
-        return { available: false, reason: 'quota-exceeded' };
-      }
-      return { available: false, reason: 'unavailable' };
+  private static backend: StorageBackend | null = null;
+  private static cache = new Map<string, StoredInkDocument>();
+  private static initPromise: Promise<void> | null = null;
+  private static ready = false;
+  private static availability: { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null } = { available: false, reason: 'unavailable' };
+  private static writeQueue: Promise<void> = Promise.resolve();
+  private static listeners = new Set<() => void>();
+  private static channel: BroadcastChannel | null = null;
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
+  static init(): Promise<void> {
+    if (this.initPromise) {
+      return this.initPromise;
     }
+    this.initPromise = this.doInit();
+    return this.initPromise;
+  }
+
+  private static async doInit(): Promise<void> {
+    try {
+      // a. Probe localStorage. A failure here is recorded but must not stop
+      // IndexedDB from serving as the durable store.
+      const testKey = '__inkpad_storage_test__';
+      try {
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        this.availability = { available: true, reason: null };
+      } catch (error) {
+        if (error instanceof Error && error.name === 'QuotaExceededError') {
+          this.availability = { available: false, reason: 'quota-exceeded' };
+        } else {
+          this.availability = { available: false, reason: 'unavailable' };
+        }
+      }
+
+      // b. Drop pre-CodeMirror local saves.
+      try {
+        this.cleanupLegacyLocalSaves();
+      } catch (error) {
+        console.warn('Failed to clean up legacy local saves:', error);
+      }
+
+      // c. Choose a backend.
+      let chosen: StorageBackend | null = null;
+      if (isIndexedDbAvailable()) {
+        try {
+          const idb = new IndexedDbBackend();
+          await idb.open();
+          // If legacy data could not be moved across, serve it from
+          // localStorage this session rather than hiding it behind an empty
+          // IndexedDB store that later saves would shadow.
+          if (await this.migrateFromLocalStorage(idb)) {
+            chosen = idb;
+            this.backend = idb;
+          }
+        } catch (error) {
+          console.warn("IndexedDB unavailable, falling back to localStorage", error);
+          chosen = null;
+        }
+      }
+
+      if (!chosen) {
+        const local = new LocalStorageBackend();
+        await local.open();
+        this.backend = local;
+      }
+
+      // d. Hydrate the in-memory cache.
+      const docs = await this.requireBackend().loadAllFiles();
+      this.cache.clear();
+      for (const doc of docs) {
+        if (!doc.lastSavedAt) doc.lastSavedAt = doc.lastModified;
+        this.cache.set(doc.name, doc);
+      }
+
+      // e. Cross-tab change notifications.
+      if (typeof BroadcastChannel !== "undefined") {
+        this.channel = new BroadcastChannel(PROJECT_STORE_CHANNEL);
+        this.channel.onmessage = (event) => void this.handleRemoteChange(event.data);
+      }
+
+      // f. Reads are now allowed.
+      this.ready = true;
+    } catch (error) {
+      console.error("InkPad storage failed to initialise:", error);
+      this.availability = { available: false, reason: 'unavailable' };
+      this.cache.clear();
+      this.ready = true;
+    }
+  }
+
+  /** Returns false when legacy documents exist but could not be migrated. */
+  private static async migrateFromLocalStorage(target: IndexedDbBackend): Promise<boolean> {
+    try {
+      const source = new LocalStorageBackend();
+      await source.open();
+
+      const legacyDocs = await source.loadAllFiles();
+      if (legacyDocs.length === 0) {
+        return true;
+      }
+
+      const existing = new Map((await target.loadAllFiles()).map(d => [d.name, d]));
+
+      for (const doc of legacyDocs) {
+        const current = existing.get(doc.name);
+        if (current && current.lastModified >= doc.lastModified) {
+          continue;
+        }
+        await target.putFile(doc);
+        for (const snapshot of await source.listSnapshots(doc.name)) {
+          await target.putSnapshot(doc.name, snapshot);
+        }
+      }
+
+      // Only drop the legacy keys once every document made it across.
+      await source.clear();
+      return true;
+    } catch (error) {
+      console.error("Storage migration failed; localStorage data left in place:", error);
+      return false;
+    }
+  }
+
+  static flush(): Promise<void> {
+    return this.writeQueue;
+  }
+
+  static subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  static resetForTests(): void {
+    this.backend = null;
+    this.cache.clear();
+    this.initPromise = null;
+    this.ready = false;
+    this.availability = { available: false, reason: 'unavailable' };
+    this.writeQueue = Promise.resolve();
+    this.listeners.clear();
+    this.channel?.close();
+    this.channel = null;
+  }
+
+  private static assertReady(): void {
+    if (!this.ready) {
+      throw new Error("FileOperations.init() must complete before use");
+    }
+  }
+
+  private static notify(): void {
+    for (const listener of Array.from(this.listeners)) {
+      try {
+        listener();
+      } catch (error) {
+        console.error('Storage listener failed:', error);
+      }
+    }
+  }
+
+  private static enqueue(op: () => Promise<void>): Promise<void> {
+    const run = this.writeQueue.then(op);
+    // A failed write must not wedge the queue, but its caller still sees it.
+    this.writeQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private static requireBackend(): StorageBackend {
+    if (!this.backend) {
+      throw new Error("FileOperations storage backend is not available");
+    }
+    return this.backend;
+  }
+
+  private static isQuotaError(e: unknown): boolean {
+    if (e instanceof Error && e.name === 'QuotaExceededError') {
+      return true;
+    }
+    return (
+      typeof e === 'object'
+      && e !== null
+      && (e as { name?: string }).name === 'QuotaExceededError'
+    );
+  }
+
+  private static broadcast(name: string): void {
+    try {
+      this.channel?.postMessage({ type: "changed", name });
+    } catch (error) {
+      console.warn('Failed to broadcast storage change:', error);
+    }
+  }
+
+  private static async handleRemoteChange(data: unknown): Promise<void> {
+    if (!this.backend) return;
+    if (
+      typeof data !== 'object'
+      || data === null
+      || (data as { type?: unknown }).type !== "changed"
+      || typeof (data as { name?: unknown }).name !== 'string'
+    ) {
+      return;
+    }
+
+    const name = (data as { name: string }).name;
+    try {
+      const docs = await this.backend.loadAllFiles();
+      const fresh = docs.find(d => d.name === name);
+      if (fresh) {
+        if (!fresh.lastSavedAt) fresh.lastSavedAt = fresh.lastModified;
+        this.cache.set(name, fresh);
+      } else {
+        this.cache.delete(name);
+      }
+    } catch (error) {
+      console.error('Failed to apply remote storage change:', error);
+      return;
+    }
+
+    this.notify();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
+
+  static checkAvailability(): { available: boolean; reason: 'quota-exceeded' | 'unavailable' | null } {
+    return this.availability;
   }
 
   static async saveFile(
@@ -79,10 +274,9 @@ export class FileOperations {
     source: string,
     settings?: StoredStorySettings,
   ): Promise<void> {
-    const key = this.STORAGE_PREFIX + filename;
     const now = Date.now();
     const sourceHash = simpleHash(source);
-    
+
     // Check if content actually changed
     const existingDocument = this.loadFile(filename);
     const nextSettings = settings ?? existingDocument?.settings;
@@ -108,57 +302,44 @@ export class FileOperations {
       lastSavedAt: now
     };
 
-    try {
-      // Create snapshot of previous version if it exists
-      if (existingDocument && contentChanged) {
-        await this.createSnapshot(filename, existingDocument.content, existingDocument.lastModified);
+    const previous = existingDocument;
+    this.cache.set(filename, storedDocument);
+    this.setActiveFile(filename);
+    await this.enqueue(async () => {
+      const backend = this.requireBackend();
+      if (previous && contentChanged) {
+        await this.createSnapshot(backend, filename, previous.content, previous.lastModified);
       }
-
-      // Attempt to save
-      localStorage.setItem(key, JSON.stringify(storedDocument));
-      this.setActiveFile(filename);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        // Handle quota exceeded by cleaning up old snapshots
-        const cleaned = await this.cleanupSnapshots(filename, 3);
-        if (cleaned > 0) {
-          try {
-            // Retry save after cleanup
-            localStorage.setItem(key, JSON.stringify(storedDocument));
-            this.setActiveFile(filename);
-          } catch (retryError) {
-            throw new Error('Storage quota exceeded even after cleanup. Please export your work and free up space.');
-          }
-        } else {
-          throw new Error('Storage quota exceeded. Please export your work and free up space.');
-        }
-      } else {
-        throw error;
+      try {
+        await backend.putFile(storedDocument);
+      } catch (error) {
+        if (!this.isQuotaError(error)) throw error;
+        const cleaned = await this.cleanupSnapshots(backend, filename, 3);
+        if (cleaned === 0) throw new Error('Storage quota exceeded. Please export your work and free up space.');
+        try { await backend.putFile(storedDocument); }
+        catch { throw new Error('Storage quota exceeded even after cleanup. Please export your work and free up space.'); }
       }
-    }
+    }).catch((error) => {
+      // Roll the cache back so the UI does not believe an unsaved doc is
+      // durable, unless a newer save for this name has already replaced it.
+      if (this.cache.get(filename) === storedDocument) {
+        if (previous) this.cache.set(filename, previous); else this.cache.delete(filename);
+      }
+      throw error;
+    });
+    this.broadcast(filename);
+    this.notify();
   }
 
   static loadFile(filename: string): StoredInkDocument | null {
-    const key = this.STORAGE_PREFIX + filename;
-    const data = localStorage.getItem(key);
-    if (data) {
-      try {
-        const storedDocument = JSON.parse(data) as StoredInkDocument;
-        // Ensure lastSavedAt exists (for backward compatibility)
-        if (!storedDocument.lastSavedAt) {
-          storedDocument.lastSavedAt = storedDocument.lastModified;
-        }
-        return storedDocument;
-      } catch (error) {
-        console.error('Error parsing file data:', error);
-        return null;
-      }
-    }
-    return null;
+    this.assertReady();
+    const storedDocument = this.cache.get(filename);
+    return storedDocument ? { ...storedDocument } : null;
   }
 
   static fileExists(filename: string): boolean {
-    return localStorage.getItem(this.STORAGE_PREFIX + filename) !== null;
+    this.assertReady();
+    return this.cache.has(filename);
   }
 
   static getAvailableFileName(filename: string, excludeName?: string): string {
@@ -189,7 +370,6 @@ export class FileOperations {
   }
 
   static getActiveFileName(): string | null {
-    this.cleanupLegacyLocalSaves();
     return localStorage.getItem(this.ACTIVE_FILE_KEY);
   }
 
@@ -199,7 +379,6 @@ export class FileOperations {
   }
 
   static loadStartupFile(): StoredInkDocument | RecoveryDraft | null {
-    this.cleanupLegacyLocalSaves();
     const activeFileName = this.getActiveFileName();
     const activeFile = activeFileName ? this.loadFile(activeFileName) : null;
     const recoveryDraft = this.loadRecoveryDraft();
@@ -241,11 +420,11 @@ export class FileOperations {
       this.setActiveFile(filename);
     } catch (error) {
       if (error instanceof Error && error.name === 'QuotaExceededError') {
-        // Free snapshot space for all known files and retry once
-        const fileNames = this.getAllFiles().map(f => f.name);
-        for (const name of fileNames) {
-          this.cleanupSnapshots(name, Number.MAX_SAFE_INTEGER);
-        }
+        // Free snapshot space for all known files in the background — the draft
+        // path stays synchronous, so the retry does not wait on the purge.
+        void this.enqueue(async () => {
+          for (const name of Array.from(this.cache.keys())) await this.backend?.deleteAllSnapshots(name);
+        });
         try {
           localStorage.setItem(this.RECOVERY_DRAFT_KEY, value);
           this.setActiveFile(filename);
@@ -284,52 +463,41 @@ export class FileOperations {
   }
 
   static getAllFiles(): StoredInkDocument[] {
-    this.cleanupLegacyLocalSaves();
-    const storedDocuments: StoredInkDocument[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(this.STORAGE_PREFIX) && !key.includes(this.SNAPSHOT_PREFIX)) {
-        const data = localStorage.getItem(key);
-        if (data) {
-          try {
-            const storedDocument = JSON.parse(data) as StoredInkDocument;
-            // Ensure lastSavedAt exists (for backward compatibility)
-            if (!storedDocument.lastSavedAt) {
-              storedDocument.lastSavedAt = storedDocument.lastModified;
-            }
-            storedDocuments.push(storedDocument);
-          } catch (error) {
-            console.error('Error parsing file data:', error);
-          }
-        }
-      }
-    }
-    return storedDocuments.sort((a, b) => b.lastModified - a.lastModified);
+    this.assertReady();
+    return Array.from(this.cache.values())
+      .map(d => ({ ...d }))
+      .sort((a, b) => b.lastModified - a.lastModified);
   }
 
   static deleteFile(fileName: string): boolean {
-    const key = this.STORAGE_PREFIX + fileName;
-    if (localStorage.getItem(key)) {
-      // Delete main file
-      localStorage.removeItem(key);
-      
-      // Delete all snapshots for this file
-      this.cleanupSnapshots(fileName, Number.MAX_SAFE_INTEGER);
-
-      if (this.getActiveFileName() === fileName) {
-        const nextFile = this.getAllFiles()[0]?.name;
-        if (nextFile) {
-          this.setActiveFile(nextFile);
-        } else {
-          localStorage.removeItem(this.ACTIVE_FILE_KEY);
-        }
-      }
-
-      this.clearRecoveryDraft(fileName);
-      
-      return true;
+    this.assertReady();
+    if (!this.cache.has(fileName)) {
+      return false;
     }
-    return false;
+
+    this.cache.delete(fileName);
+
+    void this.enqueue(async () => {
+      const b = this.requireBackend();
+      await b.deleteFile(fileName);
+      await b.deleteAllSnapshots(fileName);
+    }).catch(e => console.error('Failed to delete file from storage:', e));
+
+    if (this.getActiveFileName() === fileName) {
+      const nextFile = this.getAllFiles()[0]?.name;
+      if (nextFile) {
+        this.setActiveFile(nextFile);
+      } else {
+        localStorage.removeItem(this.ACTIVE_FILE_KEY);
+      }
+    }
+
+    this.clearRecoveryDraft(fileName);
+
+    this.broadcast(fileName);
+    this.notify();
+
+    return true;
   }
 
   static async duplicateFile(sourceName: string, requestedName?: string): Promise<StoredInkDocument | null> {
@@ -354,16 +522,16 @@ export class FileOperations {
 
       // Optionally migrate snapshots
       if (migrateSnapshots) {
-        const snapshots = this.getSnapshots(oldName);
-        for (const snapshot of snapshots) {
-          const newKey = `${this.STORAGE_PREFIX}${newName}${this.SNAPSHOT_PREFIX}${snapshot.timestamp}`;
-          localStorage.setItem(newKey, JSON.stringify(snapshot));
-        }
+        await this.enqueue(async () => {
+          const b = this.requireBackend();
+          const snaps = await b.listSnapshots(oldName);
+          for (const s of snaps) await b.putSnapshot(newName, s);
+        });
       }
 
       // Delete old file and its snapshots
       this.deleteFile(oldName);
-      
+
       return true;
     } catch (error) {
       console.error('Error renaming file:', error);
@@ -372,8 +540,10 @@ export class FileOperations {
   }
 
   // Get file snapshots (for recovery UI)
-  static getFileSnapshots(fileName: string): Array<{ timestamp: number; preview: string }> {
-    return this.getSnapshots(fileName)
+  static async getFileSnapshots(fileName: string): Promise<Array<{ timestamp: number; preview: string }>> {
+    await this.flush();
+    const snaps = await this.requireBackend().listSnapshots(fileName);
+    return snaps
       .sort((a, b) => b.timestamp - a.timestamp)
       .map(snapshot => ({
         timestamp: snapshot.timestamp,
@@ -383,15 +553,16 @@ export class FileOperations {
 
   // Restore from snapshot
   static async restoreFromSnapshot(fileName: string, timestamp: number): Promise<boolean> {
-    const snapshots = this.getSnapshots(fileName);
+    await this.flush();
+    const snapshots = await this.requireBackend().listSnapshots(fileName);
     const snapshot = snapshots.find(s => s.timestamp === timestamp);
-    
+
     if (snapshot) {
       const existing = this.loadFile(fileName);
       await this.saveFile(fileName, snapshot.content, existing?.settings);
       return true;
     }
-    
+
     return false;
   }
 
@@ -435,25 +606,27 @@ export class FileOperations {
   }
 
   // Create a snapshot of the current file content
-  private static async createSnapshot(fileName: string, content: string, timestamp: number): Promise<void> {
-    const hash = simpleHash(content);
-    const snapshotKey = `${this.STORAGE_PREFIX}${fileName}${this.SNAPSHOT_PREFIX}${timestamp}`;
-    
+  private static async createSnapshot(
+    backend: StorageBackend,
+    fileName: string,
+    content: string,
+    timestamp: number,
+  ): Promise<void> {
     const snapshot: Snapshot = {
       timestamp,
       content,
-      hash
+      hash: simpleHash(content),
     };
 
     try {
-      localStorage.setItem(snapshotKey, JSON.stringify(snapshot));
-      await this.cleanupSnapshots(fileName);
+      await backend.putSnapshot(fileName, snapshot);
+      await this.cleanupSnapshots(backend, fileName);
     } catch (error) {
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
+      if (this.isQuotaError(error)) {
         // Purge all snapshots for this file and retry once before giving up
-        await this.cleanupSnapshots(fileName, Number.MAX_SAFE_INTEGER);
+        await backend.deleteAllSnapshots(fileName);
         try {
-          localStorage.setItem(snapshotKey, JSON.stringify(snapshot));
+          await backend.putSnapshot(fileName, snapshot);
         } catch {
           // Snapshot skipped — main save will still proceed normally
         }
@@ -462,49 +635,25 @@ export class FileOperations {
   }
 
   // Clean up old snapshots, keeping only the most recent MAX_SNAPSHOTS
-  private static async cleanupSnapshots(fileName: string, forceDeleteCount?: number): Promise<number> {
-    const snapshots = this.getSnapshots(fileName);
-    let deleteCount = forceDeleteCount || Math.max(0, snapshots.length - this.MAX_SNAPSHOTS);
-    
+  private static async cleanupSnapshots(
+    backend: StorageBackend,
+    fileName: string,
+    forceDeleteCount?: number,
+  ): Promise<number> {
+    const snapshots = await backend.listSnapshots(fileName);
+    const deleteCount = forceDeleteCount || Math.max(0, snapshots.length - this.MAX_SNAPSHOTS);
+
     if (deleteCount <= 0) return 0;
 
     // Sort by timestamp (oldest first) and delete the oldest
     snapshots.sort((a, b) => a.timestamp - b.timestamp);
-    let deletedCount = 0;
+    const victims = snapshots
+      .slice(0, Math.min(deleteCount, snapshots.length))
+      .map(s => s.timestamp);
 
-    for (let i = 0; i < Math.min(deleteCount, snapshots.length); i++) {
-      const snapshotKey = `${this.STORAGE_PREFIX}${fileName}${this.SNAPSHOT_PREFIX}${snapshots[i].timestamp}`;
-      try {
-        localStorage.removeItem(snapshotKey);
-        deletedCount++;
-      } catch (error) {
-        console.warn('Failed to delete snapshot:', error);
-      }
-    }
+    await backend.deleteSnapshots(fileName, victims);
 
-    return deletedCount;
-  }
-
-  // Get all snapshots for a file
-  private static getSnapshots(fileName: string): Snapshot[] {
-    const snapshots: Snapshot[] = [];
-    const snapshotPrefix = `${this.STORAGE_PREFIX}${fileName}${this.SNAPSHOT_PREFIX}`;
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(snapshotPrefix)) {
-        try {
-          const data = localStorage.getItem(key);
-          if (data) {
-            snapshots.push(JSON.parse(data) as Snapshot);
-          }
-        } catch (error) {
-          console.error('Error parsing snapshot data:', error);
-        }
-      }
-    }
-
-    return snapshots;
+    return victims.length;
   }
 
   private static cleanupLegacyLocalSaves(): void {

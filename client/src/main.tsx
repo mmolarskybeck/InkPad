@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
 import App from "./App";
+import { FileOperations } from "@/lib/file-operations";
 import "./index.css";
 
 // Fonts are a visual enhancement for the editor shell, not a prerequisite for
@@ -16,8 +17,10 @@ if (typeof window !== "undefined") {
   }
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+void FileOperations.init().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+});

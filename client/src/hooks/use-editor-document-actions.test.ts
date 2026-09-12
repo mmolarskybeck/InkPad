@@ -60,8 +60,10 @@ describe("useEditorDocumentActions", () => {
     });
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
+    FileOperations.resetForTests();
+    await FileOperations.init();
     vi.clearAllMocks();
   });
 
@@ -139,6 +141,8 @@ describe("useEditorDocumentActions", () => {
     await act(async () => {
       await result.current.handleConfirmFileAction("Better Novel");
     });
+
+    await FileOperations.flush();
 
     expect(FileOperations.loadFile("Novel.inkpad")).toBeNull();
     expect(FileOperations.loadFile("Better Novel.ink")).toBeNull();

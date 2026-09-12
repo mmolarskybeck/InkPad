@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { FileOperations } from "./file-operations";
 import { createSingleFileProject } from "./ink-project";
 
@@ -38,8 +38,15 @@ describe("FileOperations document lifecycle", () => {
     });
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
+    FileOperations.resetForTests();
+    await FileOperations.init();
+  });
+
+  it("throws a clear error when used before init", () => {
+    FileOperations.resetForTests();
+    expect(() => FileOperations.getAllFiles()).toThrow(/init/);
   });
 
   it("prefers a newer recovery draft for the active document", async () => {
@@ -52,7 +59,9 @@ describe("FileOperations document lifecycle", () => {
     });
   });
 
-  it("removes pre-CodeMirror local save keys after the storage namespace bump", () => {
+  it("removes pre-CodeMirror local save keys after the storage namespace bump", async () => {
+    // The legacy sweep runs during init, so seed the old keys and boot again.
+    localStorage.clear();
     localStorage.setItem("inkpad_story.ink", JSON.stringify({
       name: "story.ink",
       content: "old saved content",
@@ -71,6 +80,9 @@ describe("FileOperations document lifecycle", () => {
       lastModified: 2,
     }));
 
+    FileOperations.resetForTests();
+    await FileOperations.init();
+
     expect(FileOperations.loadStartupFile()).toBeNull();
 
     expect(localStorage.getItem("inkpad_story.ink")).toBeNull();
@@ -88,6 +100,7 @@ describe("FileOperations document lifecycle", () => {
     await FileOperations.saveFile("old.ink", "content");
 
     expect(await FileOperations.renameFile("old.ink", "new.ink", true)).toBe(true);
+    await FileOperations.flush();
     expect(FileOperations.loadFile("old.ink")).toBeNull();
     expect(FileOperations.loadFile("new.ink")?.content).toBe("content");
   });
@@ -123,6 +136,7 @@ describe("FileOperations document lifecycle", () => {
       previewMode: "scene",
     });
     expect(FileOperations.deleteFile("story-copy.ink")).toBe(true);
+    await FileOperations.flush();
     expect(FileOperations.loadFile("story.ink")?.content).toBe("content");
   });
 
@@ -152,9 +166,68 @@ describe("FileOperations document lifecycle", () => {
     };
     await FileOperations.saveFile("old.ink", "content", settings);
     await FileOperations.renameFile("old.ink", "new.ink");
+    await FileOperations.flush();
     FileOperations.saveRecoveryDraft("new.ink", "recovered", settings);
 
     expect(FileOperations.loadFile("new.ink")?.settings).toEqual(settings);
     expect(FileOperations.loadStartupFile()).toMatchObject({ settings });
+  });
+
+  it("saveFile is durable across re-init", async () => {
+    await FileOperations.saveFile("durable.ink", "kept");
+    await FileOperations.flush();
+
+    FileOperations.resetForTests();
+    await FileOperations.init();
+
+    expect(FileOperations.loadFile("durable.ink")?.content).toBe("kept");
+  });
+
+  it("deleteFile removes durably", async () => {
+    await FileOperations.saveFile("gone.ink", "temporary");
+    expect(FileOperations.deleteFile("gone.ink")).toBe(true);
+    await FileOperations.flush();
+
+    FileOperations.resetForTests();
+    await FileOperations.init();
+
+    expect(FileOperations.loadFile("gone.ink")).toBeNull();
+  });
+
+  it("subscribe fires after save and delete", async () => {
+    let count = 0;
+    const unsubscribe = FileOperations.subscribe(() => {
+      count += 1;
+    });
+
+    await FileOperations.saveFile("watched.ink", "first");
+    FileOperations.deleteFile("watched.ink");
+    await FileOperations.flush();
+
+    expect(count).toBe(2);
+
+    unsubscribe();
+    await FileOperations.saveFile("watched.ink", "second");
+    await FileOperations.flush();
+
+    expect(count).toBe(2);
+  });
+
+  it("keeps at most 10 snapshots", async () => {
+    // Snapshots are keyed by the previous save's timestamp, so give every save
+    // a distinct clock reading instead of racing inside a single millisecond.
+    let now = 1_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => (now += 1_000));
+
+    try {
+      for (let i = 0; i < 12; i++) {
+        await FileOperations.saveFile("snapshotted.ink", `revision ${i}`);
+      }
+      await FileOperations.flush();
+
+      expect((await FileOperations.getFileSnapshots("snapshotted.ink")).length).toBe(10);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });

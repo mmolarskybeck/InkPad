@@ -448,6 +448,12 @@ export default function Editor() {
   const [recentFiles, setRecentFiles] = useState<StoredInkDocument[]>(() => {
     try { return FileOperations.getAllFiles(); } catch { return []; }
   });
+  // Keep the saved-files list in step with saves made in other tabs. The
+  // project store refreshes its cache from a BroadcastChannel and notifies
+  // subscribers; local writes also notify, which is harmless here.
+  useEffect(() => FileOperations.subscribe(() => {
+    try { setRecentFiles(FileOperations.getAllFiles()); } catch { /* storage unavailable */ }
+  }), []);
   const [recoveredAt, setRecoveredAt] = useState<number | null>(startupStateRef.current.recoveredAt);
   const [isRecoveryBannerDismissed, setIsRecoveryBannerDismissed] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>(() => (
