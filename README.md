@@ -10,7 +10,7 @@ InkPad is local-first and runs entirely in the browser. No installation or accou
 
 ## Use InkPad
 
-Open the live app:
+Open the live web app:
 
 **[https://inkpad.shadowbox.games](https://inkpad.shadowbox.games/)**
 
@@ -18,9 +18,9 @@ Start with the included sample story, write your own, or import an existing `.in
 
 ## Features
 
-- **ink code editor** — Write ink in a CodeMirror 6 editor with custom Ink syntax highlighting and folding.
-- **Live compilation** — Check your story after a finished word or a short pause without sending the source to a server.
-- **Interactive preview** — Play through your story in the browser. When an edit compiles, InkPad restores the current playthrough where it can; when an edit fails, it keeps the last successful preview available.
+- **ink code editor** — Write ink in a CodeMirror 6 editor with custom ink syntax highlighting and folding.
+- **Live compilation** — Check how your story plays as you type the code.
+- **Interactive preview** — Play through your story in the browser. When an edit compiles, InkPad restores the current playthrough where it can. When an edit fails, it keeps the last successful preview available.
 - **Transcript and scene preview modes** — Keep a playthrough history visible or focus on the current passage.
 - **Choice navigation** — Step back to the previous choice or restart the story from the preview.
 - **Problems and quick fixes** — View compiler errors with file and line information, jump to the relevant code, and apply supported fixes for common structural mistakes.
@@ -28,7 +28,7 @@ Start with the included sample story, write your own, or import an existing `.in
 - **Insert palette** — Search syntax helpers, reusable examples, and snippets with `Cmd/Ctrl+Shift+I`. Create, edit, and delete custom snippets stored in the current browser.
 - **Variable inspector** — Monitor story variables while testing.
 - **Story navigation** — Jump between knots and go directly to their definitions in the editor.
-- **Settings and accessibility** — Choose dark, light, or high-contrast themes; adjust editor and preview font sizes; control editor word wrap; and manage privacy preferences.
+- **Settings and accessibility** — Choose dark, light, or high-contrast themes. Adjust editor and preview font sizes. Control editor word wrap and manage privacy preferences.
 - **Story details** — Store an author name and preferred preview mode with each local story.
 - **Project manager** — Search, sort, open, rename, duplicate, expand, and delete locally saved projects from one project-focused view.
 - **Local saves and recovery** — Save and manage multiple stories in your browser, with recovery drafts and local snapshots.
@@ -85,7 +85,7 @@ Learn more:
 ## How InkPad works
 
 - **Frontend:** React, TypeScript, Vite
-- **Editor:** CodeMirror 6, with a vendored/patched Ink language grammar
+- **Editor:** CodeMirror 6, with a vendored Ink language grammar based on [@mavnn/codemirror-lang-ink](https://github.com/mavnn/codemirror-lang-ink) 
 - **ink compiler/runtime:** inkjs
 - **Styling:** Tailwind CSS, Radix UI, and shadcn/ui
 - **Backend:** None for the current version
