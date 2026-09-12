@@ -55,59 +55,155 @@
       // Mirrors useSystemTheme() in preferences-provider.tsx: an OS
       // high-contrast or forced-colors setting wins, then light/dark.
       (function () {
+        // Mirrors loadUserPreferences() in preferences-storage.ts: a current
+        // record is trusted only when it validates in full (the app resets an
+        // invalid one to "system"); pre-6 records migrate "dark" to "system".
         var theme = "system";
         try {
           var stored = JSON.parse(localStorage.getItem("inkpad:preferences") || "null");
-          if (stored && typeof stored.theme === "string") theme = stored.theme;
+          if (stored && typeof stored === "object") {
+            var t = stored.theme, v = stored.schemaVersion;
+            var known = t === "light" || t === "dark" || t === "high-contrast" || t === "system";
+            if (v === 6) {
+              var valid = known
+                && [12, 14, 16, 18, 20].indexOf(stored.editorFontSize) !== -1
+                && [14, 16, 18, 20, 22].indexOf(stored.previewFontSize) !== -1
+                && ["inkpad", "light", "dark", "high-contrast", "sepia"].indexOf(stored.previewTheme) !== -1
+                && typeof stored.wordWrap === "boolean"
+                && typeof stored.showVariablesInspector === "boolean";
+              if (valid) theme = t;
+            } else if (v >= 1 && v <= 5 && known && t !== "dark") {
+              theme = t;
+            }
+          }
         } catch (e) {}
-        if (theme === "dark" && stored && stored.schemaVersion < 6) theme = "system";
         if (theme === "system") {
           var mq = function (q) { return window.matchMedia && window.matchMedia(q).matches; };
           if (mq("(prefers-contrast: more)") || mq("(forced-colors: active)")) theme = "high-contrast";
           else if (mq("(prefers-color-scheme: light)")) theme = "light";
           else theme = "dark";
         }
-        if (theme !== "light" && theme !== "dark" && theme !== "high-contrast") theme = "dark";
         document.documentElement.classList.add(theme);
       })();
     </script>
     <style>
-      /* Pre-mount shell: crawlable fallback content that React replaces on
-         mount. Colored per the theme class the script above set on <html>. */
-      body:has(> #root > .pre-mount) { background: #ffffff; }
-      .pre-mount { min-height: 100vh; box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 4rem 1.5rem; color: #1f2937; font: 16px/1.6 system-ui, sans-serif; }
-      .pre-mount h1 { font-size: 2rem; margin: 0 0 0.75rem; color: #0f172a; }
-      .pre-mount a { color: #3b5bdb; }
-      .dark body:has(> #root > .pre-mount) { background: #1b1c27; }
-      .dark .pre-mount { color: #dfe4fb; }
-      .dark .pre-mount h1 { color: #fff; }
-      .dark .pre-mount a { color: #7692f9; }
-      .high-contrast body:has(> #root > .pre-mount) { background: #000; }
-      .high-contrast .pre-mount { color: #fff; }
-      .high-contrast .pre-mount h1 { color: #fff; }
-      .high-contrast .pre-mount a { color: #9cc2ff; }
+      /* Pre-mount shell: an app-shaped skeleton that React replaces on mount.
+         Colored per the theme class the script above set on <html>. Only
+         structure is drawn here; real content arrives with the bundle. */
+      :root { --pm-bg: #f2f3f8; --pm-panel: #e9ebf2; --pm-line: #d2d5de; --pm-bone: #d9dce5; --pm-accent: #5c68fc; --pm-text: #1f2447; --pm-muted: #5b607b; }
+      .dark { --pm-bg: #1b1c27; --pm-panel: #1e2233; --pm-line: #292e42; --pm-bone: #2b3047; --pm-accent: #7692f9; --pm-text: #dfe4fb; --pm-muted: #868fb6; }
+      .high-contrast { --pm-bg: #000; --pm-panel: #0a0a0a; --pm-line: #fff; --pm-bone: #333; --pm-accent: #ff0; --pm-text: #fff; --pm-muted: #d6d6d6; }
+      /* Painted on <html> (no :has() dependency) so the first frame is already
+         the right theme; the app's own body background layers over it. */
+      html { background: var(--pm-bg); color-scheme: light; }
+      html.dark, html.high-contrast { color-scheme: dark; }
+      body { margin: 0; }
+      .pre-mount { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; color: var(--pm-text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .pre-mount * { box-sizing: border-box; }
+      .pre-mount .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      .pm-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; height: 44px; padding: 0 8px; background: var(--pm-panel); border-bottom: 1px solid var(--pm-line); }
+      .pm-brand { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+      .pm-brand svg { width: 20px; height: 20px; color: var(--pm-accent); transform: rotate(-90deg); }
+      .pm-title { height: 14px; width: 120px; max-width: 40vw; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--pm-line); box-sizing: content-box; }
+      .pm-title i { display: block; height: 100%; }
+      .pm-body { display: flex; flex: 1; min-height: 0; }
+      .pm-rail { display: none; width: 44px; flex-shrink: 0; flex-direction: column; align-items: center; gap: 10px; padding-top: 12px; background: var(--pm-panel); border-right: 1px solid var(--pm-line); }
+      .pm-pane { display: flex; flex: 1 1 0; min-width: 0; flex-direction: column; }
+      .pm-pane-head { display: none; align-items: center; gap: 8px; flex-shrink: 0; height: 44px; padding: 0 16px; background: var(--pm-panel); border-bottom: 1px solid var(--pm-line); }
+      .pm-split { display: none; width: 4px; flex-shrink: 0; background: var(--pm-line); }
+      .pm-preview { display: none; }
+      .pm-code { display: flex; gap: 14px; padding: 16px 12px; font-size: 0; }
+      .pm-gutter { display: flex; flex-direction: column; gap: 12px; width: 14px; flex-shrink: 0; }
+      .pm-lines { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 0; }
+      .pm-prose { display: flex; flex-direction: column; gap: 12px; padding: 24px 20px; max-width: 34rem; }
+      .pm-choice { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+      .pm-choice::before { content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--pm-accent); opacity: .7; }
+      .pm-stack { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+      .pm-main { display: flex; flex: 1; min-height: 0; }
+      .pm-dock { display: none; height: 30%; flex-shrink: 0; border-top: 1px solid var(--pm-line); }
+      .pm-dock .pm-pane-head { height: 40px; }
+      .pm-dock .pm-pane:first-child { flex: 7 1 0; }
+      .pm-dock .pm-pane:last-child { flex: 3 1 0; }
+      .pm-dock .pm-rows { display: flex; flex-direction: column; gap: 14px; padding: 18px 16px; }
+      .pm-tabs { display: flex; flex-shrink: 0; height: 48px; background: var(--pm-panel); border-top: 1px solid var(--pm-line); }
+      .pm-tabs span { display: flex; flex: 1; align-items: center; justify-content: center; position: relative; font-size: 13px; font-weight: 500; color: var(--pm-muted); }
+      .pm-tabs span:first-child { color: var(--pm-text); }
+      .pm-tabs span:first-child::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; background: var(--pm-accent); }
+      .pre-mount i { display: block; height: 12px; border-radius: 3px; background: var(--pm-bone); animation: pm-pulse 1.6s ease-in-out infinite; }
+      .pm-dot { width: 22px; height: 22px; border-radius: 6px; }
+      @keyframes pm-pulse { 50% { opacity: .55; } }
+      @media (prefers-reduced-motion: reduce) { .pre-mount i { animation: none; } }
+      @media (min-width: 769px) {
+        .pm-bar { height: 52px; padding: 0 12px; }
+        .pm-rail, .pm-pane-head, .pm-split, .pm-preview, .pm-dock { display: flex; }
+        .pm-tabs { display: none; }
+      }
     </style>
   </head>
   <body>
     <div id="root">
-      <main class="pre-mount">
-        <h1>InkPad</h1>
-        <p>
-          InkPad is a free, local-first online editor for writing, testing, and exporting
-          interactive stories made with <a href="https://www.inklestudios.com/ink/">inkle's ink</a>
-          narrative scripting language. It runs entirely in your browser and needs no account
-          or install. Your projects stay on your device.
-        </p>
-        <p>
-          Write ink with syntax highlighting, snippets, and live error checking. Play your story
-          in a built-in preview, inspect variables as they change, and export a playable HTML
-          file or compiled JSON.
-        </p>
-        <p>
-          Learn more on the <a href="https://www.shadowbox.games/inkpad">InkPad page at Shadowbox Games</a>
-          or browse the <a href="https://github.com/mmolarskybeck/inkpad">source on GitHub</a>.
-        </p>
-        <p>Loading the editor…</p>
+      <main class="pre-mount" aria-busy="true" aria-label="InkPad">
+        <h1 class="sr-only">InkPad</h1>
+        <p class="sr-only">Loading the ink editor…</p>
+        <noscript>
+          <p>
+            InkPad is a free, local-first online editor for writing, testing, and exporting
+            interactive stories made with <a href="https://www.inklestudios.com/ink/">inkle's ink</a>
+            narrative scripting language. It runs entirely in your browser and needs JavaScript
+            enabled. Learn more on the <a href="https://www.shadowbox.games/inkpad">InkPad page at Shadowbox Games</a>
+            or browse the <a href="https://github.com/mmolarskybeck/inkpad">source on GitHub</a>.
+          </p>
+        </noscript>
+        <div aria-hidden="true" class="pm-bar">
+          <span class="pm-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/></svg>
+            inkpad
+          </span>
+          <span class="pm-title"><i></i></span>
+        </div>
+        <div aria-hidden="true" class="pm-body">
+          <div class="pm-rail"><i class="pm-dot"></i><i class="pm-dot"></i></div>
+          <div class="pm-stack">
+          <div class="pm-main">
+          <div class="pm-pane">
+            <div class="pm-pane-head"><i style="width:96px"></i></div>
+            <div class="pm-code">
+              <div class="pm-gutter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="pm-lines">
+                <i style="width:38%"></i>
+                <i style="width:72%"></i>
+                <i style="width:54%;margin-left:6%"></i>
+                <i style="width:46%;margin-left:6%"></i>
+                <i style="width:0;opacity:0"></i>
+                <i style="width:30%"></i>
+                <i style="width:64%"></i>
+                <i style="width:50%;margin-left:6%"></i>
+              </div>
+            </div>
+          </div>
+          <div class="pm-split"></div>
+          <div class="pm-pane pm-preview">
+            <div class="pm-pane-head"><i style="width:64px"></i></div>
+            <div class="pm-prose">
+              <i style="width:92%"></i>
+              <i style="width:80%"></i>
+              <i style="width:60%"></i>
+              <span class="pm-choice"><i style="width:44%"></i></span>
+              <span class="pm-choice"><i style="width:36%"></i></span>
+            </div>
+          </div>
+          </div>
+          <div class="pm-dock">
+            <div class="pm-pane"><div class="pm-pane-head"><i style="width:72px"></i></div></div>
+            <div class="pm-split"></div>
+            <div class="pm-pane">
+              <div class="pm-pane-head"><i style="width:80px"></i></div>
+              <div class="pm-rows"><i style="width:70%"></i><i style="width:55%"></i><i style="width:62%"></i></div>
+            </div>
+          </div>
+          </div>
+        </div>
+        <div aria-hidden="true" class="pm-tabs"><span>Code</span><span>Preview</span></div>
       </main>
     </div>
     <script type="module" src="/src/main.tsx"></script>
