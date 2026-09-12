@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { loadUserPreferences, saveUserPreferences } from "@/lib/preferences-storage";
 import {
   DEFAULT_USER_PREFERENCES,
@@ -23,24 +24,28 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-function getSystemTheme(): EffectiveAppTheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+/**
+ * Resolves the "system" theme from OS settings. An OS-level high-contrast or
+ * forced-colors setting wins over light/dark, mirroring how the pre-mount
+ * script in index.html picks the first-paint theme. Falls back to dark where
+ * matchMedia is unavailable so tests and old browsers keep the historic look.
+ */
+export function useSystemTheme(): EffectiveAppTheme {
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+  const prefersLight = useMediaQuery("(prefers-color-scheme: light)");
+  const prefersMoreContrast = useMediaQuery("(prefers-contrast: more)");
+  const forcedColors = useMediaQuery("(forced-colors: active)");
+  if (prefersMoreContrast || forcedColors) return "high-contrast";
+  if (prefersDark) return "dark";
+  return prefersLight ? "light" : "dark";
 }
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState(loadUserPreferences);
-  const [systemTheme, setSystemTheme] = useState<EffectiveAppTheme>(getSystemTheme);
+  const systemTheme = useSystemTheme();
   const effectiveTheme: EffectiveAppTheme = preferences.theme === "system"
     ? systemTheme
     : preferences.theme;
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => setSystemTheme(mq.matches ? "dark" : "light");
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;

@@ -1,6 +1,6 @@
 import type { ThemeName } from "@/lib/tag-interpreter";
 
-export const USER_PREFERENCES_SCHEMA_VERSION = 5 as const;
+export const USER_PREFERENCES_SCHEMA_VERSION = 6 as const;
 
 export type AppTheme = "dark" | "light" | "high-contrast" | "system";
 export type EffectiveAppTheme = Exclude<AppTheme, "system">;
@@ -20,7 +20,7 @@ export interface UserPreferences {
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   schemaVersion: USER_PREFERENCES_SCHEMA_VERSION,
-  theme: "dark",
+  theme: "system",
   editorFontSize: 14,
   previewFontSize: 16,
   previewTheme: "inkpad",

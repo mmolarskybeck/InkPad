@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- InkPad now follows the operating system theme by default, including OS high-contrast and forced-colors settings, with Light, Dark, and High contrast still available as explicit overrides
 - Commit-aware live compilation after finished words and short idle periods, with delayed status feedback for slower compiles
 - Choice-path replay after successful live recompilation, including safe restart notices when a previously visited target no longer exists
 - A lazy shared compiler worker with request routing, crash recovery, and hot-module replacement cleanup

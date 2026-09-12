@@ -6,7 +6,8 @@
     <title>InkPad | Online ink Editor</title>
     <meta name="description" content="InkPad is a browser-based editor for writing, testing, and exporting interactive stories made with inkle's ink narrative scripting language." />
     <link rel="canonical" href="https://inkpad.shadowbox.games/" />
-    <meta name="theme-color" content="#1B1C27" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1B1C27" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <meta property="og:type" content="website" />
@@ -48,13 +49,43 @@
         ]
       }
     </script>
+    <script>
+      // Pick the first-paint theme before any CSS renders so the pre-mount
+      // shell matches what React will apply, avoiding a light/dark flash.
+      // Mirrors useSystemTheme() in preferences-provider.tsx: an OS
+      // high-contrast or forced-colors setting wins, then light/dark.
+      (function () {
+        var theme = "system";
+        try {
+          var stored = JSON.parse(localStorage.getItem("inkpad:preferences") || "null");
+          if (stored && typeof stored.theme === "string") theme = stored.theme;
+        } catch (e) {}
+        if (theme === "dark" && stored && stored.schemaVersion < 6) theme = "system";
+        if (theme === "system") {
+          var mq = function (q) { return window.matchMedia && window.matchMedia(q).matches; };
+          if (mq("(prefers-contrast: more)") || mq("(forced-colors: active)")) theme = "high-contrast";
+          else if (mq("(prefers-color-scheme: light)")) theme = "light";
+          else theme = "dark";
+        }
+        if (theme !== "light" && theme !== "dark" && theme !== "high-contrast") theme = "dark";
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
     <style>
       /* Pre-mount shell: crawlable fallback content that React replaces on
-         mount. Dark to match the app's default theme and avoid a white flash. */
-      body:has(> #root > .pre-mount) { background: #1b1c27; }
-      .pre-mount { min-height: 100vh; box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 4rem 1.5rem; color: #dfe4fb; font: 16px/1.6 system-ui, sans-serif; }
-      .pre-mount h1 { font-size: 2rem; margin: 0 0 0.75rem; color: #fff; }
-      .pre-mount a { color: #7692f9; }
+         mount. Colored per the theme class the script above set on <html>. */
+      body:has(> #root > .pre-mount) { background: #ffffff; }
+      .pre-mount { min-height: 100vh; box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 4rem 1.5rem; color: #1f2937; font: 16px/1.6 system-ui, sans-serif; }
+      .pre-mount h1 { font-size: 2rem; margin: 0 0 0.75rem; color: #0f172a; }
+      .pre-mount a { color: #3b5bdb; }
+      .dark body:has(> #root > .pre-mount) { background: #1b1c27; }
+      .dark .pre-mount { color: #dfe4fb; }
+      .dark .pre-mount h1 { color: #fff; }
+      .dark .pre-mount a { color: #7692f9; }
+      .high-contrast body:has(> #root > .pre-mount) { background: #000; }
+      .high-contrast .pre-mount { color: #fff; }
+      .high-contrast .pre-mount h1 { color: #fff; }
+      .high-contrast .pre-mount a { color: #9cc2ff; }
     </style>
   </head>
   <body>

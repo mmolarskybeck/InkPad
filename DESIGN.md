@@ -103,7 +103,7 @@ InkPad's design philosophy centers on the writer's workspace: a clean, minimal d
 This system rejects: cluttered UIs with competing affordances, overly "designed" or flashy interfaces, clunky or sluggish interactions, and corporate-heavy aesthetics. It embraces the restraint of Obsidian's sidebar layout, VS Code's clarity, and Scrivener's respect for the writer's workflow.
 
 **Key Characteristics:**
-- **Dark ("Tokyo Night") is the default theme.** Light and high-contrast are user-selectable alternatives, plus a system-follows-OS option. All four apply app-wide (editor chrome, panels, dialogs).
+- **"System" is the default theme.** It follows the OS: an OS high-contrast or forced-colors setting resolves to high-contrast, otherwise `prefers-color-scheme` picks dark ("Tokyo Night") or light. Users can override with an explicit Light, Dark, or High contrast choice in InkPad settings. All four apply app-wide (editor chrome, panels, dialogs). The pre-mount script in `client/index.html` applies the same resolution before first paint.
 - A separate **story preview theme** can be pinned independently of the app theme — `light`, `dark`, `high-contrast`, or a warm **sepia** reading theme — or left on "Match InkPad theme" (the default) to inherit whatever the app theme is.
 - One primary accent-blue, one secondary sky-blue, one success green — no additional decorative colors.
 - Precise, minimal components with clear, defined shadows used sparingly.

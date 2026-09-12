@@ -86,14 +86,48 @@ describe("preferences storage", () => {
     expect(loadUserPreferences(storage)).not.toHaveProperty("showSnippetToolbar");
   });
 
-  it("round-trips a v5 record", () => {
+  it("migrates a v5 record's implicit dark theme to system", () => {
+    storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...DEFAULT_USER_PREFERENCES,
+      schemaVersion: 5,
+      theme: "dark",
+    }));
+
+    expect(loadUserPreferences(storage)).toEqual(DEFAULT_USER_PREFERENCES);
+    expect(loadUserPreferences(storage).theme).toBe("system");
+  });
+
+  it("keeps an explicit non-dark theme when migrating a v5 record", () => {
+    storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...DEFAULT_USER_PREFERENCES,
+      schemaVersion: 5,
+      theme: "high-contrast",
+    }));
+
+    expect(loadUserPreferences(storage).theme).toBe("high-contrast");
+  });
+
+  it("treats a legacy dark theme key as the old default", () => {
+    storage.setItem("inkpad-theme", "dark");
+
+    expect(loadUserPreferences(storage).theme).toBe("system");
+  });
+
+  it("keeps an explicit dark theme in a current record", () => {
+    const preferences = { ...DEFAULT_USER_PREFERENCES, theme: "dark" as const };
+    storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+
+    expect(loadUserPreferences(storage)).toEqual(preferences);
+  });
+
+  it("round-trips a v6 record", () => {
     const preferences = { ...DEFAULT_USER_PREFERENCES, wordWrap: false };
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
 
     expect(loadUserPreferences(storage)).toEqual(preferences);
   });
 
-  it("rejects a v5 record that is missing an inspector flag", () => {
+  it("rejects a v6 record that is missing an inspector flag", () => {
     const { showVariablesInspector: _omitted, ...incomplete } = DEFAULT_USER_PREFERENCES;
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(incomplete));
 

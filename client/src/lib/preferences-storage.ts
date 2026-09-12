@@ -16,10 +16,20 @@ const PREVIEW_THEMES = new Set<PreviewThemePreference>(["inkpad", "light", "dark
 const EDITOR_FONT_SIZES = new Set<EditorFontSize>([12, 14, 16, 18, 20]);
 const PREVIEW_FONT_SIZES = new Set<PreviewFontSize>([14, 16, 18, 20, 22]);
 
+/**
+ * Records written before schema 6 defaulted to "dark", so a stored "dark" is
+ * indistinguishable from "never chose". Those records now follow the OS
+ * theme; an explicit light or high-contrast choice is kept as-is.
+ */
+function migrateLegacyTheme(theme: unknown): AppTheme {
+  if (!THEMES.has(theme as AppTheme) || theme === "dark") {
+    return DEFAULT_USER_PREFERENCES.theme;
+  }
+  return theme as AppTheme;
+}
+
 function migrateLegacySchema(candidate: Record<string, unknown>): UserPreferences {
-  const theme = THEMES.has(candidate.theme as AppTheme)
-    ? (candidate.theme as AppTheme)
-    : DEFAULT_USER_PREFERENCES.theme;
+  const theme = migrateLegacyTheme(candidate.theme);
   const editorFontSize = EDITOR_FONT_SIZES.has(candidate.editorFontSize as EditorFontSize)
     ? (candidate.editorFontSize as EditorFontSize)
     : DEFAULT_USER_PREFERENCES.editorFontSize;
@@ -58,6 +68,7 @@ function parsePreferences(value: unknown): UserPreferences | null {
     || candidate.schemaVersion === 2
     || candidate.schemaVersion === 3
     || candidate.schemaVersion === 4
+    || candidate.schemaVersion === 5
   ) {
     return migrateLegacySchema(candidate);
   }
@@ -92,10 +103,7 @@ export function loadUserPreferences(storage: Storage = localStorage): UserPrefer
     }
 
     const legacyTheme = storage.getItem(LEGACY_THEME_STORAGE_KEY);
-    const migratedTheme = THEMES.has(legacyTheme as AppTheme)
-      ? (legacyTheme as AppTheme)
-      : DEFAULT_USER_PREFERENCES.theme;
-    const preferences = { ...DEFAULT_USER_PREFERENCES, theme: migratedTheme };
+    const preferences = { ...DEFAULT_USER_PREFERENCES, theme: migrateLegacyTheme(legacyTheme) };
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
     storage.removeItem(LEGACY_THEME_STORAGE_KEY);
     return preferences;
