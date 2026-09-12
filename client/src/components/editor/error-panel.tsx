@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, Copy, Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CompileStatus } from "@/hooks/use-ink-story";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import {
@@ -124,15 +125,19 @@ export function ErrorPanel({
                       <span className="text-text-emphasis">{error.message}</span>
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={(event) => handleCopyMessage(event, error)}
-                    className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-text-secondary opacity-0 transition-[opacity,color,background-color] hover:bg-panel-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
-                    aria-label="Copy problem message"
-                    title="Copy problem message"
-                  >
-                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(event) => handleCopyMessage(event, error)}
+                        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-text-secondary opacity-0 transition-[opacity,color,background-color] hover:bg-panel-bg hover:text-text-emphasis focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
+                        aria-label="Copy problem message"
+                      >
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">Copy problem message</TooltipContent>
+                  </Tooltip>
                 </li>
               );
             })}

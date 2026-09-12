@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InsertPalette, type InsertPaletteProps } from "./insert-palette";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InkSnippet } from "@/features/snippets/ink-snippets";
 
 // Labels are deliberately distinct from the SYNTAX_LABELS values ("Divert",
@@ -66,12 +67,14 @@ function renderPalette(overrides: Partial<InsertPaletteProps> = {}) {
   const onInsertSnippet = overrides.onInsertSnippet ?? vi.fn();
   const onOpenChange = overrides.onOpenChange ?? vi.fn();
   render(
-    <TestHarness
-      {...overrides}
-      onInsertSyntax={onInsertSyntax}
-      onInsertSnippet={onInsertSnippet}
-      onOpenChange={onOpenChange}
-    />,
+    <TooltipProvider>
+      <TestHarness
+        {...overrides}
+        onInsertSyntax={onInsertSyntax}
+        onInsertSnippet={onInsertSnippet}
+        onOpenChange={onOpenChange}
+      />
+    </TooltipProvider>,
   );
   return { onInsertSyntax, onInsertSnippet, onOpenChange };
 }

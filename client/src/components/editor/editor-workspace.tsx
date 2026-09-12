@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
 import { getSnippetPreview, groupSnippetsByCategory } from "@/features/snippets/ink-snippets";
 import { SYNTAX_INSERTS } from "@/features/snippets/syntax-inserts";
 import { useSnippetLibrary } from "@/features/snippets/snippet-library-provider";
@@ -763,24 +764,51 @@ export function EditorWorkspace({
                 <div className="flex shrink-0 items-center gap-0.5">
                   {focusedPanel === "code" ? (
                     <>
-                      <Button type="button" variant="ghost" onClick={() => editorRef.current?.undo()} disabled={!editorControlState.canUndo} aria-label="Undo" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                        <Undo2 className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" onClick={() => editorRef.current?.redo()} disabled={!editorControlState.canRedo} aria-label="Redo" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                        <Redo2 className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" onClick={onToggleFind} aria-label={editorControlState.isFindVisible ? "Close find and replace" : "Find and replace"} aria-pressed={editorControlState.isFindVisible} className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-accent-blue">
-                        <Search className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" onClick={() => editorRef.current?.undo()} disabled={!editorControlState.canUndo} aria-label="Undo" aria-keyshortcuts={toAriaKeyShortcuts(["mod", "z"])} className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                            <Undo2 className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" shortcut={["mod", "z"]}>Undo</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" onClick={() => editorRef.current?.redo()} disabled={!editorControlState.canRedo} aria-label="Redo" aria-keyshortcuts={toAriaKeyShortcuts(["mod", "shift", "z"])} className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                            <Redo2 className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" shortcut={["mod", "shift", "z"]}>Redo</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" onClick={onToggleFind} aria-label={editorControlState.isFindVisible ? "Close find and replace" : "Find and replace"} aria-pressed={editorControlState.isFindVisible} aria-keyshortcuts={toAriaKeyShortcuts(["mod", "f"])} className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis aria-pressed:bg-accent aria-pressed:text-accent-blue">
+                            <Search className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" shortcut={["mod", "f"]}>
+                          {editorControlState.isFindVisible ? "Close find and replace" : "Find and replace"}
+                        </TooltipContent>
+                      </Tooltip>
                     </>
                   ) : (
                     <>
-                      <Button type="button" variant="ghost" onClick={onStepBack} disabled={!canStepBack || !hasRuntimeState} aria-label="Back to previous choice" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" onClick={onRestart} disabled={!hasRuntimeState} aria-label="Restart story from beginning" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" onClick={onStepBack} disabled={!canStepBack || !hasRuntimeState} aria-label="Back to previous choice" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Back to previous choice</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" onClick={onRestart} disabled={!hasRuntimeState} aria-label="Restart story from beginning" className="h-9 w-9 p-0 text-text-secondary hover:bg-accent hover:text-text-emphasis disabled:opacity-30">
+                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Restart story</TooltipContent>
+                      </Tooltip>
                     </>
                   )}
                   <div className="mx-1 h-4 w-px bg-border-color" aria-hidden="true" />
@@ -919,15 +947,19 @@ export function EditorWorkspace({
                     Variables
                     <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
                   </TabsTrigger>
-                  <button
-                    type="button"
-                    onClick={() => setDockMode("split")}
-                    className={`hidden min-[1100px]:flex ml-auto mr-1 self-center ${DOCK_HIDE_BUTTON_CLASSES}`}
-                    aria-label="Show side by side"
-                    title="Show side by side"
-                  >
-                    <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setDockMode("split")}
+                        className={`hidden min-[1100px]:flex ml-auto mr-1 self-center ${DOCK_HIDE_BUTTON_CLASSES}`}
+                        aria-label="Show side by side"
+                      >
+                        <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Show side by side</TooltipContent>
+                  </Tooltip>
                 </TabsList>
                 <TabsContent value="problems" className="m-0 min-h-0 flex-1">
                   {compactProblemsPane}
@@ -1015,7 +1047,6 @@ export function EditorWorkspace({
                 disabled={!editorControlState.canUndo}
                 className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:opacity-30"
                 aria-label="Undo"
-                title="Undo"
               >
                 <Undo2 className="h-4 w-4" />
               </button>
@@ -1027,7 +1058,6 @@ export function EditorWorkspace({
                 disabled={!editorControlState.canRedo}
                 className="flex h-full w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:opacity-30"
                 aria-label="Redo"
-                title="Redo"
               >
                 <Redo2 className="h-4 w-4" />
               </button>
@@ -1047,7 +1077,6 @@ export function EditorWorkspace({
                 onKeyDown={(event) => handleInsertKeyDown(event, item.insert)}
                 className="flex h-full min-w-10 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg px-2 font-mono text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                 aria-label={`Insert ${item.label}`}
-                title={`Insert ${item.label}`}
               >
                 {item.label}
               </button>
@@ -1060,7 +1089,6 @@ export function EditorWorkspace({
                 onClick={handleProblemsChipClick}
                 className="flex h-full min-w-10 shrink-0 items-center justify-center gap-1 rounded border border-error/40 bg-panel-bg px-2 text-[0.8125rem] font-medium tabular-nums text-error transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                 aria-label={`Open problems, ${problemCount} found`}
-                title={`${problemCount} problems`}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
                 {problemCount}
@@ -1073,7 +1101,6 @@ export function EditorWorkspace({
               onKeyDown={handleSnippetsToggleKeyDown}
               aria-pressed={mobileDrawer === "snippets"}
               aria-label="Snippets"
-              title="Snippets"
               className={`flex h-full shrink-0 items-center justify-center gap-1.5 rounded border border-border-color bg-panel-bg text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue aria-pressed:border-accent-blue aria-pressed:text-accent-blue ${isMobileKeyboardOpen ? "w-10" : "min-w-[6.5rem] px-3"}`}
             >
               <ScrollText className="h-4 w-4" />

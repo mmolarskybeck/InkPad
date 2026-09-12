@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { SquarePlus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
 import {
   Command,
   CommandEmpty,
@@ -227,16 +229,25 @@ export function InsertPalette({
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue data-[state=open]:bg-accent data-[state=open]:text-text-emphasis"
-          aria-label="Insert snippet or syntax"
-          title="Insert… (Ctrl/Cmd+Shift+I)"
-        >
-          <SquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue data-[state=open]:bg-accent data-[state=open]:text-text-emphasis"
+              aria-label="Insert snippet or syntax"
+              aria-keyshortcuts={toAriaKeyShortcuts(["mod", "shift", "i"])}
+            >
+              <SquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {!open && (
+          <TooltipContent side="bottom" shortcut={["mod", "shift", "i"]}>
+            Insert snippet or syntax
+          </TooltipContent>
+        )}
+      </Tooltip>
       <PopoverContent
         side="bottom"
         align="end"

@@ -53,6 +53,7 @@ import {
 import { Code, Redo2, Search, Undo2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { EditableTitle } from "@/components/ui/editable-title";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { inkAutoClose } from "@/editor/codemirror/auto-close";
 import { lineNumberToOffset } from "@/editor/codemirror/coordinates";
 import { inkCompletions } from "@/editor/codemirror/completion";
@@ -63,6 +64,10 @@ import { inkInfoHover } from "@/editor/codemirror/hover";
 import { inkBuiltinFunctions } from "@/editor/codemirror/ink-builtins";
 import { inkIdentifierOccurrences } from "@/editor/codemirror/identifier-occurrences";
 import { inkSearch } from "@/components/editor/codemirror-search-panel";
+import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
+
+const EDITOR_HEADER_BUTTON_CLASSES =
+  "flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
 import type { SaveState } from "@/hooks/use-autosave";
@@ -1036,35 +1041,50 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5 text-[0.8125rem] text-text-secondary">
-            <button
-              type="button"
-              onClick={() => runCommand(undo)}
-              disabled={!historyState.canUndo}
-              className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
-              aria-label="Undo"
-              title="Undo (Ctrl/Cmd+Z)"
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => runCommand(redo)}
-              disabled={!historyState.canRedo}
-              className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
-              aria-label="Redo"
-              title="Redo (Ctrl/Cmd+Shift+Z)"
-            >
-              <Redo2 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => runCommand(openSearchPanel)}
-              className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis"
-              aria-label="Find and replace"
-              title="Find (Ctrl/Cmd+F)"
-            >
-              <Search className="h-3.5 w-3.5" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => runCommand(undo)}
+                  disabled={!historyState.canUndo}
+                  className={EDITOR_HEADER_BUTTON_CLASSES}
+                  aria-label="Undo"
+                  aria-keyshortcuts={toAriaKeyShortcuts(["mod", "z"])}
+                >
+                  <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" shortcut={["mod", "z"]}>Undo</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => runCommand(redo)}
+                  disabled={!historyState.canRedo}
+                  className={EDITOR_HEADER_BUTTON_CLASSES}
+                  aria-label="Redo"
+                  aria-keyshortcuts={toAriaKeyShortcuts(["mod", "shift", "z"])}
+                >
+                  <Redo2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" shortcut={["mod", "shift", "z"]}>Redo</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => runCommand(openSearchPanel)}
+                  className={EDITOR_HEADER_BUTTON_CLASSES}
+                  aria-label="Find and replace"
+                  aria-keyshortcuts={toAriaKeyShortcuts(["mod", "f"])}
+                >
+                  <Search className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" shortcut={["mod", "f"]}>Find and replace</TooltipContent>
+            </Tooltip>
             {headerActions}
           </div>
         </div>

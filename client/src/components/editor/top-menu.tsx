@@ -18,8 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Shortcut } from "@/components/ui/kbd";
+import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
 import { Archive, ChevronDown, Download, PenTool, Upload, File, FilePlus2, FolderOpen, Save, SaveAll, Play, Settings, Clock, Menu } from "lucide-react";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportMenu } from "./story-export-menu";
@@ -190,43 +193,68 @@ export function TopMenu({
   };
 
   const renderRecentFilesMenu = () => (
-    <DropdownMenuContent align="start" className="w-72 bg-panel-bg border-border-color">
-      <DropdownMenuItem onClick={onOpen} className="cursor-pointer">
-        <FolderOpen className="w-4 h-4" />
-        Import .ink, .inkpad, or .zip...
+    <DropdownMenuContent align="start" className="w-[288px] border-border-color bg-panel-bg p-1.5 shadow-md">
+      <DropdownMenuItem
+        onClick={onOpen}
+        className="group flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 focus:bg-accent"
+      >
+        <FolderOpen className="mt-0.5 h-4 w-4 shrink-0 text-text-secondary transition-colors group-focus:text-text-emphasis" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[0.875rem] font-medium leading-tight text-text-emphasis">Open from disk…</span>
+          <span className="text-[0.75rem] leading-snug text-text-secondary">.ink, .inkpad, or .zip</span>
+        </div>
+        <DropdownMenuShortcut className="mt-0.5 pl-2">
+          <Shortcut keys={["mod", "o"]} />
+        </DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel className="flex items-center gap-2 text-text-secondary">
-        <Clock className="w-3.5 h-3.5" />
+
+      <DropdownMenuSeparator className="my-1 bg-border-color/60" />
+
+      <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pb-1 pt-2 text-[0.75rem] font-medium uppercase tracking-[0.05em] text-text-secondary">
+        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
         Recent
       </DropdownMenuLabel>
       {recentFiles.length === 0 ? (
-        <DropdownMenuItem disabled>No saved projects</DropdownMenuItem>
+        <DropdownMenuItem disabled className="px-2 py-1.5 text-[0.8125rem] text-text-secondary">
+          No saved projects yet
+        </DropdownMenuItem>
       ) : (
-        recentFiles.slice(0, 8).map((file) => (
-          <DropdownMenuItem
-            key={file.name}
-            onClick={() => onOpenRecent(file.name)}
-            className="cursor-pointer flex-col items-start gap-0.5"
-          >
-            <span className="flex w-full items-center justify-between gap-3">
-              <span className="truncate text-text-emphasis">
-                {file.settings?.title ?? file.name.replace(/\.ink$/i, "")}
+        recentFiles.slice(0, 8).map((file) => {
+          const isCurrent = file.name === currentSaveFileName;
+          return (
+            <DropdownMenuItem
+              key={file.name}
+              onClick={() => onOpenRecent(file.name)}
+              className="group flex cursor-pointer flex-col items-stretch gap-0.5 rounded-md px-2 py-1.5 focus:bg-accent"
+            >
+              <span className="flex min-w-0 items-center justify-between gap-3">
+                <span className="truncate text-[0.875rem] font-medium leading-tight text-text-emphasis">
+                  {file.settings?.title ?? file.name.replace(/\.ink$/i, "")}
+                </span>
+                {isCurrent && (
+                  <span className="shrink-0 rounded-full border border-accent-blue/40 bg-accent-blue/10 px-1.5 py-px text-[0.625rem] font-medium uppercase tracking-[0.05em] leading-4 text-accent-blue">
+                    Open
+                  </span>
+                )}
               </span>
-              {file.name === currentSaveFileName && (
-                <span className="text-[0.6875rem] text-accent-blue">open</span>
-              )}
-            </span>
-            <span className="text-[0.75rem] text-text-secondary">
-              {file.name} · {formatRecentFileTime(file.lastSavedAt ?? file.lastModified)}
-            </span>
-          </DropdownMenuItem>
-        ))
+              <span className="flex min-w-0 items-center gap-1.5 text-[0.75rem] leading-snug text-text-secondary">
+                <span className="truncate">{file.name}</span>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0 tabular-nums">{formatRecentFileTime(file.lastSavedAt ?? file.lastModified)}</span>
+              </span>
+            </DropdownMenuItem>
+          );
+        })
       )}
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={onManageSaves} className="cursor-pointer">
-        <Archive className="w-4 h-4" />
-        Manage Projects...
+
+      <DropdownMenuSeparator className="my-1 bg-border-color/60" />
+
+      <DropdownMenuItem
+        onClick={onManageSaves}
+        className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 focus:bg-accent"
+      >
+        <Archive className="h-4 w-4 shrink-0 text-text-secondary transition-colors group-focus:text-text-emphasis" />
+        <span className="text-[0.875rem] font-medium leading-tight text-text-emphasis">Manage projects…</span>
       </DropdownMenuItem>
     </DropdownMenuContent>
   );
@@ -234,15 +262,21 @@ export function TopMenu({
   const renderNewMenu = () => {
     if (!onNewFile) {
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onNew}
-          className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
-        >
-          <File className="h-3.5 w-3.5" />
-          New
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNew}
+              aria-keyshortcuts={toAriaKeyShortcuts(["mod", "n"])}
+              className="h-8 gap-1.5 px-2.5 text-[0.8125rem] text-text-primary hover:bg-accent hover:text-text-emphasis"
+            >
+              <File className="h-3.5 w-3.5" />
+              New
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" shortcut={["mod", "n"]}>New project</TooltipContent>
+        </Tooltip>
       );
     }
 
@@ -280,6 +314,9 @@ export function TopMenu({
           <DropdownMenuItem onClick={onNew} className="cursor-pointer">
             <File className="h-4 w-4" />
             New project
+            <DropdownMenuShortcut>
+              <Shortcut keys={["mod", "n"]} />
+            </DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -354,6 +391,9 @@ export function TopMenu({
               <DropdownMenuItem onClick={onSave} className="cursor-pointer">
                 <Save className="h-4 w-4" />
                 Save
+                <DropdownMenuShortcut>
+                  <Shortcut keys={["mod", "s"]} />
+                </DropdownMenuShortcut>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onSaveAs} className="cursor-pointer">
                 <SaveAll className="h-4 w-4" />
@@ -410,13 +450,19 @@ export function TopMenu({
           </SelectContent>
         </Select>
         
-        <Button
-          onClick={onRun}
-          className="h-8 gap-1.5 bg-success px-3.5 text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105"
-        >
-          <Play className="h-3.5 w-3.5 fill-current" />
-          Run
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onRun}
+              aria-keyshortcuts={toAriaKeyShortcuts(["mod", "enter"])}
+              className="h-8 gap-1.5 bg-success px-3.5 text-[0.8125rem] font-semibold text-editor-bg hover:brightness-105"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              Run
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" shortcut={["mod", "enter"]}>Compile and run story</TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="flex shrink-0 items-center gap-1 min-[1120px]:hidden">

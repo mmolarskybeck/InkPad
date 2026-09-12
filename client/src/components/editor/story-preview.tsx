@@ -283,9 +283,7 @@ export function StoryPreview({
                         <ArrowLeft className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      Return to the previous choice and restore the story state.
-                    </TooltipContent>
+                    <TooltipContent side="bottom">Back to previous choice</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -301,7 +299,7 @@ export function StoryPreview({
                         <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Restart story from the beginning.</TooltipContent>
+                    <TooltipContent side="bottom">Restart story</TooltipContent>
                   </Tooltip>
                 </div>
               </>

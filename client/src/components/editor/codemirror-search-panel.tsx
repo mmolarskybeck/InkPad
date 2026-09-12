@@ -16,6 +16,7 @@ import type { EditorView, Panel, ViewUpdate } from "@codemirror/view";
 import { ArrowDown, ArrowUp, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toAriaKeyShortcuts, type ShortcutKey } from "@/lib/keyboard-shortcuts";
 import { cn } from "@/lib/utils";
 
 /**
@@ -162,8 +163,9 @@ function OptionChip({ label, title, pressed, onPressedChange }: {
   );
 }
 
-function IconAction({ title, onClick, children, className }: {
+function IconAction({ title, shortcut, onClick, children, className }: {
   title: string;
+  shortcut?: readonly ShortcutKey[];
   onClick: () => void;
   children: React.ReactNode;
   className?: string;
@@ -176,13 +178,14 @@ function IconAction({ title, onClick, children, className }: {
           variant="ghost"
           size="icon"
           aria-label={title}
+          aria-keyshortcuts={shortcut ? toAriaKeyShortcuts(shortcut) : undefined}
           onClick={onClick}
           className={cn("h-7 w-7 shrink-0 text-text-secondary hover:text-text-emphasis", className)}
         >
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{title}</TooltipContent>
+      <TooltipContent side="bottom" shortcut={shortcut}>{title}</TooltipContent>
     </Tooltip>
   );
 }
@@ -289,14 +292,16 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
           )}
           <div className="inkpad-search-nav-actions">
             <IconAction
-              title="Previous match (Shift+Enter)"
+              title="Previous match"
+              shortcut={["shift", "enter"]}
               onClick={() => findPrevious(view)}
               className="inkpad-search-prev"
             >
               <ArrowUp />
             </IconAction>
             <IconAction
-              title="Next match (Enter)"
+              title="Next match"
+              shortcut={["enter"]}
               onClick={() => findNext(view)}
               className="inkpad-search-next"
             >
@@ -316,7 +321,7 @@ function SearchPanelView({ controller }: { controller: SearchPanelController }) 
               all
             </Button>
           </div>
-          <IconAction title="Close (Escape)" onClick={close} className="inkpad-search-close">
+          <IconAction title="Close" shortcut={["escape"]} onClick={close} className="inkpad-search-close">
             <X />
           </IconAction>
         </div>
