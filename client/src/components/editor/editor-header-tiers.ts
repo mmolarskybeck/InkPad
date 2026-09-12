@@ -1,5 +1,3 @@
-import type { SaveState } from "@/hooks/use-autosave";
-
 /**
  * Width tiers for the editor pane header. The header measures itself
  * (ResizeObserver) rather than the viewport, because the pane can be narrow
@@ -19,36 +17,4 @@ export function getEditorHeaderTier(width: number | null | undefined): EditorHea
   if (width < EDITOR_HEADER_NARROW_WIDTH) return "narrow";
   if (width < EDITOR_HEADER_COMPACT_WIDTH) return "compact";
   return "wide";
-}
-
-/** Label + text colour for the save indicator. */
-export function getSaveStatus(saveState: SaveState) {
-  switch (saveState) {
-    case "dirty":
-      return { label: "Modified", className: "text-warning" };
-    case "saving":
-      return { label: "Saving...", className: "text-accent-blue" };
-    case "error":
-      return { label: "Save failed", className: "text-error" };
-    case "disabled":
-      return { label: "Autosave disabled", className: "text-warning" };
-    default:
-      return { label: "Saved", className: "text-text-secondary" };
-  }
-}
-
-/** Dot colour for the same states, used when the label has no room. */
-export function getSaveStatusDotClass(saveState: SaveState) {
-  switch (saveState) {
-    case "dirty":
-      return "bg-warning";
-    case "saving":
-      return "animate-pulse bg-accent-blue";
-    case "error":
-      return "bg-error";
-    case "disabled":
-      return "bg-warning opacity-70";
-    default:
-      return "bg-success";
-  }
 }

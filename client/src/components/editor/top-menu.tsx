@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Shortcut } from "@/components/ui/kbd";
 import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
-import { Archive, ChevronDown, Download, PenTool, Upload, File, FilePlus2, FolderOpen, ListTree, Save, SaveAll, Play, Settings, Clock, Menu, type LucideIcon } from "lucide-react";
+import { Archive, ChevronDown, Download, Loader2, PenTool, Upload, File, FilePlus2, FolderOpen, ListTree, Save, SaveAll, Play, Settings, Clock, Menu, type LucideIcon } from "lucide-react";
 import type { ShortcutKey } from "@/lib/keyboard-shortcuts";
 import { EditableTitle } from "@/components/ui/editable-title";
 import { StoryExportMenu } from "./story-export-menu";
@@ -222,29 +222,18 @@ export function TopMenu({
   // "New ink file" hands focus to the inline rename in the files pane; skip the menu's focus restore.
   const skipNewMenuFocusRestoreRef = useRef(false);
 
-  const getSaveStatusDotClass = () => {
-    const baseClass = "h-2 w-2 flex-shrink-0 rounded-full transition-colors duration-200";
+  // One dot next to the title; the label lives in a tooltip. Green when saved.
+  const getSaveStatus = () => {
     switch (saveState) {
-      case "dirty":  return `${baseClass} bg-warning`;
-      case "saving": return `${baseClass} animate-pulse bg-accent-blue`;
-      case "saved":  return `${baseClass} bg-success`;
-      case "error":    return `${baseClass} bg-error`;
-      case "disabled": return `${baseClass} bg-warning opacity-70`;
-      default:         return `${baseClass} bg-text-secondary opacity-30`;
+      case "dirty":    return { label: "Unsaved changes", dot: "bg-warning" };
+      case "saving":   return { label: "Saving\u2026", dot: null };
+      case "error":    return { label: "Save failed", dot: "bg-error" };
+      case "disabled": return { label: "Autosave disabled", dot: "bg-warning opacity-70" };
+      default:         return { label: "Saved", dot: "bg-success" };
     }
   };
 
-  const getSaveStatusLabel = () => {
-    switch (saveState) {
-      case "dirty":  return "Modified";
-      case "saving": return "Saving...";
-      case "error":    return "Save failed";
-      case "disabled": return "Autosave disabled";
-      default:         return null; // silence when saved
-    }
-  };
-
-  const saveLabel = getSaveStatusLabel();
+  const saveStatus = getSaveStatus();
 
   const hasKnots = knots.length > 0;
 
@@ -400,27 +389,30 @@ export function TopMenu({
           </span>
         </div>
         
-        <div className="flex min-w-0 flex-1 items-center gap-1 border-l border-border-color pl-2 md:w-[210px] md:flex-none md:gap-1.5 md:pl-2.5">
+        <div className="flex min-w-0 flex-1 items-center border-l border-border-color pl-2 md:w-[210px] md:flex-none md:pl-2.5">
           <EditableTitle 
             title={title}
             onTitleChange={onTitleChange}
-            className="w-fit min-w-0 md:w-full"
+            className="w-fit min-w-0"
           />
-          <div
-            className="flex shrink-0 items-center gap-1.5"
-            role="status"
-            aria-label={saveState === "saved" ? "Saved" : saveLabel ?? saveState}
-          >
-            <div className={getSaveStatusDotClass()} />
-            {saveLabel && (
-              <span className={`hidden text-[0.75rem] tabular-nums sm:inline ${
-                saveState === "error" ? "text-error" :
-                saveState === "saving" ? "text-accent-blue" :
-                saveState === "disabled" ? "text-warning" :
-                "text-text-secondary"
-              }`}>{saveLabel}</span>
-            )}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className="flex shrink-0 items-center rounded-full p-1"
+                tabIndex={0}
+                role="status"
+                aria-live="polite"
+                aria-label={saveStatus.label}
+              >
+                {saveStatus.dot ? (
+                  <span className={`block h-2 w-2 rounded-full transition-colors duration-200 ${saveStatus.dot}`} aria-hidden="true" />
+                ) : (
+                  <Loader2 className="h-3 w-3 animate-spin text-text-secondary" aria-hidden="true" />
+                )}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{saveStatus.label}</TooltipContent>
+          </Tooltip>
         </div>
         
         {hasDesktopToolbar && (

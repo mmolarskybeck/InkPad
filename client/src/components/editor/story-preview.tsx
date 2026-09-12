@@ -26,7 +26,6 @@ const FOLLOW_BOTTOM_THRESHOLD = 96;
 
 interface StoryPreviewProps {
   runtimeState: StoryRuntimeState | null;
-  isRunning: boolean;
   restoreNotice?: ReplayFailure | null;
   /** Knot named by a `jump-missing` notice. */
   restoreNoticeKnot?: string | null;
@@ -131,7 +130,6 @@ function RestoreNotice({ failure, knot, onDismiss }: { failure: ReplayFailure; k
 
 export function StoryPreview({
   runtimeState,
-  isRunning,
   restoreNotice = null,
   restoreNoticeKnot = null,
   onDismissRestoreNotice,
@@ -262,8 +260,6 @@ export function StoryPreview({
                   Preview shows the last successful run. Click to view problems.
                 </TooltipContent>
               </Tooltip>
-            ) : isRunning ? (
-              <span className="text-[0.8125rem] font-medium text-success">Running</span>
             ) : null}
             {runtimeState ? (
               <>

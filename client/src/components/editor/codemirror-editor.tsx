@@ -68,15 +68,12 @@ import { toAriaKeyShortcuts } from "@/lib/keyboard-shortcuts";
 import { useElementWidth } from "@/hooks/use-element-width";
 import {
   getEditorHeaderTier,
-  getSaveStatus,
-  getSaveStatusDotClass,
 } from "@/components/editor/editor-header-tiers";
 
 const EDITOR_HEADER_BUTTON_CLASSES =
   "flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary";
 import { inkHighlightStyle } from "@/editor/codemirror/ink-highlight-style";
 import { InkLanguageSupport } from "@/editor/codemirror/ink-lang";
-import type { SaveState } from "@/hooks/use-autosave";
 import type { EditorDiagnostic } from "@/types/editor-diagnostic";
 import type { InkSymbol, InkVariableSymbol } from "@/inkLanguage/inkSymbols";
 
@@ -104,7 +101,6 @@ export interface CodeMirrorEditorProps {
   showHeader?: boolean;
   fontSize?: number;
   wordWrap?: boolean;
-  saveState?: SaveState;
   onRenameFile?: (requestedName: string) => void | Promise<void>;
   /** Extra controls rendered in the header's right-hand button cluster. */
   headerActions?: ReactNode;
@@ -434,7 +430,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   showHeader = true,
   fontSize = 14,
   wordWrap = true,
-  saveState = "saved",
   onRenameFile,
   headerActions,
 }, ref) => {
@@ -474,12 +469,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
   });
   const historyStateRef = useRef(historyState);
   const findVisibleRef = useRef(false);
-  const saveStatus = getSaveStatus(saveState);
   // The header tracks its own width: the pane can be narrow inside a wide
   // window, and the filename must be what shrinks — never the buttons.
   const { ref: headerRef, width: headerWidth } = useElementWidth<HTMLDivElement>();
   const headerTier = getEditorHeaderTier(headerWidth);
-  const showSaveStatusText = headerTier === "wide";
   const showHistoryButtons = headerTier !== "narrow";
 
   useEffect(() => {
@@ -1036,24 +1029,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
               <span className="min-w-0 truncate text-[0.875rem] font-medium text-text-emphasis">
                 {fileName}
               </span>
-            )}
-            {showSaveStatusText ? (
-              <span className={`shrink-0 text-[0.8125rem] ${saveStatus.className}`} aria-live="polite">
-                &bull; {saveStatus.label}
-              </span>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex shrink-0 items-center" tabIndex={0}>
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full transition-colors duration-200 ${getSaveStatusDotClass(saveState)}`}
-                      aria-hidden="true"
-                    />
-                    <span className="sr-only" aria-live="polite">{saveStatus.label}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{saveStatus.label}</TooltipContent>
-              </Tooltip>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5 text-[0.8125rem] text-text-secondary">

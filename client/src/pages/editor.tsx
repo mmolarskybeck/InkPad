@@ -1805,7 +1805,6 @@ export default function Editor() {
             showHeader={!isMobile && focusedPanel === null}
             fontSize={preferences.editorFontSize}
             wordWrap={preferences.wordWrap}
-            saveState={autosave.saveState}
             onRenameFile={(nextName) => handleInlineProjectFileRename(activeFileId, nextName)}
             headerActions={!isMobile ? (
               <InsertPalette
@@ -1831,7 +1830,6 @@ export default function Editor() {
   const previewPane = (
     <StoryPreview
       runtimeState={runtimeState}
-      isRunning={isRunning}
       restoreNotice={restoreNotice}
       restoreNoticeKnot={restoreNoticeKnot}
       onDismissRestoreNotice={dismissRestoreNotice}

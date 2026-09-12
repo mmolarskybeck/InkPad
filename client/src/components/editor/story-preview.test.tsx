@@ -51,7 +51,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         onMakeChoice={() => {}}
       />
     );
@@ -64,7 +63,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         previewMode="scene"
         onMakeChoice={() => {}}
       />
@@ -79,7 +77,6 @@ describe("StoryPreview", () => {
     const { rerender } = renderWithTooltips(
       <StoryPreview
         runtimeState={{ ...runtimeState, canStepBack: false }}
-        isRunning
         onMakeChoice={() => {}}
         onStepBack={onStepBack}
       />
@@ -90,7 +87,6 @@ describe("StoryPreview", () => {
       <TooltipProvider>
         <StoryPreview
           runtimeState={runtimeState}
-          isRunning
           onMakeChoice={() => {}}
           onStepBack={onStepBack}
         />
@@ -105,7 +101,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         onMakeChoice={() => {}}
         onRestart={onRestart}
       />
@@ -120,7 +115,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         restoreNotice="choice-changed"
         onMakeChoice={() => {}}
         onDismissRestoreNotice={onDismissRestoreNotice}
@@ -140,7 +134,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         previewMode="scene"
         restoreNotice="ambiguous-text"
         onMakeChoice={() => {}}
@@ -156,7 +149,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         restoreNotice="jump-missing"
         restoreNoticeKnot="cellar"
         onMakeChoice={() => {}}
@@ -173,7 +165,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         restoreNotice={null}
         onMakeChoice={() => {}}
       />
@@ -188,7 +179,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         hasErrors
         errorCount={1}
         onMakeChoice={() => {}}
@@ -211,7 +201,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={null}
-        isRunning={false}
         hasErrors
         errorCount={2}
         onMakeChoice={() => {}}
@@ -226,16 +215,15 @@ describe("StoryPreview", () => {
     expect(onViewProblems).toHaveBeenCalledOnce();
   });
 
-  it("does not render status dots in the preview header", () => {
+  it("shows no status text in the preview header while running normally", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         onMakeChoice={() => {}}
       />
     );
 
-    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Story is running")).not.toBeInTheDocument();
   });
 
@@ -243,7 +231,6 @@ describe("StoryPreview", () => {
     const { container } = renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         metadata={metadata}
         onMakeChoice={() => {}}
       />
@@ -258,7 +245,6 @@ describe("StoryPreview", () => {
     const { container } = renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         metadata={{ ...metadata, theme: "high-contrast" }}
         previewTheme="high-contrast"
         onMakeChoice={() => {}}
@@ -274,7 +260,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         onMakeChoice={onMakeChoice}
       />
     );
@@ -289,7 +274,6 @@ describe("StoryPreview", () => {
     renderWithTooltips(
       <StoryPreview
         runtimeState={runtimeState}
-        isRunning
         onMakeChoice={() => {}}
       />
     );
