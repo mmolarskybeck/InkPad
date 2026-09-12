@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://inkpad.shadowbox.games/sitemap.xml

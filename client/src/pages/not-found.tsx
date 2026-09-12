@@ -1,7 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { useEffect } from "react";
 
 export default function NotFound() {
+  // The host rewrites every path to index.html with a 200, so unknown URLs
+  // would otherwise be indexed as soft 404s.
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex";
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, []);
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md mx-4">

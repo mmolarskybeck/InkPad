@@ -3,12 +3,82 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="InkPad is a browser-based editor for writing, testing, and exporting interactive stories made with inkle's ink narrative scripting language." />
     <title>InkPad | Online ink Editor</title>
+    <meta name="description" content="InkPad is a browser-based editor for writing, testing, and exporting interactive stories made with inkle's ink narrative scripting language." />
+    <link rel="canonical" href="https://inkpad.shadowbox.games/" />
+    <meta name="theme-color" content="#1B1C27" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="InkPad" />
+    <meta property="og:title" content="InkPad | Online ink Editor" />
+    <meta property="og:description" content="A free, local-first online editor for writing, testing, and exporting interactive stories made with inkle's ink." />
+    <meta property="og:url" content="https://inkpad.shadowbox.games/" />
+    <meta property="og:image" content="https://inkpad.shadowbox.games/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="InkPad: write, test, and export interactive ink stories" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="InkPad | Online ink Editor" />
+    <meta name="twitter:description" content="A free, local-first online editor for writing, testing, and exporting interactive stories made with inkle's ink." />
+    <meta name="twitter:image" content="https://inkpad.shadowbox.games/og.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "InkPad",
+        "alternateName": "InkPad ink Editor",
+        "url": "https://inkpad.shadowbox.games/",
+        "description": "InkPad is a browser-based editor for writing, testing, and exporting interactive stories made with inkle's ink narrative scripting language.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "image": "https://inkpad.shadowbox.games/og.png",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Shadowbox Games",
+          "url": "https://www.shadowbox.games/"
+        },
+        "sameAs": [
+          "https://www.shadowbox.games/inkpad",
+          "https://github.com/mmolarskybeck/inkpad"
+        ]
+      }
+    </script>
+    <style>
+      /* Pre-mount shell: crawlable fallback content that React replaces on
+         mount. Dark to match the app's default theme and avoid a white flash. */
+      body:has(> #root > .pre-mount) { background: #1b1c27; }
+      .pre-mount { min-height: 100vh; box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 4rem 1.5rem; color: #dfe4fb; font: 16px/1.6 system-ui, sans-serif; }
+      .pre-mount h1 { font-size: 2rem; margin: 0 0 0.75rem; color: #fff; }
+      .pre-mount a { color: #7692f9; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="pre-mount">
+        <h1>InkPad</h1>
+        <p>
+          InkPad is a free, local-first online editor for writing, testing, and exporting
+          interactive stories made with <a href="https://www.inklestudios.com/ink/">inkle's ink</a>
+          narrative scripting language. It runs entirely in your browser and needs no account
+          or install. Your projects stay on your device.
+        </p>
+        <p>
+          Write ink with syntax highlighting, snippets, and live error checking. Play your story
+          in a built-in preview, inspect variables as they change, and export a playable HTML
+          file or compiled JSON.
+        </p>
+        <p>
+          Learn more on the <a href="https://www.shadowbox.games/inkpad">InkPad page at Shadowbox Games</a>
+          or browse the <a href="https://github.com/mmolarskybeck/inkpad">source on GitHub</a>.
+        </p>
+        <p>Loading the editor…</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
