@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Commit-aware live compilation after finished words and short idle periods, with delayed status feedback for slower compiles
+- Choice-path replay after successful live recompilation, including safe restart notices when a previously visited target no longer exists
+- A lazy shared compiler worker with request routing, crash recovery, and hot-module replacement cleanup
+- Ink-aware completion for divert targets, variables, constants, lists, list items, functions, and built-in functions
+- Go-to-definition and Ink Info hover for knots and stitches, including cross-file navigation
+- Quick fixes for several common unresolved targets, declarations, function calls, and loose ends
+- Searchable Insert palette for syntax helpers, built-in snippets, longer library examples, and browser-local custom snippets
+- Create, edit, and delete controls for custom snippets
+- Platform-aware shortcut labels in tooltips and menus
+- Optional `source.inkpad` in playable story ZIPs, with source-disclosure guidance in the export dialog
+- Generated `README.html` publishing and customization guide for playable exports
 - Project manager for searching, sorting, opening, renaming, duplicating, expanding, and deleting browser-local projects
 - `.inkpad`/ZIP project import with manifest validation, path-collision checks, metadata restoration, and local-project creation
 - Full-fidelity `.inkpad` export containing the project manifest, all Ink source files, entry-file information, and supported settings
@@ -39,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Playable story ZIPs now use `index.html` as the entry page
+- The editor toolbar and file pane now adapt their controls to the available pane width
+- Routine successful background compiles stay quiet; failed edits keep the last successful preview available
+- Snippet access is consolidated in the Insert palette on desktop, while mobile retains direct insertion controls
 - Project persistence now uses the shared `InkProject` model for both single-file and multi-file stories
 - Import and export menus now distinguish portable `.ink` source files from full `.inkpad` project bundles
 - CodeMirror appearance preferences now update the existing editor instance through compartments
@@ -75,7 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Verification
 
-- 31 automated tests passing
+- 49 automated test files passing (647 tests)
 - TypeScript check passing
 - Production build passing
 - Desktop and mobile browser smoke testing completed for Settings and Story Preview controls

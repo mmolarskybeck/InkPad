@@ -50,10 +50,10 @@ InkPad is not trying to fully replace every advanced feature of Inky, VS Code, o
 Near-term priorities include:
 
 - Complete accessibility verification and polish for Settings and preview modes
-- Ink-aware completions and reusable code snippets
 - Shareable project snapshot links without accounts
-- Mobile project-file navigation and persistence hardening for multi-file projects
+- Mobile project-file navigation and mobile access to structural fixes
 - Persistence and multi-tab conflict hardening
+- Broader fixture-backed compiler diagnostics
 
 Small, focused improvements are usually easier to review than large rewrites.
 

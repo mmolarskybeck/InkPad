@@ -55,6 +55,11 @@ Global preferences currently include:
 - story theme
 - editor word wrap
 
+Custom snippets are browser-wide data stored separately under
+`inkpad:custom-snippets`. They are shared across local projects and synchronized
+between open tabs through the browser `storage` event, but they are not part of
+`InkProject` or `.inkpad` export.
+
 Story-specific settings currently include display title, author name, transcript/scene preview mode, and an optional remembered playable-HTML export profile. They are stored with each local `InkDocument` record and recovery draft. The display title is independent from the local filename and preserves the writer’s capitalization and punctuation. HTML export overrides never modify Ink source or Story Details. Global `title`, `author`, and `theme` tags provide portable presentation values without renaming the local file. The story theme is a browser preference unless the user explicitly writes a `theme` tag from Settings.
 
 Resetting preferences affects only browser-wide preferences. It must not reset story title, author, or preview mode.
@@ -63,13 +68,19 @@ Resetting preferences affects only browser-wide preferences. It must not reset s
 
 `client/src/hooks/use-ink-story.ts` owns:
 
-- queued/immediate compilation
+- commit-aware live compilation and explicit Run compilation
 - stale-request rejection
 - compiled runtime story state
 - transcript and choice history
 - variables and knot data
 
-`client/src/lib/ink-compiler.ts` wraps worker communication and constructs runtime `Story` objects from compiled JSON.
+`client/src/lib/ink-compiler.ts` wraps worker communication and constructs runtime `Story` objects from compiled JSON. It lazily creates one shared compiler worker for the page, routes responses by request ID, rejects pending work after a crash, and recreates the worker on the next request. The worker is serial, so superseded work cannot be interrupted; stale results are discarded and the live scheduler keeps at most one newer request waiting.
+
+While the preview is visible, spaces, newlines, sentence punctuation, line
+changes, and editor blur flush a pending live compile. Other edits compile after
+a 1.5-second idle period. A successful live compile attempts to replay the
+writer's current route; an unsuccessful one leaves the last successful preview
+available. Explicit Run compiles immediately and starts a fresh playthrough.
 
 The worker request contract is:
 
@@ -101,12 +112,6 @@ interface InkProject {
   exportNameIsExplicit: boolean;  // false → auto-follows project name
   entryFile: string;              // The entry .ink file
   files: Record<string, { content: string }>;
-  // Story settings (now part of the portable project):
-  author?: string;
-  htmlExport?: HtmlExportOptions;
-  storyTypeface?: HtmlExportFont;
-  previewMode?: PreviewMode;
-  titleFallback?: string;         // Fallback Story Title when no # title: tag present
 }
 ```
 
@@ -117,7 +122,10 @@ The model is intentionally serializable and versioned because it is shared by:
 - shareable project snapshots
 - compiler virtual-file input
 
-**Single-file stories are modeled as one-file `InkProject`s.** This unifies the persistence model: every story (single or multi-file) is an `InkProject`, stored in localStorage with a computed storage key based on file count.
+**Single-file stories are modeled as one-file `InkProject`s.** Every story uses
+the same project shape. Local saves store the serialized project together with
+the story settings held by `InkDocument`; `.inkpad` bundles place those settings
+in the manifest beside the project data.
 
 **Story title, project name, and file names are now independent** — see [`docs/naming-refactor-completed.md`](./docs/naming-refactor-completed.md) for the full design, propagation rules, and pin semantics.
 
@@ -153,7 +161,7 @@ client/src/features/
   export/
 ```
 
-Editable import accepts `.ink` source files and `.inkpad`/ZIP project bundles. `.inkpad` bundles are ZIP archives containing an `inkpad.json` manifest, source files under `ink/`, and supported project settings. Export supports individual source files, full-fidelity `.inkpad` bundles, compiled JSON, and playable web output. Snapshot-link support is planned.
+Editable import accepts `.ink` source files and `.inkpad`/ZIP project bundles. `.inkpad` bundles are ZIP archives containing an `inkpad.json` manifest, source files under `ink/`, and supported project settings. Export supports individual source files, full-fidelity `.inkpad` bundles, compiled JSON, and playable web output. A playable export is a ZIP with `index.html`, an optional `README.html`, and an optional `source.inkpad`. Editable source is off by default and the dialog warns that it exposes the complete project. Snapshot-link support is planned.
 
 ## State strategy
 
@@ -168,6 +176,7 @@ InkProject              portable user-authored content
 InkDocument settings    current browser-local story metadata and preview mode
 UserPreferences         browser-wide editor and appearance preferences
 InkSymbolIndex          derived completion/navigation data
+Custom snippets         browser-wide writing helpers, outside portable projects
 ```
 
 ## Error resilience

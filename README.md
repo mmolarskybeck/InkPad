@@ -1,6 +1,6 @@
 # InkPad
 
-**InkPad is an independent, browser-based editor for writing, testing, and exporting interactive stories written in [ink](https://www.inklestudios.com/ink/), [Inkle Studios](https://www.inklestudios.com/)’ open-source scripting language for branching narratives.**
+InkPad is an independent, browser-based editor for writing, testing, and exporting interactive stories written in [ink](https://www.inklestudios.com/ink/), [Inkle Studios](https://www.inklestudios.com/)’ open-source scripting language for branching narratives.
 
 InkPad gives writers and narrative designers a lightweight development environment in the browser: write ink code, run it instantly, test choices, inspect variables, debug errors, and export your story.
 
@@ -19,11 +19,13 @@ Start with the included sample story, write your own, or import an existing `.in
 ## Features
 
 - **ink code editor** — Write ink in a CodeMirror 6 editor with custom Ink syntax highlighting and folding.
-- **Real-time compilation** — Check your story for errors as you write.
-- **Interactive preview** — Play through your story directly in the browser.
+- **Live compilation** — Check your story after a finished word or a short pause without sending the source to a server.
+- **Interactive preview** — Play through your story in the browser. When an edit compiles, InkPad restores the current playthrough where it can; when an edit fails, it keeps the last successful preview available.
 - **Transcript and scene preview modes** — Keep a playthrough history visible or focus on the current passage.
 - **Choice navigation** — Step back to the previous choice or restart the story from the preview.
-- **Error panel** — View compiler errors with line numbers and jump directly to the relevant code.
+- **Problems and quick fixes** — View compiler errors with file and line information, jump to the relevant code, and apply supported fixes for common structural mistakes.
+- **Ink-aware editing** — Complete divert targets, variables, lists, and functions; inspect knots and stitches on hover; and go to definitions within or across project files.
+- **Insert palette** — Search syntax helpers, reusable examples, and snippets with `Cmd/Ctrl+Shift+I`. Create, edit, and delete custom snippets stored in the current browser.
 - **Variable inspector** — Monitor story variables while testing.
 - **Story navigation** — Jump between knots and go directly to their definitions in the editor.
 - **Settings and accessibility** — Choose dark, light, or high-contrast themes; adjust editor and preview font sizes; control editor word wrap; and manage privacy preferences.
@@ -33,7 +35,7 @@ Start with the included sample story, write your own, or import an existing `.in
 - **Multi-file projects** — Organize stories into multiple `.ink` files with `INCLUDE` support, project-relative paths, an entry-file model, and a collapsible project file rail.
 - **Independent naming** — Story title (from `# title:` tag), project name (display label), and file names are independently editable.
 - **Import/export** — Import `.ink` files or `.inkpad`/ZIP project bundles, and export your work as `.ink` source, `.inkpad` (full-fidelity project bundle), JSON, or a playable web story.
-- **Responsive layout** — Desktop split view with a mobile-friendly editor/preview tab layout.
+- **Responsive layout** — Use a desktop split view or a mobile editor/preview tab layout. Controls condense as panes get narrower, with shortcuts shown in menus and tooltips where available.
 
 ## Saving and privacy
 
@@ -49,6 +51,7 @@ InkPad separates browser-wide preferences from story-specific settings:
 
 - InkPad theme, story theme, editor font size, preview font size, and word wrap apply across InkPad in the current browser.
 - Author name and transcript/scene preview mode are stored with the current local story.
+- Custom snippets are stored separately in the current browser. They are available to all local projects but are not included in `.ink` or `.inkpad` exports.
 
 Plain `.ink` files contain Ink source only. To preserve project metadata (author, preview settings, file structure, story title) across devices or browsers, export as `.inkpad`, which bundles all files and settings together. `.ink` files are portable and can be opened in other editors; `.inkpad` files are InkPad-specific and preserve full project fidelity.
 
@@ -64,9 +67,9 @@ Export options include:
 - `.ink` source files (individual files or the entry file of a multi-file project) — portable, editable in other tools
 - `.inkpad` bundles (complete project with all files, metadata, and settings) — preserves full fidelity for backup or transfer between devices
 - `.json` export (compiled story data for developers)
-- Playable web story as an HTML/JavaScript bundle — ready to share or deploy
+- Playable web story as a ZIP containing `index.html`, with an optional author guide (`README.html`) and optional editable project (`source.inkpad`)
 
-Note: JSON and playable story bundles are output formats and are not directly importable as editable InkPad projects. They can be read by other tools, but to edit in InkPad again, re-import the original `.ink` or `.inkpad` source.
+Compiled JSON and `index.html` are output formats, not editable InkPad projects. If you include `source.inkpad` in a playable export, that file can be opened in InkPad again. Source inclusion is off by default because anyone with the ZIP can read comments, alternate branches, and unpublished material.
 
 ## What is ink?
 
@@ -93,11 +96,9 @@ InkPad compiles and runs ink client-side using inkjs in a Web Worker, so stories
 
 InkPad’s next planned work keeps the app local-first and account-free:
 
-- Ink-aware code completion and an Insert palette for snippets and syntax (⌘⇧I), with your own custom snippets
 - Shareable, immutable project snapshot links
-- Mobile project-file navigation and project persistence hardening
-
-The editor now includes a project manager, multi-file project rail, strict `INCLUDE` resolution against project files, and full-fidelity `.inkpad` import/export. See [docs/roadmap.md](./docs/roadmap.md) for the remaining work.
+- Project persistence and multi-tab conflict hardening
+- Mobile project-file navigation, mobile quick fixes, and accessibility verification
 
 See [docs/roadmap.md](./docs/roadmap.md) for the phased implementation checklist.
 

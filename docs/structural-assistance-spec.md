@@ -3,17 +3,11 @@
 Status: **authoritative spec for Roadmap Phase 3.** Supersedes and absorbs the
 earlier `completions-and-snippets-spec.md` (now removed).
 Owner: @mmolarskybeck
-Last updated: 2026-07-04 — **retargeted from Monaco to CodeMirror 6** after the
-editor migration (see `docs/archive/codemirror-migration/Editor Migration Plan.md` / `docs/archive/codemirror-migration/editor-migration-updates.md`)
-and reconciled against the current repo state after the first CodeMirror
-completion slice.
+Last updated: 2026-09-12 — reconciled with the current CodeMirror implementation.
 
-> **Read first — timing.** This is still a polish layer on top of the editor.
-> The foundations it depends on (compile, syntax highlighting via the vendored
-> Lezer grammar, save/load/export) landed with the CodeMirror migration; the
-> remaining gate is migration soak, not missing features. The implementation
-> order below front-loads the writer-visible wins that need only the symbol
-> table, so partial delivery is useful.
+> **Current state.** The desktop structural-assistance work in this spec ships
+> today. The main remaining v1 work is mobile access to divert targets and quick
+> fixes, plus broader fixture-backed diagnostics.
 
 ---
 
@@ -64,12 +58,12 @@ This is diagnostics + quick fixes + quick insert + navigation — **not**
 
 ---
 
-## Implementation status (2026-07-04)
+## Implementation status (2026-09-12)
 
-The core desktop/code-editor slice is now active: diagnostics, quick fixes,
-divert completion, and explicit snippet completion are all wired. The remaining
-v1 gap is mostly navigation/info polish plus mobile parity surfaces for target
-selection and quick fixes.
+The desktop/code-editor slice is active: diagnostics, quick fixes, divert and
+variable completion, go-to-definition, Ink Info hover, and the Insert palette
+are wired. The remaining v1 gap is mobile parity for target selection and quick
+fixes, plus broader diagnostic coverage.
 
 **Shipped and wired:**
 
@@ -100,9 +94,10 @@ selection and quick fixes.
   - When an unresolved-divert target has exactly one dot (a knot.stitch
     path), the tooltip also offers **Create stitch stitch in knot**, ahead
     of **Change to target**, when the knot exists but the stitch does not.
-- **Shared snippet library (12 snippets)** + compile-verification test:
+- **Shared snippet library** + compile-verification tests:
   `client/src/features/snippets/ink-snippets.ts` / `ink-snippets.test.ts`.
-  All 12 round-trip through the compiler. `desktopSnippet` uses `${n:default}`
+  The hand-written inserts and longer library examples are compiler-tested.
+  `desktopSnippet` uses `${n:default}`
   tab stops, directly compatible with `@codemirror/autocomplete`'s `snippet()`.
 - **Mobile snippet drawer + syntax button bar** — shipped in
   `components/editor/editor-workspace.tsx`. This implements the §Mobile
@@ -143,11 +138,17 @@ selection and quick fixes.
   through to insert a newline, arrows move the selection, and `Escape` closes
   the popup. CodeMirror's snippet-field keymap still lets `Tab` move through
   snippet placeholders after insertion.
+- **Go-to-definition and Ink Info hover**: active- and cross-file knot/stitch
+  targets resolve through the shared symbol table. Writers can use the hover
+  action, modifier-click, `F12`, or `Cmd/Ctrl+Enter` while the editor has focus.
+- **Insert palette and custom snippets**: `Cmd/Ctrl+Shift+I` opens a searchable
+  palette containing syntax helpers, built-in snippets, longer library examples,
+  and browser-local custom snippets. Custom snippets can be created, edited, and
+  deleted without becoming part of the portable project file.
 
-**Still open for v1:** go-to-definition, Ink Info hover, mobile divert target
-picker, mobile quick-fix sheet / Problems-panel fix actions, command palette /
-desktop accessory surface, and the remaining fixture-backed inkjs diagnostic
-codes beyond unresolved diverts.
+**Still open for v1:** mobile divert target picker, mobile quick-fix sheet /
+Problems-panel fix actions, and the remaining fixture-backed inkjs diagnostic
+codes beyond the currently recognized cases.
 
 ---
 
@@ -796,11 +797,11 @@ snippets into `inkLanguage/`; `features/snippets/` stays where it is.
 
 ```text
 inkLanguage/                       — pure, no CodeMirror imports
-  buildSymbolTable.ts   ✓          // tolerant scan → InkSymbol[] + top-level facts
-  inkSymbols.ts         ✓          // types, isDivertTarget, isMissingStartTarget
+  buildSymbolTable.ts   ✓          // tolerant scan → section/variable symbols + top-level facts
+  inkSymbols.ts         ✓          // section and variable types plus target filters
   inkDiagnostics.ts     ✓          // missing-start diagnostic
-  diagnosticAdapter.ts  ✓          // unresolved-divert coded diagnostics; more planned
-  quickFixes.ts         ✓          // missing-start + create bare knot; other fixes planned
+  diagnosticAdapter.ts  ✓          // recognized inkjs diagnostics; more planned
+  quickFixes.ts         ✓          // conservative fixes for recognized structural problems
   fuzzyMatch.ts         ✓          // conservative single-candidate edit distance
 
 editor/codemirror/                 — CodeMirror-specific
@@ -808,7 +809,7 @@ editor/codemirror/                 — CodeMirror-specific
   coordinates.ts        ✓          // 1-based line/column ↔ document offsets
   diagnostics.ts        ✓          // EditorDiagnostic[] → lint Diagnostic[] (+ missing-start action)
   identifier-occurrences.ts ✓      // identifierWordAt — resolver primitive
-  completion.ts         ✓          // divert + explicit snippet CompletionSources
+  completion.ts         ✓          // divert, variable/function, and explicit snippet sources
   resolve-at-position.ts ✓         // resolveSymbolAtPosition(state, pos)
   hover.ts              ✓          // Ink Info hoverTooltip
   go-to-definition.ts   ✓          // mod-click handler + keymap command
@@ -816,15 +817,16 @@ editor/codemirror/                 — CodeMirror-specific
 features/snippets/      ✓          // library, pure matching, compile tests
   ink-snippets.ts / ink-snippets.test.ts
   ink-completion-provider.ts / .test.ts   // pure matcher feeding CM adapter
+  custom-snippets.ts / .test.ts           // browser-local user snippets
 
 lib/ink-compiler.ts     ✓          // the volatile inkjs string layer (wrap with adapter)
 
 components/
-  editor/editor-workspace.tsx ✓    // mobile syntax bar + snippet drawer (shipped)
-  editor/error-panel.tsx      ✓    // Problems panel (gains fix buttons)
+  editor/insert-palette.tsx   ✓    // desktop search and snippet management
+  editor/editor-workspace.tsx ✓    // mobile syntax bar + snippet drawer
+  editor/error-panel.tsx      ✓    // Problems panel
   TargetPicker.tsx                 // planned
   QuickFixSheet.tsx                // planned
-  InkCommandPalette.tsx            // planned
 ```
 
 ### Core data flow
