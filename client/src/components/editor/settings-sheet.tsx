@@ -866,28 +866,6 @@ export function SettingsSheet({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span
-                        id="snippet-toolbar-label"
-                        className="text-[0.875rem] font-medium text-text-emphasis"
-                        title="Show a bar of one-tap Ink syntax and snippet inserts under the editor (desktop)"
-                      >
-                        Quick insert bar
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Switch
-                      id="snippet-toolbar-switch"
-                      checked={preferences.showSnippetToolbar}
-                      aria-labelledby="snippet-toolbar-label"
-                      onCheckedChange={(checked) => updatePreferences({ showSnippetToolbar: checked })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex min-h-11 items-center justify-between gap-4 py-1">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span
                         id="variables-inspector-label"
                         className="text-[0.875rem] font-medium text-text-emphasis"
                         title="Show the Variables tab in the bottom dock"

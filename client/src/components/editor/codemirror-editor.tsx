@@ -1036,7 +1036,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5 text-[0.8125rem] text-text-secondary">
-            {headerActions}
             <button
               type="button"
               onClick={() => runCommand(undo)}
@@ -1066,6 +1065,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             >
               <Search className="h-3.5 w-3.5" />
             </button>
+            {headerActions}
           </div>
         </div>
       )}

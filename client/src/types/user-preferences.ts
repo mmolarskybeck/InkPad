@@ -1,6 +1,6 @@
 import type { ThemeName } from "@/lib/tag-interpreter";
 
-export const USER_PREFERENCES_SCHEMA_VERSION = 4 as const;
+export const USER_PREFERENCES_SCHEMA_VERSION = 5 as const;
 
 export type AppTheme = "dark" | "light" | "high-contrast" | "system";
 export type EffectiveAppTheme = Exclude<AppTheme, "system">;
@@ -15,7 +15,6 @@ export interface UserPreferences {
   previewFontSize: PreviewFontSize;
   previewTheme: PreviewThemePreference;
   wordWrap: boolean;
-  showSnippetToolbar: boolean;
   showVariablesInspector: boolean;
 }
 
@@ -26,6 +25,5 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   previewFontSize: 16,
   previewTheme: "inkpad",
   wordWrap: true,
-  showSnippetToolbar: false,
   showVariablesInspector: true,
 };

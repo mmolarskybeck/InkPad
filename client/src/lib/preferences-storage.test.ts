@@ -54,7 +54,7 @@ describe("preferences storage", () => {
     });
   });
 
-  it("migrates v3 records by defaulting the snippet toolbar off", () => {
+  it("migrates v3 records with defaults for fields added since", () => {
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify({
       schemaVersion: 3,
       theme: "light",
@@ -71,19 +71,29 @@ describe("preferences storage", () => {
       previewFontSize: 18,
       previewTheme: "sepia",
       wordWrap: false,
-      showSnippetToolbar: false,
       showVariablesInspector: true,
     });
   });
 
-  it("round-trips a v4 record", () => {
-    const preferences = { ...DEFAULT_USER_PREFERENCES, showSnippetToolbar: false };
+  it("migrates a v4 record by dropping the removed snippet toolbar flag", () => {
+    storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...DEFAULT_USER_PREFERENCES,
+      schemaVersion: 4,
+      showSnippetToolbar: false,
+    }));
+
+    expect(loadUserPreferences(storage)).toEqual(DEFAULT_USER_PREFERENCES);
+    expect(loadUserPreferences(storage)).not.toHaveProperty("showSnippetToolbar");
+  });
+
+  it("round-trips a v5 record", () => {
+    const preferences = { ...DEFAULT_USER_PREFERENCES, wordWrap: false };
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
 
     expect(loadUserPreferences(storage)).toEqual(preferences);
   });
 
-  it("rejects a v4 record that is missing an inspector flag", () => {
+  it("rejects a v5 record that is missing an inspector flag", () => {
     const { showVariablesInspector: _omitted, ...incomplete } = DEFAULT_USER_PREFERENCES;
     storage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(incomplete));
 

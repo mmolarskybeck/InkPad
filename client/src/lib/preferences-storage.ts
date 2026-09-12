@@ -33,10 +33,6 @@ function migrateLegacySchema(candidate: Record<string, unknown>): UserPreference
     typeof candidate.wordWrap === "boolean"
       ? candidate.wordWrap
       : DEFAULT_USER_PREFERENCES.wordWrap;
-  const showSnippetToolbar =
-    typeof candidate.showSnippetToolbar === "boolean"
-      ? candidate.showSnippetToolbar
-      : DEFAULT_USER_PREFERENCES.showSnippetToolbar;
   const showVariablesInspector =
     typeof candidate.showVariablesInspector === "boolean"
       ? candidate.showVariablesInspector
@@ -49,7 +45,6 @@ function migrateLegacySchema(candidate: Record<string, unknown>): UserPreference
     previewFontSize,
     previewTheme,
     wordWrap,
-    showSnippetToolbar,
     showVariablesInspector,
   };
 }
@@ -62,6 +57,7 @@ function parsePreferences(value: unknown): UserPreferences | null {
     candidate.schemaVersion === 1
     || candidate.schemaVersion === 2
     || candidate.schemaVersion === 3
+    || candidate.schemaVersion === 4
   ) {
     return migrateLegacySchema(candidate);
   }
@@ -73,7 +69,6 @@ function parsePreferences(value: unknown): UserPreferences | null {
     || !PREVIEW_FONT_SIZES.has(candidate.previewFontSize as PreviewFontSize)
     || !PREVIEW_THEMES.has(candidate.previewTheme as PreviewThemePreference)
     || typeof candidate.wordWrap !== "boolean"
-    || typeof candidate.showSnippetToolbar !== "boolean"
     || typeof candidate.showVariablesInspector !== "boolean"
   ) {
     return null;

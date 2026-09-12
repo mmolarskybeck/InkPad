@@ -24,7 +24,7 @@ import {
   type MobileTab,
 } from "@/components/editor/editor-workspace";
 import { SnippetsPanel, type SnippetsPanelHandle } from "@/components/editor/snippets-panel";
-import { SnippetToolbar } from "@/components/editor/snippet-toolbar";
+import { InsertPalette } from "@/components/editor/insert-palette";
 import { CustomSnippetDialog } from "@/components/editor/custom-snippet-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,7 +61,7 @@ import { getDisplayTitleFromFilename, getFilename, replaceFilenameExtension } fr
 import { createInkDocumentId } from "@/lib/ink-document-id";
 import { cn } from "@/lib/utils";
 import { useStoryExport } from "@/features/export/useStoryExport";
-import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, PanelBottom, Trash2, X } from "lucide-react";
+import { AlertTriangle, Copy, File, FilePlus2, FileText, Lock, Trash2, X } from "lucide-react";
 import type { InkDocument } from "@/types/ink-document";
 import type { InkProject } from "@/types/ink-project";
 import type { StoredInkDocument } from "@/lib/file-operations";
@@ -453,6 +453,7 @@ export default function Editor() {
     open: false,
   });
   const [customSnippetToDelete, setCustomSnippetToDelete] = useState<CustomSnippet | null>(null);
+  const [insertPaletteOpen, setInsertPaletteOpen] = useState(false);
   // Desktop "focus mode": a collapsed panel switches the workspace to the simplified
   // tab layout shared with mobile. Cleared when the window narrows into true mobile.
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
@@ -1757,14 +1758,6 @@ export default function Editor() {
     />
   );
 
-  const snippetToolbar = !isMobile && preferences.showSnippetToolbar ? (
-    <SnippetToolbar
-      snippets={snippetLibrary.snippets}
-      onInsertSyntax={handleInsertSyntax}
-      onInsertSnippet={handleInsertSnippet}
-    />
-  ) : null;
-
   const editorPane = (
     <div className={`${isMobile ? "flex-col" : "flex-row"} flex h-full min-h-0 bg-editor-bg`}>
       {!isMobile && (
@@ -1813,23 +1806,19 @@ export default function Editor() {
             wordWrap={preferences.wordWrap}
             saveState={autosave.saveState}
             onRenameFile={(nextName) => handleInlineProjectFileRename(activeFileId, nextName)}
-            headerActions={(
-              <button
-                type="button"
-                onClick={() => updatePreferences({ showSnippetToolbar: !preferences.showSnippetToolbar })}
-                aria-pressed={preferences.showSnippetToolbar}
-                className="flex h-8 w-8 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis aria-pressed:text-accent-blue disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
-                aria-label="Toggle quick insert bar"
-                title="Quick insert bar"
-              >
-                <PanelBottom className="h-3.5 w-3.5" />
-              </button>
-            )}
+            headerActions={!isMobile ? (
+              <InsertPalette
+                snippets={snippetLibrary.snippets}
+                onInsertSyntax={handleInsertSyntax}
+                onInsertSnippet={handleInsertSnippet}
+                open={insertPaletteOpen}
+                onOpenChange={setInsertPaletteOpen}
+              />
+            ) : undefined}
             isPhone={isMobile}
             isVisible={!isMobile || mobileTab === "code"}
           />
         </div>
-        {snippetToolbar}
       </div>
     </div>
   );
