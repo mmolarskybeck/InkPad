@@ -2,6 +2,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import { flushSync } from "react-dom";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { AlertCircle, AlertTriangle, ArrowLeft, ChevronDown, Columns2, List, Plus, Redo2, RotateCcw, ScrollText, Search, Undo2, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -23,11 +24,14 @@ export type MobileTab = "code" | "preview";
 export type MobileDrawer = "problems" | "variables" | "snippets" | null;
 export type FocusedPanel = "code" | "preview" | null;
 export type DesktopDockTab = "problems" | "variables";
+export type DockMode = "split" | "tabbed";
 export type DockSidePanelTab = "variables";
 export type DesktopBottomPanelHandle = ImperativePanelHandle;
 
 const MOBILE_SNIPPET_TAP_MOVE_THRESHOLD = 12;
-const DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT = 44;
+// Height of the whole-dock collapsed strip (h-8) — kept in sync with that
+// class so the section's inline height never clips or gaps against it.
+const DESKTOP_BOTTOM_PANEL_COLLAPSED_HEIGHT = 32;
 const DESKTOP_BOTTOM_PANEL_DEFAULT_SIZE = 25;
 const DESKTOP_BOTTOM_PANEL_MIN_HEIGHT = 140;
 const DESKTOP_BOTTOM_PANEL_MAX_HEIGHT = 520;
@@ -35,8 +39,35 @@ const DESKTOP_BOTTOM_PANEL_COLLAPSE_SNAP_HEIGHT = 92;
 const DESKTOP_BOTTOM_PANEL_DRAG_THRESHOLD = 28;
 const DESKTOP_BOTTOM_PANEL_CLICK_DRAG_TOLERANCE = 4;
 const DESKTOP_MAIN_PANEL_MIN_HEIGHT = 220;
+const DOCK_MODE_KEY = "inkpad.dock.mode";
 const DOCK_TAB_TRIGGER_CLASSES = "relative h-full rounded-none px-4 text-[0.8125rem] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-text-emphasis data-[state=active]:after:bg-accent-blue";
-const DOCK_HIDE_BUTTON_CLASSES = "flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+const DOCK_HIDE_BUTTON_CLASSES = "flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue motion-reduce:transition-none";
+// Same visual language as DOCK_TAB_TRIGGER_CLASSES but for the plain buttons
+// in the whole-dock collapsed strip, which have no Radix active state.
+const DOCK_COLLAPSED_STRIP_BUTTON_CLASSES = "relative flex h-full items-center rounded-none px-4 text-[0.8125rem] font-medium text-text-secondary transition-colors hover:bg-accent hover:text-text-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-inset motion-reduce:transition-none";
+
+interface DockPaneHeaderProps {
+  icon: LucideIcon;
+  label: string;
+  count: number;
+  action?: ReactNode;
+}
+
+// Shared header shell for the Problems and Variables panes in the wide
+// (>=1100px) dock split, so the two panes are structurally identical. These
+// are plain labels, not tabs — the split view shows both panes at once.
+function DockPaneHeader({ icon: Icon, label, count, action }: DockPaneHeaderProps) {
+  return (
+    <div className="flex h-10 shrink-0 items-center justify-between border-b border-border-color bg-panel-bg pr-1">
+      <div className="flex h-10 items-center gap-2 px-4 text-[0.8125rem] font-medium text-text-emphasis">
+        <Icon className="h-3.5 w-3.5 text-accent-blue" aria-hidden="true" />
+        {label}
+        <span className="tabular-nums text-text-secondary">{count}</span>
+      </div>
+      {action}
+    </div>
+  );
+}
 
 function getFirstPlaceholderRange(text: string): CodeMirrorEditorInsertOptions["selectRange"] {
   const match = /\[[^\]\n]+\]/.exec(text);
@@ -82,7 +113,9 @@ interface EditorWorkspaceProps {
   mobileVariablesPane: ReactNode;
   problemCount: number;
   variableCount: number;
-  snippetToolbar?: ReactNode;
+  // No longer used to decide whether the variables pane renders — the dock
+  // now always shows it and lets the user collapse/expand it in place.
+  // Kept so existing callers (and Settings) don't need to change yet.
   showVariablesInspector: boolean;
   onHideSidePanelTab: (tab: DockSidePanelTab) => void;
   onCreateCustomSnippet?: () => void;
@@ -120,7 +153,6 @@ export function EditorWorkspace({
   mobileVariablesPane,
   problemCount,
   variableCount,
-  snippetToolbar,
   showVariablesInspector,
   onHideSidePanelTab,
   onCreateCustomSnippet,
@@ -165,13 +197,27 @@ export function EditorWorkspace({
   const [expandedSnippetId, setExpandedSnippetId] = useState<string | null>(null);
   const [desktopBottomPanelHeight, setDesktopBottomPanelHeight] = useState(280);
   const [isDesktopBottomPanelCollapsed, setIsDesktopBottomPanelCollapsed] = useState(false);
-  // The narrow (<1100px) dock folds Problems in with the inspectors, so it keeps
-  // its own tab state instead of sharing the side-panel one.
-  const [narrowDockTab, setNarrowDockTab] = useState<DesktopDockTab>("problems");
+  // Which pane is active in the tabbed dock layout (always used below 1100px,
+  // and above it whenever dockMode is "tabbed").
+  const [dockTab, setDockTab] = useState<DesktopDockTab>("problems");
+  // Whether the wide (>=1100px) dock shows Problems and Variables side by
+  // side or as tabs. Only matters at that width — below it the dock is
+  // always tabbed. Persisted so a reload keeps the user's choice.
+  const [dockMode, setDockMode] = useState<DockMode>(() => {
+    try {
+      return window.localStorage.getItem(DOCK_MODE_KEY) === "tabbed" ? "tabbed" : "split";
+    } catch {
+      return "split";
+    }
+  });
 
-  const narrowDockValue = narrowDockTab === "variables" && !showVariablesInspector
-    ? "problems"
-    : narrowDockTab;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DOCK_MODE_KEY, dockMode);
+    } catch {
+      // Ignore storage errors (private browsing, quota, disabled storage, etc).
+    }
+  }, [dockMode]);
 
   const handleResetSplit = useCallback(() => {
     editorPanelRef.current?.resize(50);
@@ -357,6 +403,21 @@ export function EditorWorkspace({
     }
 
     setIsDesktopBottomPanelCollapsed(collapsed => !collapsed);
+  }, []);
+
+  // Expands the whole-dock collapsed strip to a specific tab. The tab choice
+  // only visibly matters in the tabbed layout — in split mode both panes are
+  // already showing.
+  const handleExpandDesktopBottomPanelToTab = useCallback((tab: DesktopDockTab) => {
+    setIsDesktopBottomPanelCollapsed(false);
+    setDockTab(tab);
+  }, []);
+
+  // Closes one pane of the wide split view, switching the dock to tabbed
+  // mode with the other pane active.
+  const handleDockPaneClose = useCallback((pane: DesktopDockTab) => {
+    setDockMode("tabbed");
+    setDockTab(pane === "problems" ? "variables" : "problems");
   }, []);
 
   const handleFocusPanelChange = useCallback((panel: Exclude<FocusedPanel, null>) => {
@@ -660,10 +721,7 @@ export function EditorWorkspace({
                 minSize={20}
                 onCollapse={() => handleFocusPanelChange("preview")}
               >
-                <div className="flex h-full min-h-0 flex-col">
-                  <div className="min-h-0 flex-1">{editorPane}</div>
-                  {snippetToolbar}
-                </div>
+                {editorPane}
               </ResizablePanel>
               <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" onDoubleClick={handleResetSplit} />
               <ResizablePanel
@@ -743,19 +801,14 @@ export function EditorWorkspace({
                 </div>
               </div>
               <div className="min-h-0 flex-1">
-                {focusedPanel === "code" ? (
-                  <div className="flex h-full min-h-0 flex-col">
-                    <div className="min-h-0 flex-1">{editorPane}</div>
-                    {snippetToolbar}
-                  </div>
-                ) : previewPane}
+                {focusedPanel === "code" ? editorPane : previewPane}
               </div>
             </div>
           )}
         </div>
         <section
           aria-label="Problems and inspectors dock"
-          className="relative shrink-0 overflow-hidden border-t border-border-color bg-panel-bg"
+          className="relative shrink-0 overflow-hidden border-t border-border-color bg-panel-bg motion-reduce:transition-none"
           data-collapsed={isDesktopBottomPanelCollapsed}
           style={{
             height: isDesktopBottomPanelCollapsed
@@ -777,89 +830,114 @@ export function EditorWorkspace({
                 aria-expanded={!isDesktopBottomPanelCollapsed}
                 className="group absolute inset-x-0 -top-1.5 z-20 flex h-3 touch-none cursor-row-resize items-center justify-center bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg"
               >
-                <span className="h-px w-full bg-border-color transition-all group-hover:h-0.5 group-hover:bg-accent-blue group-focus-visible:h-0.5 group-focus-visible:bg-accent-blue" aria-hidden="true" />
+                <span className="h-px w-full bg-border-color transition-all group-hover:h-0.5 group-hover:bg-accent-blue group-focus-visible:h-0.5 group-focus-visible:bg-accent-blue motion-reduce:transition-none" aria-hidden="true" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">
               {isDesktopBottomPanelCollapsed ? "Drag or click to show details" : "Drag to resize; click to hide details"}
             </TooltipContent>
           </Tooltip>
-          <div className="hidden h-full min-[1100px]:block">
-            <ResizablePanelGroup direction="horizontal" className="h-full">
-              <ResizablePanel defaultSize={70} minSize={40}>
-                {problemsPane}
-              </ResizablePanel>
-              {showVariablesInspector && (
-                <>
-                  <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" />
-                  <ResizablePanel defaultSize={30} minSize={20}>
-                    <div className="flex h-full flex-col">
-                      <div className="flex h-10 shrink-0 items-center justify-between border-b border-border-color bg-panel-bg pr-1">
-                        <Tabs value="variables" className="h-full min-w-0">
-                          <TabsList className="flex h-full shrink-0 justify-start rounded-none bg-transparent p-0 text-text-secondary">
-                            <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
-                              <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                              Variables
-                              <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
-                            </TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                        <button
-                          type="button"
-                          onClick={() => onHideSidePanelTab("variables")}
-                          className={DOCK_HIDE_BUTTON_CLASSES}
-                          aria-label="Hide variables inspector"
-                          title="Hide (re-enable in Settings)"
-                        >
-                          <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                      <div className="min-h-0 flex-1">
-                        {compactVariablesPane}
-                      </div>
-                    </div>
-                  </ResizablePanel>
-                </>
-              )}
-            </ResizablePanelGroup>
-          </div>
-          <Tabs
-            value={narrowDockValue}
-            onValueChange={(value) => setNarrowDockTab(value as DesktopDockTab)}
-            className="flex h-full min-h-0 flex-col min-[1100px]:hidden"
-          >
-            <TabsList className="flex h-10 w-full shrink-0 justify-start rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
-              <TabsTrigger value="problems" className={DOCK_TAB_TRIGGER_CLASSES}>
-                <AlertCircle className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+          {isDesktopBottomPanelCollapsed ? (
+            <div className="flex h-8 items-stretch">
+              <button
+                type="button"
+                onClick={() => handleExpandDesktopBottomPanelToTab("problems")}
+                className={DOCK_COLLAPSED_STRIP_BUTTON_CLASSES}
+              >
+                <AlertCircle className="mr-2 h-3.5 w-3.5 text-accent-blue" aria-hidden="true" />
                 Problems
                 <span className="ml-2 tabular-nums text-text-secondary">{problemCount}</span>
-              </TabsTrigger>
-              {showVariablesInspector && (
-                <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
-                  <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
-                  Variables
-                  <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
-                </TabsTrigger>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExpandDesktopBottomPanelToTab("variables")}
+                className={DOCK_COLLAPSED_STRIP_BUTTON_CLASSES}
+              >
+                <List className="mr-2 h-3.5 w-3.5 text-accent-blue" aria-hidden="true" />
+                Variables
+                <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {dockMode === "split" && (
+                <div className="hidden h-full min-[1100px]:block">
+                  <ResizablePanelGroup direction="horizontal" className="h-full">
+                    <ResizablePanel
+                      defaultSize={70}
+                      minSize={12}
+                      collapsible
+                      collapsedSize={0}
+                      onCollapse={() => handleDockPaneClose("problems")}
+                    >
+                      <div className="flex h-full flex-col">
+                        <DockPaneHeader
+                          icon={AlertCircle}
+                          label="Problems"
+                          count={problemCount}
+                        />
+                        <div className="min-h-0 flex-1">
+                          {compactProblemsPane}
+                        </div>
+                      </div>
+                    </ResizablePanel>
+                    <ResizableHandle className="w-1 bg-border-color transition-colors hover:bg-accent-blue" />
+                    <ResizablePanel
+                      defaultSize={30}
+                      minSize={12}
+                      collapsible
+                      collapsedSize={0}
+                      onCollapse={() => handleDockPaneClose("variables")}
+                    >
+                      <div className="flex h-full flex-col">
+                        <DockPaneHeader
+                          icon={List}
+                          label="Variables"
+                          count={variableCount}
+                        />
+                        <div className="min-h-0 flex-1">
+                          {compactVariablesPane}
+                        </div>
+                      </div>
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                </div>
               )}
-              {narrowDockValue !== "problems" && (
-                <button
-                  type="button"
-                  onClick={() => onHideSidePanelTab(narrowDockValue)}
-                  className={`${DOCK_HIDE_BUTTON_CLASSES} ml-auto mr-1 self-center`}
-                  aria-label={`Hide ${narrowDockValue} inspector`}
-                  title="Hide (re-enable in Settings)"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              )}
-            </TabsList>
-            <TabsContent value="problems" className="m-0 min-h-0 flex-1">
-              {compactProblemsPane}
-            </TabsContent>
-            <TabsContent value="variables" className="m-0 min-h-0 flex-1">
-              {compactVariablesPane}
-            </TabsContent>
-          </Tabs>
+              <Tabs
+                value={dockTab}
+                onValueChange={(value) => setDockTab(value as DesktopDockTab)}
+                className={`flex h-full min-h-0 flex-col ${dockMode === "split" ? "min-[1100px]:hidden" : ""}`}
+              >
+                <TabsList className="flex h-10 w-full shrink-0 justify-start rounded-none border-b border-border-color bg-panel-bg p-0 text-text-secondary">
+                  <TabsTrigger value="problems" className={DOCK_TAB_TRIGGER_CLASSES}>
+                    <AlertCircle className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                    Problems
+                    <span className="ml-2 tabular-nums text-text-secondary">{problemCount}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="variables" className={DOCK_TAB_TRIGGER_CLASSES}>
+                    <List className="mr-2 h-3.5 w-3.5 text-accent-blue" />
+                    Variables
+                    <span className="ml-2 tabular-nums text-text-secondary">{variableCount}</span>
+                  </TabsTrigger>
+                  <button
+                    type="button"
+                    onClick={() => setDockMode("split")}
+                    className={`hidden min-[1100px]:flex ml-auto mr-1 self-center ${DOCK_HIDE_BUTTON_CLASSES}`}
+                    aria-label="Show side by side"
+                    title="Show side by side"
+                  >
+                    <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </TabsList>
+                <TabsContent value="problems" className="m-0 min-h-0 flex-1">
+                  {compactProblemsPane}
+                </TabsContent>
+                <TabsContent value="variables" className="m-0 min-h-0 flex-1">
+                  {compactVariablesPane}
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
         </section>
       </div>
     );

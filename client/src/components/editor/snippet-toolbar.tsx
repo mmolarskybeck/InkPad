@@ -1,6 +1,8 @@
 import { useRef, type KeyboardEvent } from "react";
+import { ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { SYNTAX_INSERTS } from "@/features/snippets/syntax-inserts";
-import type { InkSnippet } from "@/features/snippets/ink-snippets";
+import { groupSnippetsByCategory, type InkSnippet } from "@/features/snippets/ink-snippets";
 import type { CodeMirrorEditorInsertOptions } from "@/components/editor/codemirror-editor";
 
 export interface SnippetToolbarProps {
@@ -12,15 +14,16 @@ export interface SnippetToolbarProps {
 /** The handful of snippets worth a permanent button; the rest live in the pane. */
 export const TOOLBAR_PINNED_SNIPPET_IDS = [
   "choice",
-  "sticky-choice",
   "divert",
   "knot",
-  "stitch",
-  "var",
-  "conditional",
 ] as const;
 
-const BUTTON_CLASSES = "flex h-full min-w-9 shrink-0 items-center justify-center rounded border border-border-color bg-panel-bg px-2 text-[0.8125rem] font-medium text-text-emphasis transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+const SYNTAX_LABELS: Record<string, string> = {
+  "->": "Divert", "*": "Choice", "+": "Sticky choice", "~": "Logic",
+  "=": "Stitch", "===": "Knot", "{ }": "Expression",
+};
+
+const BUTTON_CLASSES = "flex h-full min-w-9 shrink-0 items-center justify-center rounded px-2 text-[0.8125rem] font-medium text-text-emphasis transition-colors motion-reduce:transition-none hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
 export function SnippetToolbar({
   snippets,
@@ -28,6 +31,7 @@ export function SnippetToolbar({
   onInsertSnippet,
 }: SnippetToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const pendingInsert = useRef<(() => void) | null>(null);
 
   const pinnedSnippets = TOOLBAR_PINNED_SNIPPET_IDS
     .map((id) => snippets.find((snippet) => snippet.id === id))
@@ -49,6 +53,7 @@ export function SnippetToolbar({
     event.preventDefault();
     const delta = event.key === "ArrowRight" ? 1 : -1;
     const nextIndex = (currentIndex + delta + buttons.length) % buttons.length;
+    buttons.forEach((button, index) => { button.tabIndex = index === nextIndex ? 0 : -1; });
     buttons[nextIndex]?.focus();
   };
 
@@ -64,25 +69,50 @@ export function SnippetToolbar({
       role="toolbar"
       aria-label="Quick inserts"
       onKeyDown={handleKeyDown}
-      className="flex h-10 shrink-0 items-stretch gap-1 border-t border-border-color bg-editor-bg px-1 py-1"
+      className="flex h-10 shrink-0 items-stretch gap-1 border-t border-border-color bg-panel-bg px-2 py-1"
     >
       <div className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
-        {SYNTAX_INSERTS.map((item, index) => (
-          <button
-            key={item.label}
-            type="button"
-            tabIndex={index === 0 ? 0 : -1}
-            onMouseDown={preventFocusLoss}
-            onClick={() => onInsertSyntax(item.insert)}
-            className={`${BUTTON_CLASSES} font-mono`}
-            aria-label={`Insert ${item.label}`}
-            title={`Insert ${item.label}`}
-          >
-            {item.label}
-          </button>
-        ))}
-
-        <div className="mx-0.5 w-px self-stretch bg-border-color" aria-hidden="true" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={`${BUTTON_CLASSES} gap-1.5`} aria-label="Insert menu" tabIndex={0}>
+              Insert <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="max-h-80 w-56 overflow-y-auto" onCloseAutoFocus={(event) => {
+            const insert = pendingInsert.current;
+            pendingInsert.current = null;
+            if (insert) {
+              event.preventDefault();
+              insert();
+            }
+          }}>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Syntax</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {SYNTAX_INSERTS.map((item) => (
+                  <DropdownMenuItem key={item.label} onSelect={() => { pendingInsert.current = () => onInsertSyntax(item.insert); }} aria-label={`Insert ${item.label}`}>
+                    <span className="w-8 font-mono text-text-primary">{item.label}</span>
+                    <span>{SYNTAX_LABELS[item.label]}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            {groupSnippetsByCategory(snippets).map((group) => (
+              <DropdownMenuSub key={group.category}>
+                <DropdownMenuSubTrigger>{group.category}</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 max-w-72 overflow-y-auto">
+                  {group.snippets.map((snippet) => (
+                    <DropdownMenuItem key={snippet.id} onSelect={() => { pendingInsert.current = () => onInsertSnippet(snippet); }} title={snippet.description}>
+                      {snippet.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="mx-1 my-1 w-px bg-border-color" aria-hidden="true" />
 
         {pinnedSnippets.map((snippet) => (
           <button

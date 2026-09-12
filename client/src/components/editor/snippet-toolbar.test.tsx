@@ -17,19 +17,23 @@ function renderToolbar(overrides: Partial<Parameters<typeof SnippetToolbar>[0]> 
 }
 
 describe("SnippetToolbar", () => {
-  it("renders every syntax insert button", () => {
+  it("keeps every syntax insert available in the menu", async () => {
     renderToolbar();
 
     expect(screen.getByRole("toolbar", { name: "Quick inserts" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Insert menu" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Syntax" }));
     for (const item of SYNTAX_INSERTS) {
-      expect(screen.getByRole("button", { name: `Insert ${item.label}` })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: `Insert ${item.label}` })).toBeInTheDocument();
     }
   });
 
   it("inserts the syntax literal when a syntax button is clicked", async () => {
     const { onInsertSyntax } = renderToolbar();
 
-    await userEvent.click(screen.getByRole("button", { name: "Insert *" }));
+    await userEvent.click(screen.getByRole("button", { name: "Insert menu" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Syntax" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Insert *" }));
 
     expect(onInsertSyntax).toHaveBeenCalledWith({ text: "* " });
   });
@@ -54,8 +58,8 @@ describe("SnippetToolbar", () => {
   it("moves focus with the arrow keys and keeps one tab stop", async () => {
     renderToolbar();
 
-    const first = screen.getByRole("button", { name: "Insert ->" });
-    const second = screen.getByRole("button", { name: "Insert *" });
+    const first = screen.getByRole("button", { name: "Insert menu" });
+    const second = screen.getByRole("button", { name: "Insert Choice snippet" });
     expect(first).toHaveAttribute("tabindex", "0");
     expect(second).toHaveAttribute("tabindex", "-1");
 

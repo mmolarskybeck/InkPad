@@ -123,7 +123,6 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
   };
 
   const renderRow = (snippet: InkSnippet) => {
-    const firstAlias = snippet.aliases[0];
     const isCustom = snippet.category === "Custom";
     const customSnippet = isCustom ? findCustomSnippet(snippet) : undefined;
 
@@ -133,16 +132,14 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
         data-snippet-row
         title={snippet.source === "library" ? snippet.description : snippet.desktopSnippet}
         onClick={() => onInsertSnippet(snippet)}
-        className="flex flex-1 min-w-0 items-start gap-2 px-3 py-1.5 text-left hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent-blue"
+        className="flex flex-1 min-w-0 items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-accent-blue"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="text-[0.8125rem] font-medium text-text-emphasis">{snippet.label}</span>
-            {firstAlias && (
-              <span className="font-mono text-[0.75rem] text-text-secondary">{firstAlias}</span>
-            )}
+
           </div>
-          <div className="line-clamp-1 text-[0.75rem] text-text-secondary">{snippet.description}</div>
+          <div className="mt-0.5 line-clamp-2 text-[0.75rem] leading-4 text-text-primary">{snippet.description}</div>
         </div>
       </button>
     );
@@ -204,7 +201,7 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
         </div>
       )}
 
-      <div className="shrink-0 border-b border-border-color p-2">
+      <div className="shrink-0 p-3 pb-2">
         <Input
           ref={searchInputRef}
           value={query}
@@ -212,13 +209,13 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
           onKeyDown={handleSearchKeyDown}
           placeholder="Search snippets…"
           aria-label="Search snippets"
-          className="h-8 text-[0.8125rem]"
+          className="h-8 border-border-color text-[0.8125rem] placeholder:text-text-primary"
         />
       </div>
 
       <div
         ref={bodyRef}
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="min-h-0 flex-1 overflow-y-auto px-1 pb-2"
         onKeyDown={handleListKeyDown}
       >
         {hasQuery ? (
@@ -239,10 +236,10 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
                     type="button"
                     aria-expanded={isExpanded}
                     onClick={() => toggleGroup(group.category)}
-                    className="flex w-full items-center gap-1.5 px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-wide text-text-secondary hover:bg-accent"
+                    className="mt-2 flex w-full items-center gap-1.5 rounded px-2 py-2 text-[0.75rem] font-medium text-text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue"
                   >
                     <ChevronRight
-                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform motion-reduce:transition-none ${isExpanded ? "rotate-90" : ""}`}
                       aria-hidden="true"
                     />
                     {group.category}
@@ -253,7 +250,7 @@ export const SnippetsPanel = forwardRef<SnippetsPanelHandle, SnippetsPanelProps>
             })}
             {showEmptyFooter && (
               <div className="border-t border-border-color p-3 text-[0.75rem] text-text-secondary">
-                Add your own snippets with New.
+                Use + to add your own snippets.
               </div>
             )}
           </>

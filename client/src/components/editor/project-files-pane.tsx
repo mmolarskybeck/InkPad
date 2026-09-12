@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Copy, FilePlus2, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
+import { Copy, FileText, Files, Lock, MoreHorizontal, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/ui/editable-title";
 import {
@@ -278,7 +278,7 @@ export function ProjectFilesPane({
           className={iconButtonClass}
           aria-label="New ink file"
         >
-          <FilePlus2 className="h-3.5 w-3.5" />
+          <Plus className="h-3.5 w-3.5" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">New ink file</TooltipContent>
@@ -308,10 +308,8 @@ export function ProjectFilesPane({
     { tab: "snippets", label: "Snippets", Icon: ScrollText },
   ];
 
-  const renderSidebarTabButton = (
-    { tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files },
-    options: { size: "sm" | "lg"; tooltipSide: "bottom" | "right"; expandOnClick?: boolean },
-  ) => {
+  /* Collapsed rail: icon-only buttons; clicking expands the pane to that tab. */
+  const renderRailTabButton = ({ tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files }) => {
     const isActive = sidebarTab === tab;
     return (
       <Tooltip key={tab}>
@@ -320,25 +318,45 @@ export function ProjectFilesPane({
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-pressed={isActive}
             aria-label={label}
-            title={label}
             onClick={() => {
               onSidebarTabChange(tab);
-              if (options.expandOnClick) onCollapsedChange(false);
+              onCollapsedChange(false);
             }}
             className={cn(
-              "flex items-center justify-center rounded text-text-secondary hover:bg-accent hover:text-text-emphasis",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:bg-accent hover:text-text-emphasis",
               "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-panel-bg",
-              options.size === "lg" ? "h-8 w-8" : "h-7 w-7",
               isActive && "bg-accent text-text-emphasis",
             )}
           >
-            <Icon className={options.size === "lg" ? "h-4 w-4" : "h-3.5 w-3.5"} aria-hidden="true" />
+            <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side={options.tooltipSide}>{label}</TooltipContent>
+        <TooltipContent side="right">{label}</TooltipContent>
       </Tooltip>
+    );
+  };
+
+  /* Expanded header: underline tabs, same vocabulary as the Problems/Variables dock. */
+  const renderHeaderTab = ({ tab, label, Icon }: { tab: SidebarTab; label: string; Icon: typeof Files }) => {
+    const isActive = sidebarTab === tab;
+    return (
+      <button
+        key={tab}
+        type="button"
+        role="tab"
+        aria-selected={isActive}
+        onClick={() => onSidebarTabChange(tab)}
+        className={cn(
+          "relative flex h-full shrink-0 items-center gap-1.5 px-2 text-[0.8125rem] font-medium text-text-secondary transition-colors duration-150 motion-reduce:transition-none hover:text-text-emphasis",
+          "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent after:transition-colors after:duration-150 motion-reduce:after:transition-none",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+          isActive && "text-text-emphasis after:bg-accent-blue",
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+        {label}
+      </button>
     );
   };
 
@@ -370,64 +388,17 @@ export function ProjectFilesPane({
       </Tooltip>
 
       {isCollapsed ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-1 px-1.5 py-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onCollapsedChange(false)}
-                className={cn(iconButtonClass, "h-8 w-8")}
-                aria-label="Show sidebar"
-                aria-expanded={false}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Show sidebar</TooltipContent>
-          </Tooltip>
-          <div role="tablist" aria-label="Sidebar" className="flex flex-col items-center gap-0.5">
-            {sidebarTabs.map((entry) => renderSidebarTabButton(entry, {
-              size: "lg",
-              tooltipSide: "right",
-              expandOnClick: true,
-            }))}
+        <div className="flex min-h-0 flex-1 flex-col items-center px-1.5 py-2">
+          <div role="tablist" aria-label="Sidebar" aria-orientation="vertical" className="flex flex-col items-center gap-0.5">
+            {sidebarTabs.map(renderRailTabButton)}
           </div>
         </div>
       ) : (
         <>
-          <div className="flex h-9 shrink-0 items-center justify-between pl-1.5 pr-2">
-            <div role="tablist" aria-label="Sidebar" className="flex items-center gap-0.5">
-              {sidebarTabs.map((entry) => renderSidebarTabButton(entry, {
-                size: "sm",
-                tooltipSide: "bottom",
-              }))}
+          <div className="flex h-11 shrink-0 items-center justify-between gap-1 border-b border-border-color pl-1 pr-1.5">
+            <div role="tablist" aria-label="Sidebar" className="flex h-full min-w-0 items-center">
+              {sidebarTabs.map(renderHeaderTab)}
             </div>
-            <div className={cn("flex items-center gap-0.5", revealOnHoverClass)}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onCollapsedChange(true)}
-                    className={iconButtonClass}
-                    aria-label="Hide sidebar"
-                    aria-expanded={true}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Hide sidebar</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          <div className="flex h-8 shrink-0 items-center justify-between pl-3 pr-2">
-            <span className="text-[0.6875rem] font-semibold uppercase leading-4 tracking-[0.06em] text-text-secondary">
-              {sidebarTab === "files" ? "Files" : "Snippets"}
-            </span>
             {sidebarTab === "files" ? newFileButton : newSnippetButton}
           </div>
 
@@ -463,7 +434,7 @@ export function ProjectFilesPane({
                       onOpenProjectFile(fileId);
                     }}
                     className={cn(
-                      "flex h-7 w-full min-w-0 cursor-pointer items-center gap-2 pl-3 pr-1.5 text-[0.8125rem] text-text-primary transition-colors duration-150 motion-reduce:transition-none",
+                      "flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 pl-3 pr-1.5 text-[0.8125rem] text-text-primary transition-colors duration-150 motion-reduce:transition-none",
                       "hover:bg-accent/60 hover:text-text-emphasis",
                       isActive && "bg-accent text-text-emphasis hover:bg-accent",
                     )}
