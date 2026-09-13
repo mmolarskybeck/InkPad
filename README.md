@@ -8,6 +8,8 @@ InkPad is local-first and runs entirely in the browser. No installation or accou
 
 > InkPad is an independent project and is not affiliated with or endorsed by Inkle Studios.
 
+[Learn more here](https://shadowbox.games/inkpad)
+
 ## Use InkPad
 
 Open the live web app:
